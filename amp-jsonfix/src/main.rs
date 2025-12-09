@@ -1,9 +1,8 @@
-use geo_types;
+use geo_types::LineString;
 use geojson::{FeatureReader, JsonValue};
 use serde::Serialize;
 use std::fs::read;
 use std::io::BufReader;
-use geo_types::LineString;
 
 //use nestify::nest;
 //Below struct is structure example for adresser.geojson
@@ -41,7 +40,7 @@ struct AdressClean {
 }
 
 #[derive(Serialize, Debug)]
-struct MiljöDataClean {
+struct MiljoeDataClean {
     coordinates: [[f64; 2]; 2], //start -> end (lat (x), long (y))
     //extra_info: String,
     info: String,
@@ -51,7 +50,7 @@ struct MiljöDataClean {
 
 fn main() {
     println!("{:?}", read_adresser());
-    println!("{:?}", read_miljöparkering())
+    println!("{:?}", read_miljoeparkering())
 }
 fn read_adresser(/*Path?*/) -> Vec<AdressClean> {
     let mut adr_vec = vec![];
@@ -66,7 +65,7 @@ fn read_adresser(/*Path?*/) -> Vec<AdressClean> {
             && feature.contains_property("adressomr")
             && feature.contains_property("adressplat")
         {
-            let mut postnummer = "".to_string();
+            let mut postnummer: String = Default::default();
             match feature.property("postnr") {
                 Some(feature) if feature.clone() == JsonValue::Null => {}
                 Some(feature) => {
@@ -112,9 +111,9 @@ fn read_adresser(/*Path?*/) -> Vec<AdressClean> {
     adr_vec
 }
 
-fn read_miljöparkering() -> Vec<MiljöDataClean>{
+fn read_miljoeparkering() -> Vec<MiljoeDataClean> {
     let mut miladr_vec = vec![];
-    let file = read("miljöparkering.geojson").expect("failed to read file");
+    let file = read("miljoeparkering.geojson").expect("failed to read file");
     let reader = BufReader::new(file.as_slice());
     let feature_reader = FeatureReader::from_reader(reader);
     for feature in feature_reader.features() {
@@ -158,7 +157,7 @@ fn read_miljöparkering() -> Vec<MiljöDataClean>{
             let start = c_init.iter().next().expect("failed to extract start");
             let end = c_init.iter().next().expect("failed to extract end");
             let coordinates = [[start.x(), start.y()], [end.x(), end.y()]];
-            let miladr = MiljöDataClean {
+            let miladr = MiljoeDataClean {
                 coordinates,
                 //extra_info,
                 info,
