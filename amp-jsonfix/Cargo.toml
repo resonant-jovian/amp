@@ -8,4 +8,4 @@ edition = "2024"
 #nestify = "0.3.3"
 geojson = "0.24.2"
 serde = { version = "1.0.228", features = ["derive"] }
-#geo-types = "0.7.18"
+geo-types = "0.7.18"

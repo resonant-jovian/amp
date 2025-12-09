@@ -1,8 +1,10 @@
-use geojson::{FeatureReader, JsonValue, Value};
-//use nestify::nest;
+use geojson::{FeatureReader, JsonValue};
 use serde::{Serialize};
 use std::fs::read;
 use std::io::BufReader;
+use geo_types;
+//use nestify::nest;
+//Below struct is structure example for adresser.geojson
 /*
 nest! {
     #[derive(Debug, Deserialize)]
@@ -10,7 +12,7 @@ nest! {
         r#type: String,
         geometry: #[derive(Debug, Deserialize)] struct Geometry {
             r#type: String,
-            coordinates: [f64; 2],
+            coordinates: geo_types::Point, //([f64; 2] with declared point feature)
         },
         properties: #[derive(Debug, Deserialize)] struct Properties {
             ogc_fid: usize,
@@ -29,45 +31,19 @@ nest! {
 */
 #[derive(Serialize, Debug)]
 struct AdressClean {
-    coordinates: Value,
+    coordinates: [f64; 2], //lat (x), long (y)
     postnummer: String,
     adress: String,
     gata: String,
-    gatunummer: String, //usize?
+    gatunummer: String, //usize? No, 9B ex.
 }
 
 fn main() {
-    /*
-    let feature_collection_string = r#"{
-     "type": "FeatureCollection",
-     "features": [
-         {
-           "type": "Feature",
-           "geometry": { "type": "Point", "coordinates": [125.6, 10.1] },
-           "properties": {
-             "name": "Dinagat Islands",
-             "age": 123
-           }
-         },
-         {
-           "type": "Feature",
-           "geometry": { "type": "Point", "coordinates": [2.3, 4.5] },
-           "properties": {
-             "name": "Neverland",
-             "age": 456
-           }
-         }
-     ]
-}"#
-    .as_bytes();
-    let io_reader = std::io::BufReader::new(feature_collection_string);
-     */
     let file = read("adresser.geojson").expect("failed to read file");
     let reader = BufReader::new(file.as_slice());
     let feature_reader = FeatureReader::from_reader(reader);
     for feature in feature_reader.features() {
         let feature = feature.expect("failed to iterate over valid geojson feature");
-        //println!("{:?}", feature);
         if feature.geometry.is_some()
             && feature.contains_property("postnr")
             && feature.contains_property("beladress")
@@ -85,7 +61,6 @@ fn main() {
                 }
                 None => {}
             }
-
             let adress = feature
                 .property("beladress")
                 .expect("failed to get adress property")
@@ -104,23 +79,18 @@ fn main() {
                 .as_str()
                 .expect("failed to turn gatunummer to &str")
                 .to_string();
-            let coordinates = feature
+            let c = feature
                 .geometry.expect("failed to extract geometry").value; //Extract coords
-            /*
-            println!("{:?}", coordinates);
-            println!("{}", postnummer);
-            println!("{}", adress);
-            println!("{}", gata);
-            println!("{}", gatunummer);
-             */
-            let adr: AdressClean = AdressClean {
+            let c_type: geo_types::Point = c.try_into().expect("failed to convert coordinates");
+            let coordinates = [c_type.x(), c_type.y()];
+            let _adr: AdressClean = AdressClean {
                 coordinates,
                 postnummer,
                 adress,
                 gata,
                 gatunummer,
             };
-            println!("{:?}", adr);
+            //println!("{:?}", adr);
         }
     }
 }
