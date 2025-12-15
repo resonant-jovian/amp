@@ -22,7 +22,7 @@ struct AdressExit {
 
 #[derive(GetFields, Debug, Default)]
 struct AdressInfo {
-    debug_closest_line_id: usize,
+    debug_closest_line_id: u16,
     coordinates: [f64; 2],
     postnummer: u16,
     adress: String,
