@@ -1,9 +1,10 @@
-use iced::widget::{button, column, container, row, scrollable, text_input};
+use iced::widget::{button, column, container, row, scrollable, text, text_input};
 use iced::Element;
-use rusty_math::knn::{KNNeighborsClassifier, KNNeighborsRegressor};
+//use rusty_math::knn::{KNNeighborsClassifier, KNNeighborsRegressor};
 use serde::Serialize;
 use std::fs::File;
 use std::io::Write;
+use get_fields::GetFields;
 
 #[derive(Default, Serialize)]
 struct AdressInit {
@@ -19,6 +20,20 @@ struct AdressExit {
     aktiv: bool,
 }
 
+#[derive(GetFields, Debug, Default)]
+struct AdressInfo {
+    debug_closest_line_id: usize,
+    coordinates: [f64; 2],
+    postnummer: u16,
+    adress: String,
+    gata: String,
+    gatunummer: String,
+    info: String,
+    tid: String,
+    dag: u8,
+}
+
+
 #[derive(Debug, Clone)]
 enum Message {
     GataChanged(String),
@@ -28,18 +43,12 @@ enum Message {
 }
 
 pub fn main() -> iced::Result {
-    knnc_eu();
-    knnc_min();
-    knnc_cos();
-    knnc_man();
-    knnr_eu();
-    knnr_min();
-    knnr_cos();
-    knnr_man();
-    iced::run("amp", update, view)
+    iced::run(update, view)
 }
 
 fn view(state: &AdressInit) -> Element<'_, Message> {
+    let index: Vec<&str>  = AdressInfo::get_fields.to_owned();
+    let holder = read_parquet();
     column![
         container(row![
             text_input("Gata", &state.gata).on_input(Message::GataChanged),
@@ -49,15 +58,20 @@ fn view(state: &AdressInit) -> Element<'_, Message> {
         ])
         .padding(10)
         .style(container::rounded_box),
-        container(scrollable(column![
-            //Parse stored addresses from JSON
 
-        ]))
+
+        container(scrollable(
+
+            text(holder.first().unwrap().adress.clone())
+
+        ))
+
         .padding(10)
         .style(container::rounded_box)
     ]
         .into()
 }
+
 
 fn update(state: &mut AdressInit, message: Message) {
     match message {
@@ -88,6 +102,13 @@ fn write_json(data: &mut AdressInit) -> std::io::Result<()> {
     file.write_all(json_data.as_bytes())?;
     Ok(())
 }
+
+fn read_parquet() -> Vec<AdressInfo> {
+
+    Default::default()
+}
+
+/*
 
 fn knnc_eu() { //-> Vec<i32>
     let mut knn = KNNeighborsClassifier::new(2, "euclidean".to_string(), None);
@@ -186,3 +207,5 @@ fn knnr_man() { //-> Vec<i32>
     println!("{:#?}", y);
     println!("{:#?}", params);
 }
+
+ */

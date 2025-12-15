@@ -1,9 +1,17 @@
+use arrow::array::{
+    Float64Array, Float64Builder, StringArray, StringBuilder, UInt8Array, UInt8Builder,
+    UInt16Array, UInt16Builder, UInt64Builder,
+};
+use arrow::datatypes::{DataType, Field, Schema};
+use arrow::record_batch::RecordBatch;
+use parquet::arrow::ArrowWriter;
+use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
+use parquet::file::properties::{EnabledStatistics, WriterProperties};
 use rayon::prelude::*;
+use std::collections::BTreeMap;
 use std::f64;
 use std::fs::File;
-use arrow::array::{Float64Array, StringArray, UInt16Array, UInt8Array};
-use arrow::record_batch::RecordBatch;
-use parquet::arrow::arrow_reader::{ParquetRecordBatchReaderBuilder};
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct AdressClean {
@@ -20,6 +28,18 @@ pub struct MiljoeDataClean {
     pub info: String,
     pub tid: String,
     pub dag: u8,
+}
+
+struct AdressInfo {
+    debug_closest_line_id: u64,
+    coordinates: [f64; 2],
+    postnummer: u16,
+    adress: String,
+    gata: String,
+    gatunummer: String,
+    info: String,
+    tid: String,
+    dag: u8,
 }
 
 fn main() {
@@ -40,7 +60,6 @@ fn main() {
         }
     }
 }
-
 
 /// Squared distance from point to line segment
 fn distance_point_to_line_squared(p: [f64; 2], a: [f64; 2], b: [f64; 2]) -> f64 {
@@ -86,17 +105,13 @@ pub fn find_closest_lines(
         .collect()
 }
 
-
-
 pub fn read_adresser() -> anyhow::Result<Vec<AdressClean>> {
     // Open the Parquet file
-    let file = File::open("adresser.parquet")
-        .expect("Failed to open adresser.parquet");
+    let file = File::open("adresser.parquet").expect("Failed to open adresser.parquet");
 
     // Build a reader that yields Arrow RecordBatches
-    let builder =
-        ParquetRecordBatchReaderBuilder::try_new(file)
-            .expect("Failed to create Parquet reader builder");
+    let builder = ParquetRecordBatchReaderBuilder::try_new(file)
+        .expect("Failed to create Parquet reader builder");
 
     let mut reader = builder
         .build()
@@ -147,10 +162,7 @@ pub fn read_adresser() -> anyhow::Result<Vec<AdressClean>> {
         // Convert each row in the batch into our struct
         for i in 0..batch.num_rows() {
             let entry = AdressClean {
-                coordinates: [
-                    lat.value(i),
-                    lon.value(i),
-                ],
+                coordinates: [lat.value(i), lon.value(i)],
                 postnummer: postnummer.value(i),
                 adress: adress.value(i).to_string(),
                 gata: gata.value(i).to_string(),
@@ -165,13 +177,11 @@ pub fn read_adresser() -> anyhow::Result<Vec<AdressClean>> {
 
 pub fn read_miljoeparkering() -> anyhow::Result<Vec<MiljoeDataClean>> {
     // Open the Parquet file
-    let file = File::open("miljöparkering.parquet")
-        .expect("Failed to open miljöparkering.parquet");
+    let file = File::open("miljöparkering.parquet").expect("Failed to open miljöparkering.parquet");
 
     // Build a Parquet reader
-    let builder =
-        ParquetRecordBatchReaderBuilder::try_new(file)
-            .expect("Failed to create Parquet reader builder");
+    let builder = ParquetRecordBatchReaderBuilder::try_new(file)
+        .expect("Failed to create Parquet reader builder");
 
     let mut reader = builder
         .build()
@@ -241,4 +251,82 @@ pub fn read_miljoeparkering() -> anyhow::Result<Vec<MiljoeDataClean>> {
     }
 
     Ok(result)
+}
+
+fn write_correlation(data: Vec<AdressInfo>) -> Option<String> {
+    if data.is_empty() {
+        return None;
+    }
+    // -------------------------------
+    // 1. Define schema
+    // -------------------------------
+    let schema = Arc::new(Schema::new(vec![
+        Field::new("postnummer", DataType::UInt16, false), // groups row groups
+        Field::new("gata", DataType::Utf8, false),         // becomes column chunk inside group
+        Field::new("adress", DataType::Utf8, false),       // page-level data
+        Field::new("gatunummer", DataType::Utf8, false),   // page-level data
+        Field::new("dag", DataType::UInt8, false),
+        Field::new("tid", DataType::Utf8, false),
+        Field::new("info", DataType::Utf8, false),
+        Field::new("lat", DataType::Float64, false),
+        Field::new("lon", DataType::Float64, false),
+        Field::new("debug_closest_line_id", DataType::Float64, false),
+    ]));
+
+    // --------------------------------------------------------------------
+    // 2. Group input by postal code → row groups
+    // --------------------------------------------------------------------
+    let mut grouped: BTreeMap<u16, Vec<AdressInfo>> = BTreeMap::new();
+
+    for d in data {
+        grouped.entry(d.postnummer).or_insert_with(Vec::new).push(d);
+    }
+
+    // -------------------------------
+    // 3. Parquet writer
+    // -------------------------------
+    let path = "adress_info.parquet".to_string();
+    let file = File::create(&path).ok()?;
+    let props = WriterProperties::builder()
+        .set_statistics_enabled(EnabledStatistics::None)
+        .build();
+    let mut writer = ArrowWriter::try_new(file, schema.clone(), Some(props)).ok()?;
+
+    // -------------------------------
+    // 4. Write each dag group as a row group
+    // -------------------------------
+    for (postnummer, rows) in grouped {
+        let mut post_builder = UInt16Builder::new();
+        let mut gata_builder = StringBuilder::new();
+        let mut adress_builder = StringBuilder::new();
+        let mut nr_builder = StringBuilder::new();
+        let mut dag_builder = UInt8Builder::new();
+        let mut tid_builder = StringBuilder::new();
+        let mut info_builder = StringBuilder::new();
+        let mut lat_builder = Float64Builder::new();
+        let mut lon_builder = Float64Builder::new();
+        let mut id_builder = UInt64Builder::new();
+
+        for r in rows {
+            post_builder.append_value(postnummer);
+            gata_builder.append_value(&r.gata);
+            adress_builder.append_value(&r.adress);
+            nr_builder.append_value(&r.gatunummer);
+            dag_builder.append_value(r.dag);
+            tid_builder.append_value(&r.tid);
+            info_builder.append_value(&r.info);
+            lat_builder.append_value(r.coordinates[0]);
+            lon_builder.append_value(r.coordinates[1]);
+            id_builder.append_value(r.debug_closest_line_id);
+        }
+
+        let batch =
+            RecordBatch::try_new(schema.clone(), vec![Arc::new(dag_builder.finish())]).ok()?;
+
+        writer.write(&batch).ok()?; // each write() = one row group
+    }
+
+    writer.close().ok()?;
+
+    Some(path)
 }

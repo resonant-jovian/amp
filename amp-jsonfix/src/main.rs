@@ -48,6 +48,7 @@ pub struct AdressClean {
 }
 
 #[derive(Serialize, Debug)]
+#[derive(Clone)]
 pub struct MiljoeDataClean {
     coordinates: [[f64; 2]; 2], //start -> end (lat (x), long (y))
     //extra_info: String,
@@ -210,14 +211,14 @@ pub fn write_adresser(data: Vec<AdressClean>) -> Option<String> {
     // 3. Set up Parquet writer
     // --------------------------------------------------------------------
     let path = "adresser.parquet".to_string();
-    let file = std::fs::File::create(&path).ok()?;
+    let file = std::fs::File::create(&path).expect("Failed to create file");
 
     let props = WriterProperties::builder()
         .set_statistics_enabled(EnabledStatistics::None)
         .set_max_row_group_size(1024 * 1024) // row group ≈1MB target (ignored since we force our own groups)
         .build();
 
-    let mut writer = ArrowWriter::try_new(file, schema.clone(), Some(props)).ok()?;
+    let mut writer = ArrowWriter::try_new(file, schema.clone(), Some(props)).expect("Failed to create Arrow writer");
 
     // --------------------------------------------------------------------
     // 4. Convert each postal code group into a row group
@@ -250,12 +251,12 @@ pub fn write_adresser(data: Vec<AdressClean>) -> Option<String> {
                 Arc::new(lon_builder.finish()),
             ],
         )
-        .ok()?;
+        .expect("Failed to create record batch");
 
-        writer.write(&batch).ok()?; // ← **each write() = one row group**
+        writer.write(&batch).expect("Failed to write batch"); // ← **each write() = one row group**
     }
 
-    writer.close().ok()?;
+    writer.close().expect("Failed to close writer");
     Some(path)
 }
 pub fn write_miljoeparkering(data: Vec<MiljoeDataClean>) -> Option<String> {
@@ -274,6 +275,7 @@ pub fn write_miljoeparkering(data: Vec<MiljoeDataClean>) -> Option<String> {
         Field::new("lon_start", DataType::Float64, false),
         Field::new("lat_end", DataType::Float64, false),
         Field::new("lon_end", DataType::Float64, false),
+        Field::new("id", DataType::UInt16, false),
     ]));
 
     // -------------------------------
@@ -288,15 +290,16 @@ pub fn write_miljoeparkering(data: Vec<MiljoeDataClean>) -> Option<String> {
     // 3. Parquet writer
     // -------------------------------
     let path = "miljöparkering.parquet".to_string();
-    let file = std::fs::File::create(&path).ok()?;
+    let file = std::fs::File::create(&path).expect("Failed to create file");
     let props = WriterProperties::builder()
         .set_statistics_enabled(EnabledStatistics::None)
         .build();
-    let mut writer = ArrowWriter::try_new(file, schema.clone(), Some(props)).ok()?;
+    let mut writer = ArrowWriter::try_new(file, schema.clone(), Some(props)).expect("Failed to create Arrow writer");
 
     // -------------------------------
     // 4. Write each dag group as a row group
     // -------------------------------
+    let mut i: u16 = 1;
     for (dag, rows) in grouped {
         let mut dag_builder = UInt8Builder::new();
         let mut tid_builder = StringBuilder::new();
@@ -305,6 +308,7 @@ pub fn write_miljoeparkering(data: Vec<MiljoeDataClean>) -> Option<String> {
         let mut lon_start_builder = Float64Builder::new();
         let mut lat_end_builder = Float64Builder::new();
         let mut lon_end_builder = Float64Builder::new();
+        let mut id_builder = UInt16Builder::new();
 
         for r in rows {
             dag_builder.append_value(dag);
@@ -314,6 +318,8 @@ pub fn write_miljoeparkering(data: Vec<MiljoeDataClean>) -> Option<String> {
             lon_start_builder.append_value(r.coordinates[0][1]);
             lat_end_builder.append_value(r.coordinates[1][0]);
             lon_end_builder.append_value(r.coordinates[1][1]);
+            id_builder.append_value(i);
+            i += 1;
         }
 
         let batch = RecordBatch::try_new(
@@ -326,13 +332,14 @@ pub fn write_miljoeparkering(data: Vec<MiljoeDataClean>) -> Option<String> {
                 Arc::new(lon_start_builder.finish()),
                 Arc::new(lat_end_builder.finish()),
                 Arc::new(lon_end_builder.finish()),
+                Arc::new(id_builder.finish()),
             ],
         )
-        .ok()?;
+        .expect("Failed to create RecordBatch");
 
-        writer.write(&batch).ok()?; // each write() = one row group
+        writer.write(&batch).expect("Failed to write batch"); // each write() = one row group
     }
 
-    writer.close().ok()?;
+    writer.close().expect("Failed to close writer");
     Some(path)
 }
