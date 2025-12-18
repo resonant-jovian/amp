@@ -186,24 +186,41 @@ impl Amp {
             Message::AddAddressButtonPressed => {
                 let mut new = self.input.clone();
                 new.adress = format!("{} {}", new.gata.trim(), new.gatunummer.trim());
+                if new.postnummer == "".to_string() {
+                    self.local.push(Local {
+                        active: new.active,
+                        debug_closest_line_id: new.debug_closest_line_id,
+                        debug_distance: new.debug_distance,
+                        coordinates: new.coordinates,
+                        postnummer: 0,
+                        adress: new.adress,
+                        gata: new.gata,
+                        gatunummer: new.gatunummer,
+                        info: new.info,
+                        tid: new.tid,
+                        dag: new.dag,
+                    });
+                }
+                else {
+                    self.local.push(Local {
+                        active: new.active,
+                        debug_closest_line_id: new.debug_closest_line_id,
+                        debug_distance: new.debug_distance,
+                        coordinates: new.coordinates,
+                        postnummer: new
+                            .postnummer
+                            .trim()
+                            .parse::<u16>()
+                            .expect("Failed to parse postnummer"),
+                        adress: new.adress,
+                        gata: new.gata,
+                        gatunummer: new.gatunummer,
+                        info: new.info,
+                        tid: new.tid,
+                        dag: new.dag,
+                    });
+                }
 
-                self.local.push(Local {
-                    active: new.active,
-                    debug_closest_line_id: new.debug_closest_line_id,
-                    debug_distance: new.debug_distance,
-                    coordinates: new.coordinates,
-                    postnummer: new
-                        .postnummer
-                        .trim()
-                        .parse::<u16>()
-                        .expect("Failed to parse postnummer"),
-                    adress: new.adress,
-                    gata: new.gata,
-                    gatunummer: new.gatunummer,
-                    info: new.info,
-                    tid: new.tid,
-                    dag: new.dag,
-                });
 
                 self.local.sort_by_key(|l| l.postnummer);
 
