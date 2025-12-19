@@ -221,17 +221,24 @@ fn render_bucket<'a>(
             .unwrap_or_else(|| ". . .".to_string());
 
         row![
-            text(&local.adress).width(Length::Fill),
-            text(time_text).width(Length::Shrink),
+            container(text(&local.adress)).padding(5).width(Length::Fill),
+            container(text(time_text)).padding(5).width(Length::Shrink).style(container::dark),
         ]
         .spacing(20)
         .into()
     });
 
-    container(column![text(title).size(18), column(content).spacing(8),])
-        .padding(8)
-        .style(container::transparent)
-        .into()
+    container(column![
+        container(column![
+            container(text(title).size(24)).padding(5).width(Length::Fill),
+            container(column(content).spacing(8)).padding(5).width(Length::Fill)
+        ])
+        .padding(5)
+        .style(container::bordered_box),
+    ])
+    .padding(8).width(Length::Fill)
+    .style(container::transparent)
+    .into()
 }
 
 fn parse_tid_interval(tid: &str) -> Option<(NaiveTime, NaiveTime)> {
@@ -485,7 +492,7 @@ impl Amp {
         ]
         .into();
 
-        container(column![
+        container(scrollable(column![
             container(column![
                 container(input_row)
                     .padding(5)
@@ -496,10 +503,10 @@ impl Amp {
             ])
             .padding(10)
             .style(container::rounded_box),
-            container(active_panel,)
+            container(scrollable(active_panel),)
                 .padding(10)
                 .style(container::rounded_box),
-        ])
+        ]))
         .into()
     }
 
@@ -517,170 +524,6 @@ impl Amp {
         )
     }
 }
-
-/*
-#[derive(Debug, Clone)]
-enum Message {
-    GataChanged(String),
-    GatunummerChanged(String),
-    PostnummerChanged(String),
-    AddAddressButtonPressed,
-
-    ToggleActive { index: usize, value: bool },
-}
-
-#[derive(Debug)]
-struct AppState {
-    input: Local,
-    locals: Vec<Local>,
-    adress_info: Vec<AdressInfo>,
-}
-pub fn main() -> iced::Result {
-    iced::run(update, view)
-}
-
-impl Default for AppState {
-    fn default() -> Self {
-        Self {
-            input: Local::default(),
-            locals: read_local_parquet().unwrap_or_default(),
-            adress_info: read_parquet().unwrap_or_default(),
-        }
-    }
-}
-
-fn matches(local: &Local, info: &AdressInfo) -> bool {
-    local.adress == info.adress && local.postnummer == info.postnummer
-}
-
-fn parse_tid_interval(tid: &str) -> Option<(NaiveTime, NaiveTime)> {
-    let parts: Vec<_> = tid.split('-').collect();
-    if parts.len() != 2 {
-        return None;
-    }
-
-    let parse_hm = |s: &str| -> Option<NaiveTime> {
-        let s = s.trim();
-        if s.len() != 4 { return None; }
-        let hour: u32 = s[0..2].parse().ok()?;
-        let minute: u32 = s[2..4].parse().ok()?;
-        NaiveTime::from_hms_opt(hour, minute, 0)
-    };
-
-    Some((parse_hm(parts[0])?, parse_hm(parts[1])?))
-}
-
-fn remaining_until_interval(dag: u8, tid: &str) -> Option<String> {
-    let (start, end) = parse_tid_interval(tid)?;
-
-    let today = ChronoLocal::now().date_naive();
-    let year = today.year();
-    let month = today.month();
-
-    // NaiveDate for the relevant day
-    let interval_date = NaiveDate::from_ymd_opt(year, month, dag.into())?;
-    let end_datetime = interval_date.and_time(end);
-
-    let now = ChronoLocal::now().naive_local();
-
-    if now < end_datetime {
-        let diff = end_datetime - now; // Duration
-        let days = diff.num_days();
-        let hours = diff.num_hours() % 24;
-        let minutes = diff.num_minutes() % 60;
-        Some(format!("{}d {:02}h {:02}m", days, hours, minutes))
-    } else {
-        Some("passed".to_string())
-    }
-}
-
-
-
-fn view(state: &AppState) -> Element<'_, Message> {
-    let adress_panel = state.locals.iter().enumerate().map(|(i, h)| {
-        row![
-            text(&h.adress),
-            horizontal(),
-            checkbox(h.active).on_toggle(move |value| Message::ToggleActive { index: i, value }),
-        ]
-        .padding(5)
-        .into()
-    });
-
-    let active_rows = state.locals.iter()
-        .filter(|l| l.active)
-        .map(|local| {
-            let time_text = state.adress_info
-                .iter()
-                .find(|info| matches(local, info))
-                .and_then(|info| remaining_until_interval(info.dag, &info.tid))
-                .unwrap_or_else(|| "—".to_string());
-
-            row![
-            text(&local.adress).width(Length::Fill),
-            text(time_text).width(Length::Shrink),
-        ]
-                .spacing(20)
-                .into()
-        });
-
-    let active_panel = container(column![
-        text("Active addresses").size(20),
-        column(active_rows).spacing(8),
-    ])
-    .padding(10)
-    .style(container::rounded_box);
-
-    container(column![
-        container(row![
-            text_input("Gata", &state.input.gata).on_input(Message::GataChanged),
-            text_input("Gatunummer", &state.input.gatunummer).on_input(Message::GatunummerChanged),
-            text_input("Postnummer", &state.input.postnummer.to_string())
-                .on_input(Message::PostnummerChanged),
-            button("+").on_press(Message::AddAddressButtonPressed),
-        ])
-        .padding(10),
-        container(scrollable(Column::from_iter(adress_panel))).padding(10),
-        active_panel
-    ])
-    .padding(10)
-    .into()
-}
-
-fn update(state: &mut AppState, message: Message) {
-    match message {
-        Message::ToggleActive { index, value } => {
-            if let Some(local) = state.locals.get_mut(index) {
-                if local.active != value {
-                    local.active = value;
-                    write_parquet(state.locals.clone());
-                }
-            }
-        }
-
-        Message::AddAddressButtonPressed => {
-            let mut new = state.input.clone();
-            new.adress = format!("{} {}", new.gata.trim(), new.gatunummer.trim());
-
-            state.locals.push(new);
-
-            // 🔑 Match Parquet read order
-            state.locals.sort_by_key(|l| l.postnummer);
-
-            write_parquet(state.locals.clone());
-        }
-
-        Message::GataChanged(v) => state.input.gata = v,
-        Message::GatunummerChanged(v) => state.input.gatunummer = v,
-        Message::PostnummerChanged(v) => {
-            if let Ok(p) = v.parse() {
-                state.input.postnummer = p;
-            }
-        }
-    }
-}
-
- */
 
 fn read_parquet() -> anyhow::Result<Vec<AdressInfo>> {
     // Open the Parquet file
