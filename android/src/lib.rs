@@ -11,16 +11,16 @@ lazy_static! {
     static ref APP_STATE: Mutex<AppState> = Mutex::new(AppState::new());
 }
 
-#[no_mangle]
-pub extern "C" fn Java_com_amp_MainActivity_initApp(
+#[unsafe(no_mangle)]
+pub extern "C" fn java_com_amp_main_activity_init_app(
     _env: JNIEnv,
     _class: JClass,
 ) -> jint {
     APP_STATE.lock().unwrap().count() as i32
 }
 
-#[no_mangle]
-pub extern "C" fn Java_com_amp_MainActivity_addAddress(
+#[unsafe(no_mangle)]
+pub extern "C" fn java_com_amp_main_activity_add_address(
     mut env: JNIEnv,
     _class: JClass,
     address_ptr: JString,
@@ -35,16 +35,16 @@ pub extern "C" fn Java_com_amp_MainActivity_addAddress(
     }
 }
 
-#[no_mangle]
-pub extern "C" fn Java_com_amp_MainActivity_getAddressCount(
+#[unsafe(no_mangle)]
+pub extern "C" fn java_com_amp_main_activity_get_address_count(
     _env: JNIEnv,
     _class: JClass,
 ) -> jint {
     APP_STATE.lock().unwrap().count() as i32
 }
 
-#[no_mangle]
-pub extern "C" fn Java_com_amp_MainActivity_clearAll(
+#[unsafe(no_mangle)]
+pub extern "C" fn java_com_amp_main_activity_clear_all(
     _env: JNIEnv,
     _class: JClass,
 ) -> jint {

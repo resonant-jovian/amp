@@ -113,7 +113,7 @@ impl CorrelationAnalyzer {
         let dominant_bin = bins
             .iter()
             .enumerate()
-            .max_by_key(|(_, &count)| count)
+            .max_by_key(|(_, count)| **count)
             .ok_or_else(|| AMPError::CorrelationFailed("Empty histogram".to_string()))?
             .0;
 
@@ -151,7 +151,7 @@ impl CorrelationAnalyzer {
         let dominant_idx = day_counts
             .iter()
             .enumerate()
-            .max_by_key(|(_, &count)| count)
+            .max_by_key(|(_, count)| **count)
             .map(|(idx, _)| idx)
             .unwrap_or(0);
 
@@ -172,7 +172,7 @@ impl CorrelationAnalyzer {
         let dominant_hour = hour_counts
             .iter()
             .enumerate()
-            .max_by_key(|(_, &count)| count)
+            .max_by_key(|(_, count)| **count)
             .map(|(hour, _)| hour)
             .unwrap_or(0);
 

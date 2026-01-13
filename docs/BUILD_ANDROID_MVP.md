@@ -87,11 +87,11 @@ typedef GetCountFunc = int Function();
 typedef ClearAllFunc = int Function();
 
 final initApp = nativeLib
-    .lookup<NativeFunction<Int32 Function()>>('Java_com_amp_MainActivity_initApp')
+    .lookup<NativeFunction<Int32 Function()>>('java_com_amp_main_activity_init_app')
     .asFunction<int Function()>();
 
 final addAddress = nativeLib
-    .lookup<NativeFunction<Int32 Function(Pointer<Utf8>)>>('Java_com_amp_MainActivity_addAddress')
+    .lookup<NativeFunction<Int32 Function(Pointer<Utf8>)>>('java_com_amp_main_activity_add_address')
     .asFunction<int Function(Pointer<Utf8>)>();
 
 // Usage

@@ -29,7 +29,7 @@ impl GeolocationService {
         }
 
         // For MVP: Return mock address
-        let address = format!("Street, Malmö");
+        let address = "Street, Malmö".to_string();
 
         {
             let mut cache = self.cache.write();
