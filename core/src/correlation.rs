@@ -1,5 +1,4 @@
 use crate::models::{AlertLevel, GpsCoordinate};
-use rust_decimal::Decimal;
 use std::collections::HashMap;
 
 /// Analyzes cleaning schedule patterns and finds matches
@@ -17,7 +16,7 @@ impl CorrelationAnalyzer {
     /// Find matching cleaning schedules for a coordinate
     pub fn find_matches(
         &mut self,
-        coordinate: GpsCoordinate,
+        _coordinate: GpsCoordinate,
         all_schedules: &[(&str, i32)], // (street_name, days_until)
     ) -> Vec<(String, AlertLevel, f64)> {
         all_schedules

@@ -10,7 +10,6 @@ pub struct AppState {
     sync_timestamp: Arc<RwLock<Option<String>>>,
 }
 
-#[derive(Serialize, Deserialize)]
 pub struct AppStateSnapshot {
     pub addresses: Vec<Address>,
     pub last_sync: Option<String>,
@@ -97,7 +96,7 @@ mod tests {
             id: "1".to_string(),
             name: "Home".to_string(),
             street: "Storgatan 1".to_string(),
-            coordinates: Some((55.6050, 13.0038)),
+            coordinates: Some("55.6050, 13.0038".to_string()),
             active: true,
         };
 

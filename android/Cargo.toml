@@ -1,5 +1,5 @@
 [package]
-name = "amp"
+name = "amp-android"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -8,7 +8,6 @@ license.workspace = true
 [dependencies]
 amp-core = { path = "../core" }
 dioxus.workspace = true
-dioxus-router.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 rust_decimal.workspace = true
@@ -21,4 +20,3 @@ web = ["dioxus/web"]
 [[bin]]
 name = "amp"
 path = "src/main.rs"
-
