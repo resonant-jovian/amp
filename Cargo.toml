@@ -22,5 +22,3 @@ dioxus = { version = "0.7.2", features = ["desktop", "router"] }
 dioxus-router = "0.7.2"
 arrow = { version = "57.2" }
 parquet = "57.2"
-dioxus-logger = "0.7.2"
-dioxus-primitives = { git = "https://github.com/DioxusLabs/components", version = "0.0.1", default-features = false }
