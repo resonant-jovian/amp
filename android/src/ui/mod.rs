@@ -475,15 +475,13 @@ const CSS: &str = r#"
         gap: 10px;
         flex-wrap: wrap;
         align-items: flex-end;
-        padding-right: 10px;
     }
 
     .input-group {
         display: flex;
         gap: 10px;
         flex: 1;
-        min-width: 300px;
-        margin-right: 10px;
+        min-width: 0;
     }
 
     .input-group input {
@@ -537,15 +535,15 @@ const CSS: &str = r#"
     }
 
     .btn-group {
-        role: group;
         display: flex;
         gap: 0;
-        width: 100%;
+        flex: 0.5;
     }
 
     .btn-group .btn {
         flex: 1;
         border-radius: 0;
+        min-width: 0;
     }
 
     .btn-group .btn:first-child {
@@ -802,18 +800,22 @@ const CSS: &str = r#"
     @media (max-width: 768px) {
         .input-section {
             flex-direction: column;
-            padding-right: 0;
         }
 
         .input-group {
             flex-direction: column;
-            min-width: 100%;
-            margin-right: 0;
             width: 100%;
+            order: 1;
         }
 
         .input-group input {
             width: 100%;
+        }
+
+        .btn-group {
+            flex: 1;
+            width: 100%;
+            order: 2;
         }
 
         .address-item {
