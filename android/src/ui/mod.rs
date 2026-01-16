@@ -1,6 +1,10 @@
 use dioxus::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use dioxus_primitives::switch::SwitchThumb;
+use dioxus_primitives::switch::Switch;
+
+pub mod components;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 struct Address {
@@ -20,6 +24,9 @@ enum Category {
     WithinMonth,
     NotValid,
 }
+
+static CSS: Asset = asset!("../ui/assets/style.css");
+static COMP: Asset = asset!("../ui/assets/dx-components-theme.css");
 
 #[component]
 pub fn App() -> Element {
@@ -171,9 +178,12 @@ pub fn App() -> Element {
     let categories = categorize_addresses(&addrs_read);
     drop(addrs_read); 
 
+    let mut checked = use_signal(|| false);
+
     rsx! {
-        style { {CSS} }
-        
+        Stylesheet { href: CSS }
+        Stylesheet { href: COMP }
+     
         div {
             class: "container",
             
@@ -208,13 +218,13 @@ pub fn App() -> Element {
                             button {
                                 class: "btn btn-add",
                                 onclick: add_address,
-                                "Lägg till Adress"
+                                "+ Adress"
                             }
                     
                             button {
                                 class: "btn btn-gps",
                                 onclick: add_gps,
-                                "Lägg till GPS Adress"
+                                "+ GPS"
                             }
                         }                    
                 }
@@ -224,7 +234,7 @@ pub fn App() -> Element {
             div {
                 class: "stored-addresses",
                 
-                div { class: "stored-addresses-title", "Stored Addresses" }
+                div { class: "stored-addresses-title", "Adresser" }
                 
                 div {
                     class: "address-list",
@@ -245,11 +255,15 @@ pub fn App() -> Element {
                                 div {
                                     class: "address-actions",
                                     
-                                    input {
-                                        r#type: "checkbox",
-                                        class: "checkbox-toggle",
-                                        checked: addr.active,
-                                        onchange: move |_| toggle_address(index),
+                                    div { class: "switch-example",
+                                        Switch {
+                                                checked: checked(),
+                                                aria_label: "Switch",
+                                                on_checked_change: move |new_checked| {
+                                                checked.set(new_checked);
+                                            },
+                                            SwitchThumb {}
+                                        }
                                     }
                                     
                                     button {
@@ -431,411 +445,3 @@ pub fn App() -> Element {
         }
     }
 }
-
-const CSS: &str = r#"
-    --font-family-mono: 'JetBrains Mono', monospace;
-
-    * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-    }
-
-    body {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        background-color: #f5f5f5;
-        color: #333;
-        padding: 20px;
-    }
-
-    .container {
-        max-width: 1200px;
-        margin: 0 auto;
-        background-color: white;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        overflow: hidden;
-    }
-
-    .top-bar {
-        background: linear-gradient(135deg, #9718ffff 0%, #df0000ff 100%);
-        color: white;
-        padding: 20px;
-    }
-
-    .app-title {
-        font-size: 32px;
-        font-weight: bold;
-        margin-bottom: 20px;
-        letter-spacing: 2px;
-    }
-
-    .input-section {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-        align-items: flex-end;
-    }
-
-    .input-group {
-        display: flex;
-        gap: 10px;
-        flex: 1;
-        min-width: 0;
-    }
-
-    .input-group input {
-        flex: 1;
-        padding: 10px 12px;
-        border: none;
-        border-radius: 4px;
-        font-size: 14px;
-        min-width: 0;
-    }
-
-    #streetInput {
-        flex: 2;
-    }
-
-    #postalInput {
-        flex: 1;
-    }
-
-    .btn {
-        padding: 10px 16px;
-        border: none;
-        border-radius: 4px;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        white-space: nowrap;
-    }
-
-    .btn-add {
-        background-color: #ffffff5d;
-        color: white;
-    }
-
-    .btn-add:hover {
-        background-color: #ffffff8c;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    }
-
-    .btn-gps {
-        background-color: #ffffff5d;
-        color: white;
-    }
-
-    .btn-gps:hover {
-        background-color: #ffffff8c;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    }
-
-    .btn-group {
-        display: flex;
-        gap: 0;
-        flex: 0.5;
-    }
-
-    .btn-group .btn {
-        flex: 1;
-        border-radius: 0;
-        min-width: 0;
-    }
-
-    .btn-group .btn:first-child {
-        border-radius: 4px 0 0 4px;
-    }
-
-    .btn-group .btn:last-child {
-        border-radius: 0 4px 4px 0;
-    }
-
-    .btn-group .btn:not(:last-child) {
-        border-right: 1px solid rgba(0, 0, 0, 0.15);
-    }
-
-    .stored-addresses {
-        padding: 20px;
-        border-bottom: 2px solid #eee;
-    }
-
-    .stored-addresses-title {
-        font-size: 18px;
-        font-weight: bold;
-        margin-bottom: 15px;
-        color: #333;
-    }
-
-    .address-list {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .address-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 12px;
-        background-color: #f9f9f9;
-        border-radius: 4px;
-        border-left: 4px solid #667eea;
-        transition: background-color 0.3s ease;
-    }
-
-    .address-item:hover {
-        background-color: #f0f0f0;
-    }
-
-    .address-text {
-        flex: 1;
-        font-size: 14px;
-    }
-
-    .address-actions {
-        display: flex;
-        gap: 10px;
-        align-items: center;
-    }
-
-    .checkbox-toggle {
-        width: 20px;
-        height: 20px;
-        cursor: pointer;
-    }
-
-    .btn-remove {
-        background-color: #f44336;
-        color: white;
-        padding: 6px 12px;
-        font-size: 12px;
-    }
-
-    .btn-remove:hover {
-        background-color: #da190b;
-    }
-
-    .categories-section {
-        padding: 20px;
-    }
-
-    .category-container {
-        margin-bottom: 20px;
-        border-radius: 6px;
-        overflow: hidden;
-        border: 3px solid;
-        background-color: #fafafa;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    }
-
-    .category-title {
-        padding: 12px 16px;
-        font-weight: bold;
-        font-size: 16px;
-        color: white;
-    }
-
-    .category-content {
-        padding: 16px;
-        min-height: 60px;
-    }
-
-    .category-active {
-        border-color: #f32c25ff;
-        background-color: #f1f8f4;
-    }
-
-    .category-active .category-title {
-        background-color: #f32c25ff;
-    }
-
-    .category-6h {
-        border-color: #FF9800;
-        background-color: #fff3e0;
-    }
-
-    .category-6h .category-title {
-        background-color: #FF9800;
-    }
-
-    .category-24h {
-        border-color: #2196F3;
-        background-color: #e3f2fd;
-    }
-
-    .category-24h .category-title {
-        background-color: #2196F3;
-    }
-
-    .category-month {
-        border-color: #9C27B0;
-        background-color: #f3e5f5;
-    }
-
-    .category-month .category-title {
-        background-color: #9C27B0;
-    }
-
-    .category-invalid {
-        border-color: #757575;
-        background-color: #eeeeee;
-    }
-
-    .category-invalid .category-title {
-        background-color: #757575;
-    }
-
-    .address-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px 0;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-        font-size: 14px;
-    }
-
-    .address-row:last-child {
-        border-bottom: none;
-    }
-
-    .address-row-left {
-        flex: 1;
-        text-align: left;
-    }
-
-    .address-row-right {
-        flex: 0 0 auto;
-        text-align: right;
-        font-family: 'Courier New', monospace;
-        font-weight: 600;
-        color: #667eea;
-    }
-
-    .empty-message {
-        text-align: center;
-        color: #999;
-        padding: 20px;
-        font-size: 14px;
-    }
-
-    .modal {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.5);
-        z-index: 1000;
-        justify-content: center;
-        align-items: center;
-    }
-
-    .modal.active {
-        display: flex;
-    }
-
-    .modal-content {
-        background-color: white;
-        padding: 30px;
-        border-radius: 8px;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-        text-align: center;
-        max-width: 400px;
-        animation: slideIn 0.3s ease;
-    }
-
-    @keyframes slideIn {
-        from {
-            transform: translateY(-20px);
-            opacity: 0;
-        }
-        to {
-            transform: translateY(0);
-            opacity: 1;
-        }
-    }
-
-    .modal-title {
-        font-size: 18px;
-        font-weight: bold;
-        margin-bottom: 10px;
-        color: #333;
-    }
-
-    .modal-text {
-        font-size: 14px;
-        color: #666;
-        margin-bottom: 20px;
-    }
-
-    .modal-buttons {
-        display: flex;
-        gap: 10px;
-        justify-content: center;
-    }
-
-    .btn-cancel {
-        background-color: #ddd;
-        color: #333;
-    }
-
-    .btn-cancel:hover {
-        background-color: #bbb;
-    }
-
-    .btn-confirm {
-        background-color: #f44336;
-        color: white;
-    }
-
-    .btn-confirm:hover {
-        background-color: #da190b;
-    }
-
-    @media (max-width: 768px) {
-        .input-section {
-            flex-direction: column;
-        }
-
-        .input-group {
-            flex-direction: column;
-            width: 100%;
-            order: 1;
-        }
-
-        .input-group input {
-            width: 100%;
-        }
-
-        .btn-group {
-            flex: 1;
-            width: 100%;
-            order: 2;
-        }
-
-        .address-item {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 10px;
-        }
-
-        .address-actions {
-            width: 100%;
-            justify-content: flex-end;
-        }
-
-        .address-row {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-
-        .address-row-right {
-            align-self: flex-end;
-        }
-    }
-"#;
