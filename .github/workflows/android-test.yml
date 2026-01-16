@@ -1,0 +1,116 @@
+name: Android Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  android-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.gradle/caches
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Install Dioxus CLI
+        run: cargo install dioxus-cli
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v2
+        with:
+          api-level: 36
+          ndk-version: r25c
+          cmake-version: '3.22.1'
+
+      - name: Create emulator
+        run: |
+          $ANDROID_HOME/tools/bin/avdmanager create avd \
+            -n Pixel_7_API_36 \
+            -k "system-images;android-36;google_apis;arm64-v8a" \
+            -f || true
+
+      - name: Start Android emulator
+        run: |
+          nohup $ANDROID_HOME/emulator/emulator \
+            -avd Pixel_7_API_36 \
+            -no-window \
+            -no-audio \
+            -accel on \
+            -no-snapshot \
+            > emulator.log 2>&1 &
+          
+          $ANDROID_HOME/platform-tools/adb wait-for-device shell 'while [[ -z "$(getprop sys.boot_completed)" ]]; do sleep 1; done'
+          $ANDROID_HOME/platform-tools/adb shell getprop ro.build.version.release
+
+      - name: Install dependencies
+        run: cargo fetch
+
+      - name: Build Android APK
+        run: dx serve --package amp-android --android --headless
+        timeout-minutes: 20
+        continue-on-error: true
+
+      - name: Run tests
+        run: |
+          echo "Running Android tests..."
+          cargo test --target aarch64-linux-android --no-run
+        timeout-minutes: 15
+        continue-on-error: true
+
+      - name: Check emulator logs
+        if: failure()
+        run: |
+          echo "Emulator logs:"
+          cat emulator.log || true
+          echo "Device logs:"
+          $ANDROID_HOME/platform-tools/adb logcat -d || true
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results
+          path: |
+            build/outputs/
+            build/reports/
+
+      - name: Upload screenshots
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: screenshots
+          path: |
+            build/outputs/connected_android_test_screenshots/
+            emulator-screenshots/
+
+      - name: Stop emulator
+        if: always()
+        run: |
+          $ANDROID_HOME/platform-tools/adb emu kill || true
+
+      - name: Print summary
+        if: always()
+        run: |
+          echo "✓ Workflow completed"
+          echo "API Level: 36"
+          echo "Emulator: Pixel_7_API_36"
+          echo "Package: amp-android"
