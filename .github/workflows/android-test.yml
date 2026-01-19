@@ -12,7 +12,7 @@ on:
 jobs:
   android-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 50
     
     steps:
       - name: Checkout code
@@ -41,17 +41,55 @@ jobs:
           ndk-version: r25c
           cmake-version: '3.22.1'
 
-      - name: Create emulator
+      - name: Verify Android SDK setup
         run: |
-          $ANDROID_HOME/tools/bin/avdmanager create avd \
+          echo "ANDROID_HOME: $ANDROID_HOME"
+          echo "SDK tools:"
+          ls -la $ANDROID_HOME/cmdline-tools/ || true
+          echo "Emulator:"
+          ls -la $ANDROID_HOME/emulator/emulator || true
+          echo "Platform tools:"
+          ls -la $ANDROID_HOME/platform-tools/adb || true
+
+      - name: Download system image
+        run: |
+          echo "Downloading Android 36 system image..."
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            --install "system-images;android-36;google_apis;arm64-v8a" \
+            --sdk_root=$ANDROID_HOME \
+            --verbose 2>&1 | head -50 || true
+          
+          echo "System image download status: $?"
+          echo "Available system images:"
+          ls -la $ANDROID_HOME/system-images/android-36/ 2>/dev/null || echo "No system images found"
+
+      - name: Create Android emulator
+        run: |
+          echo "Creating AVD Pixel_7_API_36..."
+          
+          # Use yes to automatically answer prompts
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/avdmanager create avd \
             -n Pixel_7_API_36 \
             -k "system-images;android-36;google_apis;arm64-v8a" \
-            -f || true
+            -d "pixel_7" \
+            -f \
+            2>&1 | tail -30 || true
+          
+          echo "AVD creation status: $?"
+          
+          # List created AVDs
+          echo "Available AVDs:"
+          $ANDROID_HOME/cmdline-tools/latest/bin/avdmanager list avd 2>&1 || true
 
       - name: Start Android emulator
-        timeout-minutes: 10
+        timeout-minutes: 15
         run: |
-          # Start emulator in background with minimal overhead
+          echo "Starting emulator..."
+          
+          # Create run directory for emulator
+          mkdir -p ~/.android/avd/Pixel_7_API_36.avd
+          
+          # Start emulator with verbose output
           $ANDROID_HOME/emulator/emulator \
             -avd Pixel_7_API_36 \
             -no-window \
@@ -65,44 +103,66 @@ jobs:
           EMULATOR_PID=$!
           echo "Emulator PID: $EMULATOR_PID"
           
-          # Give emulator initial boot time
-          echo "Waiting 20 seconds for emulator to initialize..."
-          sleep 20
-          
-          # Wait for device to appear (up to 3 minutes)
-          echo "Waiting for device..."
-          for i in {1..36}; do
-            if $ANDROID_HOME/platform-tools/adb devices | grep -q "device$"; then
-              echo "Device detected!"
+          # Wait for device to appear with polling
+          echo "Waiting for device to appear (timeout: 10 minutes)..."
+          DEVICE_FOUND=false
+          for i in {1..120}; do
+            if $ANDROID_HOME/platform-tools/adb devices | grep -q "Pixel_7_API_36.*device"; then
+              echo "✓ Device detected on attempt $i!"
+              DEVICE_FOUND=true
               break
             fi
-            echo "Attempt $i: Device not ready yet, waiting..."
+            if [ $((i % 10)) -eq 0 ]; then
+              echo "Attempt $i/120: Waiting for device..."
+            fi
             sleep 5
           done
           
-          # Wait for boot to complete (up to 3 minutes)
-          echo "Waiting for boot completion..."
-          for i in {1..36}; do
-            BOOT_STATUS=$($ANDROID_HOME/platform-tools/adb shell getprop sys.boot_completed 2>/dev/null || echo "0")
+          if [ "$DEVICE_FOUND" = false ]; then
+            echo "✗ Device not found after 10 minutes"
+            echo "=== Last 50 lines of emulator log ==="
+            tail -50 emulator.log || true
+            echo "=== ADB output ==="
+            $ANDROID_HOME/platform-tools/adb devices || true
+            exit 1
+          fi
+          
+          # Wait for boot to complete
+          echo "Waiting for boot completion (timeout: 10 minutes)..."
+          BOOT_COMPLETE=false
+          for i in {1..120}; do
+            BOOT_STATUS=$($ANDROID_HOME/platform-tools/adb shell getprop sys.boot_completed 2>/dev/null || echo "")
             if [ "$BOOT_STATUS" = "1" ]; then
-              echo "Boot completed!"
+              echo "✓ Boot completed on attempt $i!"
+              BOOT_COMPLETE=true
               break
             fi
-            echo "Attempt $i: Boot not complete, waiting..."
+            if [ $((i % 10)) -eq 0 ]; then
+              echo "Attempt $i/120: Boot progress..."
+            fi
             sleep 5
           done
           
-          # Display device info
-          echo "Device info:"
-          $ANDROID_HOME/platform-tools/adb devices || echo "Failed to get devices"
-          $ANDROID_HOME/platform-tools/adb shell getprop ro.build.version.release || echo "Failed to get version"
+          if [ "$BOOT_COMPLETE" = false ]; then
+            echo "✗ Boot not completed after 10 minutes"
+            echo "=== Last 50 lines of emulator log ==="
+            tail -50 emulator.log || true
+            exit 1
+          fi
+          
+          # Show device info
+          echo "=== Device Info ==="
+          $ANDROID_HOME/platform-tools/adb devices -l || true
+          $ANDROID_HOME/platform-tools/adb shell getprop ro.build.version.release || true
 
       - name: Install dependencies
         run: cargo fetch
 
       - name: Build Android APK
         timeout-minutes: 25
-        run: dx serve --package amp-android --android --release
+        run: |
+          echo "Building Android APK with Dioxus..."
+          dx serve --package amp-android --android --release
         continue-on-error: true
 
       - name: Run tests
@@ -115,11 +175,11 @@ jobs:
       - name: Check emulator logs
         if: failure()
         run: |
-          echo "=== Emulator logs ==="
+          echo "=== Emulator logs (last 100 lines) ==="
           tail -100 emulator.log || true
           echo "=== ADB devices ==="
           $ANDROID_HOME/platform-tools/adb devices || true
-          echo "=== Device logs ==="
+          echo "=== Device logcat (last 50 lines) ==="
           $ANDROID_HOME/platform-tools/adb logcat -d 2>/dev/null | tail -50 || true
 
       - name: Upload test artifacts
@@ -132,22 +192,21 @@ jobs:
             build/reports/
           if-no-files-found: ignore
 
-      - name: Upload screenshots
+      - name: Upload emulator logs
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: screenshots
-          path: |
-            build/outputs/connected_android_test_screenshots/
-            emulator-screenshots/
+          name: emulator-logs
+          path: emulator.log
           if-no-files-found: ignore
 
       - name: Stop emulator
         if: always()
         run: |
           echo "Stopping emulator..."
-          pkill -f "emulator.*Pixel_7_API_36" || true
-          sleep 5
+          pkill -9 -f "emulator.*Pixel_7_API_36" || true
+          pkill -9 -f "qemu-system" || true
+          sleep 2
 
       - name: Print summary
         if: always()
