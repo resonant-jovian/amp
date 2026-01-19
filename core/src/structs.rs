@@ -13,7 +13,6 @@ pub struct MiljoeDataClean {
     pub info: String,
     pub tid: String,
     pub dag: u8,
-    pub id: u16,
 }
 
 #[derive(Debug, Default)]

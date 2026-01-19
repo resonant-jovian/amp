@@ -1,0 +1,14 @@
+[application]
+name = "amp"
+publisher = "Skäggbyrån Malmö"
+version = "1.0.0"
+
+[bundle]
+icon = [
+    "assets/icon.png",              # 512x512 (main, also for Play Store)
+    "assets/icon-mdpi.png",         # 48x48
+    "assets/icon-hdpi.png",         # 72x72
+    "assets/icon-xhdpi.png",        # 96x96
+    "assets/icon-xxhdpi.png",       # 144x144
+    "assets/icon-xxxhdpi.png"       # 192x192
+]

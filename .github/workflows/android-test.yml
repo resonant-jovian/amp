@@ -45,8 +45,8 @@ jobs:
         timeout-minutes: 10
         run: |
           mkdir -p ~/.android/avd/Pixel_7_API_36.avd
-          echo "Installing system image..."
-          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "system-images;android-36;google_apis;arm64-v8a" 2>&1 | tail -5 || true
+          echo "Installing x86_64 system image (for GitHub Actions x86_64 runner)..."
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "system-images;android-36;google_apis;x86_64" 2>&1 | tail -5 || true
           echo "Creating AVD configuration..."
           printf '%s\n' \
             'path=/root/.android/avd/Pixel_7_API_36.avd' \
@@ -60,7 +60,7 @@ jobs:
             'hw.battery=yes' \
             'hw.camera.back=virtualscene' \
             'hw.camera.front=emulated' \
-            'hw.cpu.arch=arm64' \
+            'hw.cpu.arch=x86_64' \
             'hw.cpu.ncore=4' \
             'hw.device.hash2=d41d8cd98f00b204e9800998ecf8427e' \
             'hw.device.manufacturer=Google' \
@@ -72,13 +72,13 @@ jobs:
             'hw.lcd.height=2400' \
             'hw.lcd.width=1080' \
             'hw.mainKeys=no' \
-            'hw.ramSize=2048' \
+            'hw.ramSize=4096' \
             'hw.sensors.orientation=yes' \
             'hw.sensors.proximity=yes' \
             'hw.statusBar=yes' \
             'hw.touchScreen=yes' \
             'hw.useext4=yes' \
-            'image.sysdir.1=system-images/android-36/google_apis/arm64-v8a/' \
+            'image.sysdir.1=system-images/android-36/google_apis/x86_64/' \
             'runtime.network.latency=none' \
             'runtime.network.speed=full' \
             'showDeviceFrame=no' \
@@ -87,7 +87,6 @@ jobs:
             'vm.heapSize=512' \
             > ~/.android/avd/Pixel_7_API_36.avd/config.ini
           echo "✓ AVD created"
-          $ANDROID_HOME/cmdline-tools/latest/bin/avdmanager list avd 2>&1 | head -10 || true
 
       - name: Start Android emulator
         timeout-minutes: 15
@@ -163,5 +162,5 @@ jobs:
         if: always()
         run: |
           echo "✓ Workflow completed"
-          echo "Emulator: Pixel_7_API_36"
+          echo "Emulator: Pixel_7_API_36 (x86_64)"
           echo "Package: amp-android"
