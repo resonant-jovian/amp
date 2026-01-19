@@ -1,5 +1,5 @@
 [workspace]
-members = ["core", "android"]
+members = ["core", "android", "ios", "server"]
 resolver = "2"
 
 [workspace.package]
@@ -9,16 +9,8 @@ authors = ["Albin Sjögren <albin@malmo.skaggbyran.se>"]
 license = "GPL-3"
 
 [workspace.dependencies]
-tokio = { version = "1.49.0", features = ["full"] }
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
-tracing = "0.1.44"
-tracing-subscriber = { version = "0.3.22", features = ["json"] }
 rust_decimal = { version = "1.40.0", features = ["serde"] }
 jni = "0.21.1"
-thiserror = "2.0.17"
-parking_lot = "0.12.5"
 dioxus = { version = "0.7.2", features = ["desktop", "router"] }
-dioxus-router = "0.7.2"
 arrow = { version = "57.2" }
 parquet = "57.2"

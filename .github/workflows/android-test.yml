@@ -102,7 +102,7 @@ jobs:
 
       - name: Build Android APK
         timeout-minutes: 25
-        run: dx serve --package amp-android --android --headless
+        run: dx serve --package amp-android --android --release
         continue-on-error: true
 
       - name: Run tests
