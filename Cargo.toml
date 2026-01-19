@@ -10,7 +10,8 @@ license = "GPL-3"
 
 [workspace.dependencies]
 rust_decimal = { version = "1.40.0", features = ["serde"] }
-jni = "0.21.1"
 dioxus = { version = "0.7.2", features = ["desktop", "router"] }
 arrow = { version = "57.2" }
 parquet = "57.2"
+rayon = "1.11.0"
+nalgebra = "0.34.1"
