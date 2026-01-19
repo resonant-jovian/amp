@@ -12,7 +12,7 @@ on:
 jobs:
   android-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     
     steps:
       - name: Checkout code
@@ -49,40 +49,78 @@ jobs:
             -f || true
 
       - name: Start Android emulator
+        timeout-minutes: 10
         run: |
-          nohup $ANDROID_HOME/emulator/emulator \
+          # Start emulator in background with minimal overhead
+          $ANDROID_HOME/emulator/emulator \
             -avd Pixel_7_API_36 \
             -no-window \
             -no-audio \
             -accel on \
             -no-snapshot \
+            -no-boot-anim \
+            -verbose \
             > emulator.log 2>&1 &
           
-          $ANDROID_HOME/platform-tools/adb wait-for-device shell 'while [[ -z "$(getprop sys.boot_completed)" ]]; do sleep 1; done'
-          $ANDROID_HOME/platform-tools/adb shell getprop ro.build.version.release
+          EMULATOR_PID=$!
+          echo "Emulator PID: $EMULATOR_PID"
+          
+          # Give emulator initial boot time
+          echo "Waiting 20 seconds for emulator to initialize..."
+          sleep 20
+          
+          # Wait for device to appear (up to 3 minutes)
+          echo "Waiting for device..."
+          for i in {1..36}; do
+            if $ANDROID_HOME/platform-tools/adb devices | grep -q "device$"; then
+              echo "Device detected!"
+              break
+            fi
+            echo "Attempt $i: Device not ready yet, waiting..."
+            sleep 5
+          done
+          
+          # Wait for boot to complete (up to 3 minutes)
+          echo "Waiting for boot completion..."
+          for i in {1..36}; do
+            BOOT_STATUS=$($ANDROID_HOME/platform-tools/adb shell getprop sys.boot_completed 2>/dev/null || echo "0")
+            if [ "$BOOT_STATUS" = "1" ]; then
+              echo "Boot completed!"
+              break
+            fi
+            echo "Attempt $i: Boot not complete, waiting..."
+            sleep 5
+          done
+          
+          # Display device info
+          echo "Device info:"
+          $ANDROID_HOME/platform-tools/adb devices || echo "Failed to get devices"
+          $ANDROID_HOME/platform-tools/adb shell getprop ro.build.version.release || echo "Failed to get version"
 
       - name: Install dependencies
         run: cargo fetch
 
       - name: Build Android APK
+        timeout-minutes: 25
         run: dx serve --package amp-android --android --headless
-        timeout-minutes: 20
         continue-on-error: true
 
       - name: Run tests
+        timeout-minutes: 15
         run: |
           echo "Running Android tests..."
           cargo test --target aarch64-linux-android --no-run
-        timeout-minutes: 15
         continue-on-error: true
 
       - name: Check emulator logs
         if: failure()
         run: |
-          echo "Emulator logs:"
-          cat emulator.log || true
-          echo "Device logs:"
-          $ANDROID_HOME/platform-tools/adb logcat -d || true
+          echo "=== Emulator logs ==="
+          tail -100 emulator.log || true
+          echo "=== ADB devices ==="
+          $ANDROID_HOME/platform-tools/adb devices || true
+          echo "=== Device logs ==="
+          $ANDROID_HOME/platform-tools/adb logcat -d 2>/dev/null | tail -50 || true
 
       - name: Upload test artifacts
         if: always()
@@ -92,6 +130,7 @@ jobs:
           path: |
             build/outputs/
             build/reports/
+          if-no-files-found: ignore
 
       - name: Upload screenshots
         if: failure()
@@ -101,11 +140,14 @@ jobs:
           path: |
             build/outputs/connected_android_test_screenshots/
             emulator-screenshots/
+          if-no-files-found: ignore
 
       - name: Stop emulator
         if: always()
         run: |
-          $ANDROID_HOME/platform-tools/adb emu kill || true
+          echo "Stopping emulator..."
+          pkill -f "emulator.*Pixel_7_API_36" || true
+          sleep 5
 
       - name: Print summary
         if: always()
