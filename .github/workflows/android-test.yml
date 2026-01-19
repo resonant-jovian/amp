@@ -82,8 +82,6 @@ jobs:
             'runtime.network.latency=none' \
             'runtime.network.speed=full' \
             'showDeviceFrame=no' \
-            'skin.dynamic=yes' \
-            'skin.name=pixel_7' \
             'vm.heapSize=576' \
             > ~/.android/avd/Pixel_7_API_36.avd/config.ini
           echo "✓ AVD created"
@@ -100,6 +98,7 @@ jobs:
             -no-snapshot \
             -no-boot-anim \
             -verbose \
+            -no-metrics \
             > emulator.log 2>&1 &
           
           EMULATOR_PID=$!

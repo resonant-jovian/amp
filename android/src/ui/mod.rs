@@ -14,6 +14,9 @@ use std::time::{Duration, SystemTime};
 
 static CSS: Asset = asset!("/assets/style.css");
 
+static ADDRESS_DATA: Asset = asset!("/assets/data/adress_info.parquet");
+
+
 #[derive(Clone, Debug, PartialEq)]
 struct Address {
     street: String,
