@@ -152,6 +152,29 @@ jobs:
           echo "AVD created at: $AVD_PATH"
           ls -la "$AVD_PATH"
 
+      - name: Enable KVM group perms
+        timeout-minutes: 5
+        run: |
+          set -e
+          echo "Setting up KVM permissions for hardware acceleration..."
+          
+          # Create udev rule for KVM
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          
+          # Reload udev rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          
+          # Add runner user to kvm group
+          sudo usermod -a -G kvm runner
+          
+          # Load KVM kernel module
+          sudo modprobe kvm_intel
+          
+          echo "✓ KVM permissions configured"
+          ls -la /dev/kvm
+          id runner
+
       - name: Start Android emulator
         timeout-minutes: 25
         run: |
@@ -159,7 +182,7 @@ jobs:
           AVD_NAME="TestDevice"
           EMULATOR_LOG="$PWD/emulator.log"
           
-          echo "Starting emulator..."
+          echo "Starting emulator with KVM acceleration..."
           nohup "$ANDROID_HOME/emulator/emulator" \
             -avd "$AVD_NAME" \
             -no-window \
@@ -181,11 +204,12 @@ jobs:
           echo "Checking emulator process..."
           if ! kill -0 $EMULATOR_PID 2>/dev/null; then
             echo "ERROR: Emulator process died immediately!"
-            head -100 "$EMULATOR_LOG"
+            echo "First 150 lines of emulator log:"
+            head -150 "$EMULATOR_LOG"
             exit 1
           fi
           
-          echo "Waiting for adb to detect emulator..."
+          echo "Emulator process is alive, waiting for adb to detect it..."
           TIMEOUT=120
           CONNECTED=0
           
@@ -203,6 +227,7 @@ jobs:
             
             if ! kill -0 $EMULATOR_PID 2>/dev/null; then
               echo "ERROR: Emulator process died while waiting for adb!"
+              echo "Last 100 lines of emulator log:"
               tail -100 "$EMULATOR_LOG"
               exit 1
             fi
@@ -310,8 +335,8 @@ jobs:
           "$ANDROID_HOME/platform-tools/adb" devices -l || true
           
           echo ""
-          echo "=== Last 100 lines of emulator log ==="
-          tail -100 emulator.log || true
+          echo "=== Last 150 lines of emulator log ==="
+          tail -150 emulator.log || true
           
           echo ""
           echo "=== Device logcat (last 100 lines) ==="
@@ -320,6 +345,11 @@ jobs:
           echo ""
           echo "=== System boot properties ==="
           "$ANDROID_HOME/platform-tools/adb" shell getprop | grep -E "boot|init\.svc" || true
+          
+          echo ""
+          echo "=== KVM Status ==="
+          ls -la /dev/kvm || true
+          id runner || true
 
       - name: Upload build artifacts
         if: always()
@@ -359,7 +389,8 @@ jobs:
           echo "SDK API level: 33 or 34"
           echo "Architecture: x86_64"
           echo "Build tool: Dioxus CLI (dx)"
-          echo "Timeout: 90 minutes"
+          echo "Hardware acceleration: KVM enabled"
+          echo "Timeout: 120 minutes"
           echo ""
           echo "If tests failed, check artifacts:"
           echo "  - emulator-logs: emulator.log"
