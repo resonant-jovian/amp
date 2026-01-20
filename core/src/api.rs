@@ -1,123 +1,9 @@
-use geo_types::LineString;
-use geojson::{FeatureReader, JsonValue};
+use geojson::JsonValue;
 use geojson::{GeoJson, Value};
 use serde::{Deserialize, Serialize};
-use std::fs::read;
-use std::io::BufReader;
+use rust_decimal::Decimal;
 
 use crate::structs::{AdressClean, MiljoeDataClean};
-
-#[deprecated]
-pub fn read_adresser() -> Vec<AdressClean> {
-    let mut adr_vec = vec![];
-    let file = read("adresser.geojson").expect("failed to read file");
-    let reader = BufReader::new(file.as_slice());
-    let feature_reader = FeatureReader::from_reader(reader);
-    for feature in feature_reader.features() {
-        let feature = feature.expect("failed to iterate over valid geojson feature");
-        if feature.geometry.is_some()
-            && feature.contains_property("postnr")
-            && feature.contains_property("beladress")
-            && feature.contains_property("adressomr")
-            && feature.contains_property("adressplat")
-        {
-            let mut postnummer: u16 = Default::default();
-            match feature.property("postnr") {
-                Some(feature) if feature.clone() == JsonValue::Null => {}
-                Some(feature) => {
-                    postnummer = feature
-                        .as_str()
-                        .expect("failed to turn postnummer to &str")
-                        .replace(" ", "")
-                        .parse()
-                        .expect("failed to turn &str to u16");
-                }
-                None => {}
-            }
-            let adress = feature
-                .property("beladress")
-                .expect("failed to get adress property")
-                .as_str()
-                .expect("failed to turn adress to &str")
-                .to_string();
-            let gata = feature
-                .property("adressomr")
-                .expect("failed to get gata property")
-                .as_str()
-                .expect("failed to turn gata to &str")
-                .to_string();
-            let gatunummer = feature
-                .property("adressplat")
-                .expect("failed to get gatunummer property")
-                .as_str()
-                .expect("failed to turn gatunummer to &str")
-                .to_string();
-            let c = feature.geometry.expect("failed to extract geometry").value; //Extract coords
-            let c_type: geo_types::Point = c.try_into().expect("failed to convert coordinates");
-            let coordinates = [c_type.x(), c_type.y()];
-            let adr = AdressClean {
-                coordinates,
-                postnummer,
-                adress,
-                gata,
-                gatunummer,
-            };
-            adr_vec.push(adr);
-        }
-    }
-    adr_vec
-}
-
-#[deprecated]
-pub fn read_miljoeparkering() -> Vec<MiljoeDataClean> {
-    let mut miladr_vec = vec![];
-    let file = read("miljöparkering.geojson").expect("failed to read file");
-    let reader = BufReader::new(file.as_slice());
-    let feature_reader = FeatureReader::from_reader(reader);
-    for feature in feature_reader.features() {
-        let feature = feature.expect("failed to iterate over valid geojson feature");
-        if feature.geometry.is_some()
-            && feature.contains_property("value")
-            && feature.contains_property("copy_value")
-            && feature.contains_property("tiden")
-            && feature.contains_property("day")
-        {
-            let info = feature
-                .property("copy_value")
-                .expect("failed to get info property")
-                .as_str()
-                .expect("failed to turn info to &str")
-                .to_string();
-            let tid = feature
-                .property("tiden")
-                .expect("failed to get tid property")
-                .as_str()
-                .expect("failed to turn tid to &str")
-                .to_string();
-            let dag: u8 = feature
-                .property("day")
-                .expect("failed to get dag property")
-                .as_str()
-                .expect("failed to turn dag to &str")
-                .parse()
-                .expect("failed to turn &str to u8");
-            let c = feature.geometry.expect("failed to extract geometry").value; //Extract coords
-            let c_type: LineString = c.try_into().expect("failed to convert coordinates");
-            let c_init = c_type.into_points();
-            let start = c_init.iter().next().expect("failed to extract start");
-            let end = c_init.iter().next().expect("failed to extract end");
-            let coordinates = [[start.x(), start.y()], [end.x(), end.y()]];
-            let miladr = MiljoeDataClean {
-                coordinates,
-                info,
-                tid,
-                dag,
-            };
-            miladr_vec.push(miladr);
-        }
-    }
-    miladr_vec
-}
 
 /// ArcGIS Query Response
 #[derive(Debug, Deserialize)]
@@ -178,13 +64,16 @@ impl ArcGISClient {
     }
 
     /// Convert ArcGIS geometry to GeoJSON and extract point coordinates
-    fn extract_point_from_geojson(geometry: &JsonValue) -> Option<[f64; 2]> {
+    fn extract_point_from_geojson(geometry: &JsonValue) -> Option<[Decimal; 2]> {
         let geom_json = serde_json::to_string(geometry).ok()?;
         match geom_json.parse::<GeoJson>() {
             Ok(GeoJson::Geometry(geom)) => match geom.value {
                 Value::Point(coords) => {
                     if coords.len() >= 2 {
-                        Some([coords[0], coords[1]])
+                        // Parse f64 from GeoJSON, convert to Decimal with full precision
+                        let x = Decimal::from_f64_retain(coords[0]).unwrap_or_default();
+                        let y = Decimal::from_f64_retain(coords[1]).unwrap_or_default();
+                        Some([x, y])
                     } else {
                         None
                     }
@@ -196,23 +85,28 @@ impl ArcGISClient {
     }
 
     /// Convert ArcGIS geometry to GeoJSON and extract polygon bounding box
-    fn extract_polygon_from_geojson(geometry: &JsonValue) -> Option<[[f64; 2]; 2]> {
+    fn extract_polygon_from_geojson(geometry: &JsonValue) -> Option<[[Decimal; 2]; 2]> {
         let geom_json = serde_json::to_string(geometry).ok()?;
         match geom_json.parse::<GeoJson>() {
             Ok(GeoJson::Geometry(geom)) => {
                 match geom.value {
                     Value::Polygon(rings) => {
-                        if rings.is_empty() || rings.is_empty() {
+                        if rings.is_empty() || rings[0].is_empty() {
                             return None;
                         }
 
-                        let ring = &rings[0]; // ✅ Get FIRST ring from rings
-                        let first = &ring[0]; // ✅ Get first COORDINATE from that ring
-                        let last = &ring[ring.len() - 1]; // ✅ Get last COORDINATE
+                        let ring = &rings[0];
+                        let first = &ring[0];
+                        let last = &ring[ring.len() - 1];
+
+                        let first_x = Decimal::from_f64_retain(first[0]).unwrap_or_default();
+                        let first_y = Decimal::from_f64_retain(first[1]).unwrap_or_default();
+                        let last_x = Decimal::from_f64_retain(last[0]).unwrap_or_default();
+                        let last_y = Decimal::from_f64_retain(last[1]).unwrap_or_default();
 
                         Some([
-                            [first[0], first[1]], // ✅ Now index into coordinate [x, y]
-                            [last[0], last[1]],
+                            [first_x, first_y],
+                            [last_x, last_y],
                         ])
                     }
                     _ => None,

@@ -1,8 +1,7 @@
-use nalgebra::Vector2;
 use rayon::prelude::*;
-use rust_decimal::Decimal;
+use rust_decimal::{Decimal, MathematicalOps};
 use std::str::FromStr;
-
+use rust_decimal::prelude::ToPrimitive;
 use crate::structs::*;
 
 pub fn correlation(points: Vec<AdressClean>, lines: Vec<MiljoeDataClean>) -> Vec<AdressInfo> {

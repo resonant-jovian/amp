@@ -1,8 +1,9 @@
+use crate::structs::*;
 use anyhow;
 use arrow::{
     array::{
-        BooleanArray, BooleanBuilder, StringArray, StringBuilder,
-        UInt8Array, UInt8Builder, UInt16Array, UInt16Builder,
+        BooleanArray, BooleanBuilder, StringArray, StringBuilder, UInt8Array, UInt8Builder,
+        UInt16Array, UInt16Builder,
     },
     datatypes::{DataType, Field, Schema},
     record_batch::RecordBatch,
@@ -14,13 +15,9 @@ use parquet::{
 };
 use std::{collections::BTreeMap, fs::File, sync::Arc};
 
-use crate::structs::*;
-
 pub fn read_db_parquet() -> anyhow::Result<Vec<AdressInfo>> {
-    // Open the Parquet file
     let file = File::open("adress_info.parquet").expect("Failed to open adress_info.parquet");
 
-    // Build a Parquet reader
     let builder = ParquetRecordBatchReaderBuilder::try_new(file)
         .expect("Failed to create Parquet reader builder");
 
@@ -32,8 +29,7 @@ pub fn read_db_parquet() -> anyhow::Result<Vec<AdressInfo>> {
 
     while let Some(batch) = reader.next().transpose()? {
         let batch: RecordBatch = batch;
-
-        // Downcast each column to the correct type
+        
         let relevant = batch
             .column(batch.schema().index_of("relevant")?)
             .as_any()
@@ -102,10 +98,8 @@ pub fn read_db_parquet() -> anyhow::Result<Vec<AdressInfo>> {
 }
 
 pub fn read_local_parquet() -> anyhow::Result<Vec<Local>> {
-    // Open the Parquet file
     let file = File::open("local.parquet").expect("Failed to open local.parquet");
 
-    // Build a Parquet reader
     let builder = ParquetRecordBatchReaderBuilder::try_new(file)
         .expect("Failed to create Parquet reader builder");
 
@@ -185,36 +179,28 @@ pub fn read_local_parquet() -> anyhow::Result<Vec<Local>> {
     Ok(result)
 }
 
-pub fn write_local_parquet(data: Vec<Local>) -> Option<String> {
+pub fn write_local_parquet(data: Vec<Local>) -> anyhow::Result<()> {
     if data.is_empty() {
-        return None;
+        return Err::<(), anyhow::Error>(anyhow::anyhow!("Empty local parquet"));
     }
-    // -------------------------------
-    // 1. Define schema
-    // -------------------------------
+
     let schema = Arc::new(Schema::new(vec![
-        Field::new("postnummer", DataType::UInt16, false), // groups row groups
-        Field::new("gata", DataType::Utf8, false),         // becomes column chunk inside group
-        Field::new("adress", DataType::Utf8, false),       // page-level data
-        Field::new("gatunummer", DataType::Utf8, false),   // page-level data
+        Field::new("postnummer", DataType::UInt16, false),
+        Field::new("gata", DataType::Utf8, false),
+        Field::new("adress", DataType::Utf8, false),
+        Field::new("gatunummer", DataType::Utf8, false),
         Field::new("dag", DataType::UInt8, false),
         Field::new("tid", DataType::Utf8, false),
         Field::new("info", DataType::Utf8, false),
         Field::new("active", DataType::Boolean, false),
     ]));
 
-    // --------------------------------------------------------------------
-    // 2. Group input by postal code → row groups
-    // --------------------------------------------------------------------
     let mut grouped: BTreeMap<u16, Vec<Local>> = BTreeMap::new();
 
     for d in data {
         grouped.entry(d.postnummer).or_insert_with(Vec::new).push(d);
     }
 
-    // -------------------------------
-    // 3. Parquet writer
-    // -------------------------------
     let path = "local.parquet".to_string();
     let file = File::create(&path).expect("Failed to create file");
     let props = WriterProperties::builder()
@@ -223,9 +209,6 @@ pub fn write_local_parquet(data: Vec<Local>) -> Option<String> {
     let mut writer = ArrowWriter::try_new(file, schema.clone(), Some(props))
         .expect("Failed to create ArrowWriter");
 
-    // -------------------------------
-    // 4. Write each dag group as a row group
-    // -------------------------------
     for (postnummer, rows) in grouped {
         let mut post_builder = UInt16Builder::new();
         let mut gata_builder = StringBuilder::new();
@@ -262,10 +245,84 @@ pub fn write_local_parquet(data: Vec<Local>) -> Option<String> {
         )
         .expect("Failed to create record batch");
 
-        writer.write(&batch).expect("Failed to write batch"); // each write() = one row group
+        writer.write(&batch).expect("Failed to write batch");
     }
 
     writer.close().expect("Writer failed to close");
 
-    Some(path)
+    Ok(())
+}
+
+pub fn write_correlation(data: Vec<AdressInfo>) -> anyhow::Result<()> {
+    if data.is_empty() {
+        return Err::<(), anyhow::Error>(anyhow::anyhow!("Empty info parquet"));
+    }
+
+    let schema = Arc::new(Schema::new(vec![
+        Field::new("postnummer", DataType::UInt16, false),
+        Field::new("gata", DataType::Utf8, false),
+        Field::new("adress", DataType::Utf8, false),
+        Field::new("gatunummer", DataType::Utf8, false),
+        Field::new("dag", DataType::UInt8, false),
+        Field::new("tid", DataType::Utf8, false),
+        Field::new("info", DataType::Utf8, false),
+        Field::new("relevant", DataType::Boolean, false),
+    ]));
+
+    let mut grouped: BTreeMap<u16, Vec<AdressInfo>> = BTreeMap::new();
+
+    for d in data {
+        grouped.entry(d.postnummer).or_insert_with(Vec::new).push(d);
+    }
+
+    let path = "adress_info.parquet".to_string();
+    let file = File::create(&path).expect("Failed to create file");
+    let props = WriterProperties::builder()
+        .set_statistics_enabled(EnabledStatistics::None)
+        .build();
+    let mut writer = ArrowWriter::try_new(file, schema.clone(), Some(props))
+        .expect("Failed to create ArrowWriter");
+
+    for (postnummer, rows) in grouped {
+        let mut post_builder = UInt16Builder::new();
+        let mut gata_builder = StringBuilder::new();
+        let mut adress_builder = StringBuilder::new();
+        let mut nr_builder = StringBuilder::new();
+        let mut dag_builder = UInt8Builder::new();
+        let mut tid_builder = StringBuilder::new();
+        let mut info_builder = StringBuilder::new();
+        let mut relevant_builder = BooleanBuilder::new();
+
+        for r in rows {
+            post_builder.append_value(postnummer);
+            gata_builder.append_value(&r.gata);
+            adress_builder.append_value(&r.adress);
+            nr_builder.append_value(&r.gatunummer);
+            dag_builder.append_value(r.dag);
+            tid_builder.append_value(&r.tid);
+            info_builder.append_value(&r.info);
+            relevant_builder.append_value(r.relevant);
+        }
+
+        let batch = RecordBatch::try_new(
+            schema.clone(),
+            vec![
+                Arc::new(post_builder.finish()),
+                Arc::new(gata_builder.finish()),
+                Arc::new(adress_builder.finish()),
+                Arc::new(nr_builder.finish()),
+                Arc::new(dag_builder.finish()),
+                Arc::new(tid_builder.finish()),
+                Arc::new(info_builder.finish()),
+                Arc::new(relevant_builder.finish()),
+            ],
+        )
+        .expect("Failed to create record batch");
+
+        writer.write(&batch).expect("Failed to write batch");
+    }
+
+    writer.close().expect("Writer failed to close");
+
+    Ok(())
 }
