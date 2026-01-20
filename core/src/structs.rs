@@ -3,7 +3,7 @@ use rust_decimal::Decimal;
 #[derive(Debug, Default, Clone)]
 pub struct AdressClean {
     pub coordinates: [Decimal; 2],
-    pub postnummer: u16,
+    pub postnummer: String,
     pub adress: String,
     pub gata: String,
     pub gatunummer: String,
@@ -20,7 +20,7 @@ pub struct MiljoeDataClean {
 #[derive(Debug, Default)]
 pub struct AdressInfo {
     pub relevant: bool,
-    pub postnummer: u16,
+    pub postnummer: String,
     pub adress: String,
     pub gata: String,
     pub gatunummer: String,
@@ -32,7 +32,7 @@ pub struct AdressInfo {
 #[derive(Debug, Default, Clone)]
 pub struct Local {
     pub active: bool,
-    pub postnummer: u16,
+    pub postnummer: String,
     pub adress: String,
     pub gata: String,
     pub gatunummer: String,

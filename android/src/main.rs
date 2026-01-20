@@ -6,5 +6,5 @@ pub mod components;
 use ui::App;
 
 fn main() {
-    dioxus::launch(App);
+    launch(App);
 }

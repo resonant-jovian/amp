@@ -5,13 +5,6 @@ use rust_decimal::Decimal;
 
 use crate::structs::{AdressClean, MiljoeDataClean};
 
-#[derive(Debug, Deserialize)]
-pub struct ArcGISResponse {
-    pub features: Vec<ArcGISFeature>,
-    #[serde(default)]
-    pub exceeded_transfer_limit: bool,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ArcGISFeature {
     pub attributes: JsonValue,
@@ -20,6 +13,14 @@ pub struct ArcGISFeature {
 
 pub struct ArcGISClient {
     client: reqwest::Client,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ArcGISResponse {
+    pub features: Vec<ArcGISFeature>,
+
+    #[serde(default, rename = "exceededTransferLimit")]  // ← Add this rename
+    pub exceeded_transfer_limit: bool,
 }
 
 impl ArcGISClient {
@@ -44,7 +45,11 @@ impl ArcGISClient {
                 service_url, layer_id, result_offset, RESULT_RECORD_COUNT
             );
 
+            println!("Fetching: {}", url);  // ← ADD THIS
+
             let response: ArcGISResponse = self.client.get(&url).send().await?.json().await?;
+
+            println!("Received {} features", response.features.len());  // ← ADD THIS
 
             let feature_count = response.features.len();
             all_features.extend(response.features);
@@ -56,10 +61,35 @@ impl ArcGISClient {
             result_offset += RESULT_RECORD_COUNT;
         }
 
+        println!("Total features collected: {}", all_features.len());  // ← ADD THIS
         Ok(all_features)
     }
 
+
     fn extract_point_from_geojson(geometry: &JsonValue) -> Option<[Decimal; 2]> {
+        // Try ArcGIS Multipoint format first (points array)
+        if let Some(points_array) = geometry.get("points") {
+            if let Some(points) = points_array.as_array() {
+                if let Some(first_point) = points.first() {
+                    if let Some(coords) = first_point.as_array() {
+                        if coords.len() >= 2 {
+                            let x = Decimal::from_f64_retain(coords[0].as_f64()?).unwrap_or_default();
+                            let y = Decimal::from_f64_retain(coords[1].as_f64()?).unwrap_or_default();
+                            return Some([x, y]);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Try ArcGIS Point format (x, y) - for other endpoints
+        if let (Some(x), Some(y)) = (geometry.get("x"), geometry.get("y")) {
+            let x_val = Decimal::from_f64_retain(x.as_f64()?).unwrap_or_default();
+            let y_val = Decimal::from_f64_retain(y.as_f64()?).unwrap_or_default();
+            return Some([x_val, y_val]);
+        }
+
+        // Fallback to GeoJSON format
         let geom_json = serde_json::to_string(geometry).ok()?;
         match geom_json.parse::<GeoJson>() {
             Ok(GeoJson::Geometry(geom)) => match geom.value {
@@ -78,25 +108,49 @@ impl ArcGISClient {
         }
     }
 
-    fn extract_polygon_from_geojson(geometry: &JsonValue) -> Option<[[Decimal; 2]; 2]> {
+
+    fn extract_polyline_from_geojson(geometry: &JsonValue) -> Option<[[Decimal; 2]; 2]> {
+        // Try ArcGIS polyline format (paths array)
+        if let Some(paths) = geometry.get("paths") {
+            if let Some(paths_array) = paths.as_array() {
+                if !paths_array.is_empty() {
+                    if let Some(first_path) = paths_array[0].as_array() {
+                        if first_path.len() >= 2 {
+                            // Get first point
+                            let first_pt = &first_path[0];
+                            let first_x = Decimal::from_f64_retain(first_pt[0].as_f64()?).unwrap_or_default();
+                            let first_y = Decimal::from_f64_retain(first_pt[1].as_f64()?).unwrap_or_default();
+
+                            // Get last point
+                            let last_pt = &first_path[first_path.len() - 1];
+                            let last_x = Decimal::from_f64_retain(last_pt[0].as_f64()?).unwrap_or_default();
+                            let last_y = Decimal::from_f64_retain(last_pt[1].as_f64()?).unwrap_or_default();
+
+                            return Some([
+                                [first_x, first_y],
+                                [last_x, last_y],
+                            ]);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fallback to GeoJSON format
         let geom_json = serde_json::to_string(geometry).ok()?;
         match geom_json.parse::<GeoJson>() {
             Ok(GeoJson::Geometry(geom)) => {
                 match geom.value {
-                    Value::Polygon(rings) => {
-                        if rings.is_empty() || rings[0].is_empty() {
+                    Value::LineString(coords) => {
+                        if coords.len() < 2 {
                             return None;
                         }
-
-                        let ring = &rings[0];
-                        let first = &ring[0];
-                        let last = &ring[ring.len() - 1];
-
+                        let first = &coords[0];
+                        let last = &coords[coords.len() - 1];
                         let first_x = Decimal::from_f64_retain(first[0]).unwrap_or_default();
                         let first_y = Decimal::from_f64_retain(first[1]).unwrap_or_default();
                         let last_x = Decimal::from_f64_retain(last[0]).unwrap_or_default();
                         let last_y = Decimal::from_f64_retain(last[1]).unwrap_or_default();
-
                         Some([
                             [first_x, first_y],
                             [last_x, last_y],
@@ -109,44 +163,54 @@ impl ArcGISClient {
         }
     }
 
+
     fn to_adress_clean(&self, features: Vec<ArcGISFeature>) -> Vec<AdressClean> {
-        features
+        let mut converted = 0;
+        let mut no_geometry = 0;
+        let mut extraction_failed = 0;
+
+        let result: Vec<_> = features
             .into_iter()
             .filter_map(|feat| {
                 let attrs = &feat.attributes;
-                let geometry = feat.geometry?;
+                let geometry = match feat.geometry {
+                    Some(g) => g,
+                    None => {
+                        no_geometry += 1;
+                        return None;
+                    }
+                };
 
-                let coordinates = Self::extract_point_from_geojson(&geometry)?;
+                let coordinates = match Self::extract_point_from_geojson(&geometry) {
+                    Some(c) => c,
+                    None => {
+                        extraction_failed += 1;
+                        return None;
+                    }
+                };
 
+                // Use the ACTUAL field names from the API response
                 let postnummer = attrs
-                    .get("PostalCode")
-                    .or_else(|| attrs.get("postalcode"))
-                    .or_else(|| attrs.get("POSTALCODE"))?
+                    .get("postnr")?  // ← CHANGED
                     .as_str()?
-                    .parse::<u16>()
-                    .ok()?;
+                    .to_string();
 
                 let adress = attrs
-                    .get("FullAddress")
-                    .or_else(|| attrs.get("Address"))
-                    .or_else(|| attrs.get("FULLADDRESS"))?
+                    .get("beladress")?  // ← CHANGED
                     .as_str()?
                     .to_string();
 
                 let gata = attrs
-                    .get("StreetName")
-                    .or_else(|| attrs.get("Street"))
-                    .or_else(|| attrs.get("STREETNAME"))?
+                    .get("adressomr")?  // ← CHANGED
                     .as_str()?
                     .to_string();
 
                 let gatunummer = attrs
-                    .get("StreetNumber")
-                    .or_else(|| attrs.get("Number"))
-                    .or_else(|| attrs.get("STREETNUMBER"))?
+                    .get("adressplat")?  // ← CHANGED
                     .as_str()?
                     .to_string();
 
+                converted += 1;
                 Some(AdressClean {
                     coordinates,
                     postnummer,
@@ -155,40 +219,66 @@ impl ArcGISClient {
                     gatunummer,
                 })
             })
-            .collect()
+            .collect();
+
+        println!(
+            "  Conversion stats - No geometry: {}, Extraction failed: {}, Converted: {}",
+            no_geometry, extraction_failed, converted
+        );
+        result
     }
 
+
+
     fn to_miljoe_clean(&self, features: Vec<ArcGISFeature>) -> Vec<MiljoeDataClean> {
-        features
+        let mut converted = 0;
+        let mut no_geometry = 0;
+        let mut extraction_failed = 0;
+
+        let result: Vec<_> = features
             .into_iter()
             .filter_map(|feat| {
                 let attrs = &feat.attributes;
-                let geometry = feat.geometry?;
 
-                let coordinates = Self::extract_polygon_from_geojson(&geometry)?;
+                let geometry = match feat.geometry {
+                    Some(g) => g,
+                    None => {
+                        no_geometry += 1;
+                        return None;
+                    }
+                };
+
+                let coordinates = match Self::extract_polyline_from_geojson(&geometry) {
+                    Some(c) => c,
+                    None => {
+                        extraction_failed += 1;
+                        return None;
+                    }
+                };
 
                 let info = attrs
-                    .get("Name")
+                    .get("value")
                     .or_else(|| attrs.get("Info"))
                     .or_else(|| attrs.get("NAME"))?
                     .as_str()?
                     .to_string();
 
                 let tid = attrs
-                    .get("Time")
+                    .get("tiden")
                     .or_else(|| attrs.get("Tid"))
                     .or_else(|| attrs.get("TIME"))?
                     .as_str()?
                     .to_string();
 
                 let dag = attrs
-                    .get("Day")
+                    .get("day")
                     .or_else(|| attrs.get("Dag"))
                     .or_else(|| attrs.get("DAY"))?
                     .as_str()?
                     .parse::<u8>()
                     .ok()?;
 
+                converted += 1;
                 Some(MiljoeDataClean {
                     coordinates,
                     info,
@@ -196,11 +286,19 @@ impl ArcGISClient {
                     dag,
                 })
             })
-            .collect()
+            .collect();
+
+        println!("  Conversion stats - No geometry: {}, Extraction failed: {}, Converted: {}",
+                 no_geometry, extraction_failed, converted);
+
+        result
     }
+
+
 }
 
-#[tokio::main]
+
+
 pub async fn api() -> Result<(Vec<AdressClean>, Vec<MiljoeDataClean>), Box<dyn std::error::Error>> {
     let client = ArcGISClient::new();
 
@@ -222,7 +320,7 @@ pub async fn api() -> Result<(Vec<AdressClean>, Vec<MiljoeDataClean>), Box<dyn s
     println!("\nFetching environmental parking data...");
     let parking_features = client
         .fetch_all_features(
-            "https://gis.malmo.se/arcgis/rest/services/FGK_Parkster_Map/FeatureServer",
+            "https://gis.malmo.se/arcgis/rest/services/FGK/Parkster/MapServer",
             1,
         )
         .await?;

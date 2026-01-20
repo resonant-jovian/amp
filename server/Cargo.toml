@@ -7,6 +7,7 @@ license.workspace = true
 
 [dependencies]
 amp-core = { path = "../core" }
+tokio.workspace = true
 
 [[bin]]
 name = "amp-server"

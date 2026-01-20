@@ -6,16 +6,20 @@ use crate::structs::*;
 
 pub fn correlation(points: Vec<AdressClean>, lines: Vec<MiljoeDataClean>) -> Vec<AdressInfo> {
     let results = find_closest_lines(&points, &lines);
-
     let mut correlation = vec![];
+    let mut dist_samples = vec![];  // Track distances
 
     for (i, res) in results.iter().enumerate() {
         match res {
             Some((line_index, dist)) => {
-                if dist < &Decimal::from_str("0.001").unwrap() {
+                if i < 100 {
+                    dist_samples.push(dist.clone());  // Collect first 100 distances
+                }
+
+                if dist < &Decimal::from_str("50").unwrap() {  // Try 50 meters
                     correlation.push(AdressInfo {
                         relevant: true,
-                        postnummer: points[i].postnummer,
+                        postnummer: points[i].postnummer.clone(),
                         adress: points[i].adress.clone(),
                         gata: points[i].gata.clone(),
                         gatunummer: points[i].gatunummer.clone(),
@@ -23,11 +27,10 @@ pub fn correlation(points: Vec<AdressClean>, lines: Vec<MiljoeDataClean>) -> Vec
                         tid: lines[*line_index].tid.clone(),
                         dag: lines[*line_index].dag.clone(),
                     });
-                }
-                else {
+                } else {
                     correlation.push(AdressInfo {
                         relevant: false,
-                        postnummer: points[i].postnummer,
+                        postnummer: points[i].postnummer.clone(),
                         adress: points[i].adress.clone(),
                         gata: points[i].gata.clone(),
                         gatunummer: points[i].gatunummer.clone(),
@@ -40,8 +43,16 @@ pub fn correlation(points: Vec<AdressClean>, lines: Vec<MiljoeDataClean>) -> Vec
             None => println!("Point {} has no closest line", i),
         }
     }
+
+    // Print distance samples
+    println!("\nDistance samples (first 100 addresses):");
+    for (i, d) in dist_samples.iter().take(10).enumerate() {
+        println!("  [{}] {:.2} meters", i, d);
+    }
+
     correlation
 }
+
 
 fn distance_point_to_line_squared(
     point: [Decimal; 2],

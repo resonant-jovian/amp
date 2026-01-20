@@ -3,7 +3,6 @@ use anyhow;
 use arrow::{
     array::{
         BooleanArray, BooleanBuilder, StringArray, StringBuilder, UInt8Array, UInt8Builder,
-        UInt16Array, UInt16Builder,
     },
     datatypes::{DataType, Field, Schema},
     record_batch::RecordBatch,
@@ -39,7 +38,7 @@ pub fn read_db_parquet() -> anyhow::Result<Vec<AdressInfo>> {
         let postnummer = batch
             .column(batch.schema().index_of("postnummer")?)
             .as_any()
-            .downcast_ref::<UInt16Array>()
+            .downcast_ref::<StringArray>()
             .expect("postnummer column missing or wrong type");
 
         let adress = batch
@@ -82,7 +81,7 @@ pub fn read_db_parquet() -> anyhow::Result<Vec<AdressInfo>> {
         for i in 0..batch.num_rows() {
             let entry = AdressInfo {
                 relevant: relevant.value(i),
-                postnummer: postnummer.value(i),
+                postnummer: postnummer.value(i).to_string(),
                 adress: adress.value(i).to_string(),
                 gata: gata.value(i).to_string(),
                 gatunummer: gatunummer.value(i).to_string(),
@@ -115,7 +114,7 @@ pub fn read_local_parquet() -> anyhow::Result<Vec<Local>> {
         let postnummer = batch
             .column(batch.schema().index_of("postnummer")?)
             .as_any()
-            .downcast_ref::<UInt16Array>()
+            .downcast_ref::<StringArray>()
             .expect("postnummer column missing or wrong type");
 
         let adress = batch
@@ -163,7 +162,7 @@ pub fn read_local_parquet() -> anyhow::Result<Vec<Local>> {
         // Convert rows to AdressInfo
         for i in 0..batch.num_rows() {
             let entry = Local {
-                postnummer: postnummer.value(i),
+                postnummer: postnummer.value(i).to_string(),
                 adress: adress.value(i).to_string(),
                 gata: gata.value(i).to_string(),
                 gatunummer: gatunummer.value(i).to_string(),
@@ -185,7 +184,7 @@ pub fn write_local_parquet(data: Vec<Local>) -> anyhow::Result<()> {
     }
 
     let schema = Arc::new(Schema::new(vec![
-        Field::new("postnummer", DataType::UInt16, false),
+        Field::new("postnummer", DataType::Utf8, false),
         Field::new("gata", DataType::Utf8, false),
         Field::new("adress", DataType::Utf8, false),
         Field::new("gatunummer", DataType::Utf8, false),
@@ -195,11 +194,13 @@ pub fn write_local_parquet(data: Vec<Local>) -> anyhow::Result<()> {
         Field::new("active", DataType::Boolean, false),
     ]));
 
-    let mut grouped: BTreeMap<u16, Vec<Local>> = BTreeMap::new();
+    let mut grouped: BTreeMap<String, Vec<Local>> = BTreeMap::new();
 
     for d in data {
-        grouped.entry(d.postnummer).or_insert_with(Vec::new).push(d);
+        let key = d.postnummer.clone();
+        grouped.entry(key).or_insert_with(Vec::new).push(d);
     }
+
 
     let path = "local.parquet".to_string();
     let file = File::create(&path).expect("Failed to create file");
@@ -210,7 +211,7 @@ pub fn write_local_parquet(data: Vec<Local>) -> anyhow::Result<()> {
         .expect("Failed to create ArrowWriter");
 
     for (postnummer, rows) in grouped {
-        let mut post_builder = UInt16Builder::new();
+        let mut post_builder = StringBuilder::new();
         let mut gata_builder = StringBuilder::new();
         let mut adress_builder = StringBuilder::new();
         let mut nr_builder = StringBuilder::new();
@@ -220,7 +221,7 @@ pub fn write_local_parquet(data: Vec<Local>) -> anyhow::Result<()> {
         let mut active_builder = BooleanBuilder::new();
 
         for r in rows {
-            post_builder.append_value(postnummer);
+            post_builder.append_value(&postnummer);
             gata_builder.append_value(&r.gata);
             adress_builder.append_value(&r.adress);
             nr_builder.append_value(&r.gatunummer);
@@ -259,7 +260,7 @@ pub fn write_correlation(data: Vec<AdressInfo>) -> anyhow::Result<()> {
     }
 
     let schema = Arc::new(Schema::new(vec![
-        Field::new("postnummer", DataType::UInt16, false),
+        Field::new("postnummer", DataType::Utf8, false),
         Field::new("gata", DataType::Utf8, false),
         Field::new("adress", DataType::Utf8, false),
         Field::new("gatunummer", DataType::Utf8, false),
@@ -269,10 +270,11 @@ pub fn write_correlation(data: Vec<AdressInfo>) -> anyhow::Result<()> {
         Field::new("relevant", DataType::Boolean, false),
     ]));
 
-    let mut grouped: BTreeMap<u16, Vec<AdressInfo>> = BTreeMap::new();
+    let mut grouped: BTreeMap<String, Vec<AdressInfo>> = BTreeMap::new();
 
     for d in data {
-        grouped.entry(d.postnummer).or_insert_with(Vec::new).push(d);
+        let key = d.postnummer.clone();
+        grouped.entry(key).or_insert_with(Vec::new).push(d);
     }
 
     let path = "adress_info.parquet".to_string();
@@ -284,7 +286,7 @@ pub fn write_correlation(data: Vec<AdressInfo>) -> anyhow::Result<()> {
         .expect("Failed to create ArrowWriter");
 
     for (postnummer, rows) in grouped {
-        let mut post_builder = UInt16Builder::new();
+        let mut post_builder = StringBuilder::new();
         let mut gata_builder = StringBuilder::new();
         let mut adress_builder = StringBuilder::new();
         let mut nr_builder = StringBuilder::new();
@@ -294,7 +296,7 @@ pub fn write_correlation(data: Vec<AdressInfo>) -> anyhow::Result<()> {
         let mut relevant_builder = BooleanBuilder::new();
 
         for r in rows {
-            post_builder.append_value(postnummer);
+            post_builder.append_value(&postnummer);
             gata_builder.append_value(&r.gata);
             adress_builder.append_value(&r.adress);
             nr_builder.append_value(&r.gatunummer);
