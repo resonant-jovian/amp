@@ -323,17 +323,22 @@ mod tests {
         let results = correlation(points, lines);
         assert_eq!(results.len(), 3, "Should have 3 correlation results");
 
+        // Debug print
+        for (i, result) in results.iter().enumerate() {
+            eprintln!("Result {}: {} - relevant: {}", i, result.adress, result.relevant);
+        }
+
         // First address should correlate with Zone A
-        assert_eq!(results[0].adress, "Storgatan 1");
-        assert!(results[0].relevant);
+        assert_eq!(results[0].adress, "Storgatan 1", "First result should be Storgatan 1");
+        assert!(results[0].relevant, "Storgatan 1 should be relevant");
 
         // Second address should correlate with Zone B
-        assert_eq!(results[1].adress, "Lilla Torg 5");
-        assert!(results[1].relevant);
+        assert_eq!(results[1].adress, "Lilla Torg 5", "Second result should be Lilla Torg 5");
+        assert!(results[1].relevant, "Lilla Torg 5 should be relevant");
 
         // Third address is very far (not relevant)
-        assert_eq!(results[2].adress, "Västra Varvsgatan 10");
-        assert!(!results[2].relevant);
+        assert_eq!(results[2].adress, "Västra Varvsgatan 10", "Third result should be Västra Varvsgatan 10");
+        assert!(!results[2].relevant, "Västra Varvsgatan 10 should NOT be relevant");
     }
 
     // ============================================================================
