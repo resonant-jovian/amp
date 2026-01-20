@@ -9,7 +9,7 @@ authors = ["Albin Sjögren <albin@malmo.skaggbyran.se>"]
 license = "GPL-3"
 
 [workspace.dependencies]
-rust_decimal = { version = "1.40.0", features = ["serde"] }
+rust_decimal = { version = "1.40.0", features = ["serde", "sqrt"] }
 dioxus = { version = "0.7.2", features = ["desktop", "router"] }
 arrow = { version = "57.2" }
 parquet = "57.2"
