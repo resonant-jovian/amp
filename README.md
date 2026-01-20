@@ -5,7 +5,7 @@
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 [![Rust Version](https://img.shields.io/badge/rust-1.70%2B-orange)](https://www.rust-lang.org/)
 
-**AMP** is a production-grade geospatial correlation library written in Rust that matches street addresses to environmental parking zones in Malmö, Sweden[1]. The system combines async/await networking, parallel processing with SIMD optimization, and high-precision decimal arithmetic to achieve reliable coordinate-based distance calculations at scale. All so you can have an app on your phone to avoid parking tickets from the environmental parking restrictions or know that you have been ticked when you shouldn't have been, without needing internet access at that!
+**AMP** is a production-grade geospatial correlation library written in Rust that matches street addresses to environmental parking zones in Malmö, Sweden. The system combines async/await networking, parallel processing with SIMD optimization, and high-precision decimal arithmetic to achieve reliable coordinate-based distance calculations at scale. All so you can have an app on your phone to avoid parking tickets from the environmental parking restrictions or know that you have been ticked when you shouldn't have been, without needing internet access at that!
 
 ## Quick Overview
 
@@ -19,7 +19,7 @@ Output: Matching parking zone + time/day restrictions
 
 ### Why AMP Matters
 
-Malmö's environmental parking zones are defined as **continuous line segments** along streets, not discrete points. Traditional geocoding services return points (building centroids), but parking restrictions apply to **all addresses along a street segment**. AMP bridges this gap with geometric precision[3].
+Malmö's environmental parking zones are defined as **continuous line segments** along streets, not discrete points. Traditional geocoding services return points (building centroids), but parking restrictions apply to **all addresses along a street segment**. AMP bridges this gap with geometric precision.
 
 **Real-world example:**
 - Address: "Stortorget 1, Malmö" (Point: 55.6050°N, 13.0024°E)
@@ -54,7 +54,7 @@ AMP is organized as a **Rust workspace with four integrated modules**:
 
 | Module | Purpose | Technology |
 |--------|---------|----------|
-| **core** | Geospatial correlation algorithms + ArcGIS API integration | Rust async/await, Tokio, Rayon parallelization[4] |
+| **core** | Geospatial correlation algorithms + ArcGIS API integration | Rust async/await, Tokio, Rayon parallelization |
 | **android** | Native Android application using correlation results | Dioxus |
 | **ios** | Native iOS application using correlation results | Dioxus |
 | **server** | REST API server exposing correlation functionality | Headles linux runner |
@@ -117,8 +117,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-**See complete examples:** [examples/](examples/) directory[5]
-
 ### For Researchers / Contributors
 
 Build the documentation site locally:
@@ -137,7 +135,7 @@ cat docs/TEST_STRATEGY.md
 
 ### 1. High-Precision Coordinate Arithmetic
 
-Most geospatial systems use floating-point (`f64`), which accumulates errors over repeated calculations[6].
+Most geospatial systems use floating-point (`f64`), which accumulates errors over repeated calculations.
 
 AMP uses `Decimal` type from `rust_decimal` crate for all coordinate math:
 
@@ -155,7 +153,7 @@ let sum = dec * Decimal::from(1_000_000);
 assert_eq!(sum, Decimal::from(1)); // Exact match
 ```
 
-**Impact:** Eliminates false negatives/positives in distance threshold calculations[7].
+**Impact:** Eliminates false negatives/positives in distance threshold calculations.
 
 ### 2. Parallel Point-to-Line Distance Engine
 
@@ -172,7 +170,7 @@ pub fn correlation(
 }
 ```
 
-**Performance:** 3-4x speedup on quad-core systems vs sequential processing[8].
+**Performance:** 3-4x speedup on quad-core systems vs sequential processing.
 
 ### 3. Async ArcGIS API Integration
 
@@ -205,11 +203,11 @@ let zone_names: Vec<_> = load_column_from_parquet("info")?;
 **Benefits:**
 - 60-80% file size reduction vs JSON
 - Compatible with Pandas, DuckDB, Arrow ecosystems
-- Type-safe serialization with Serde[10]
+- Type-safe serialization with Serde
 
 ## Core Algorithm: Point-to-Line Distance
 
-The heart of AMP is the **perpendicular distance calculation** from an address point to parking zone line segments[11].
+The heart of AMP is the **perpendicular distance calculation** from an address point to parking zone line segments.
 
 ### Mathematical Foundation
 
@@ -247,7 +245,7 @@ The system uses **0.001 degrees** as the matching threshold:
 |  **111m** |   **Optimal**  |       Captures neighborhood-level accuracy      |
 |    200m   | Too permissive |     Creates false matches with distant zones    |
 
-**Real-world calibration:** Tested against 1,000+ address-zone pairs from Malmö city records[12].
+**Real-world calibration:** Tested against 1,000+ address-zone pairs from Malmö city records.
 
 ## Testing & Reliability
 
@@ -270,7 +268,7 @@ cargo test --release test_correlation
 | Edge cases (degenerate segments, null zones) | 3 tests | ✅ All pass |
 |         Real-world Malmö coordinates         | 2 tests | ✅ All pass |
 
-**Pass/Not Token System:** Every test result includes explicit `PASS` or `NOT` tokens for clarity[13].
+**Pass/Not Token System:** Every test result includes explicit `PASS` or `NOT` tokens for clarity.
 
 See detailed test documentation: [docs/TEST_STRATEGY.md](docs/TEST_STRATEGY.md)
 
@@ -287,7 +285,7 @@ See detailed test documentation: [docs/TEST_STRATEGY.md](docs/TEST_STRATEGY.md)
 1. **Parallel processing** - Rayon reduces address processing time by ~3x
 2. **Early exit** - Stops checking zones once closest match is found
 3. **Lazy evaluation** - Only deserializes needed GeoJSON fields
-4. **Memory efficiency** - Stream processing for large API responses[14]
+4. **Memory efficiency** - Stream processing for large API responses
 
 ## Documentation Structure
 
@@ -296,7 +294,7 @@ This repository includes comprehensive documentation at multiple levels:
 ### Project-Level (You Are Here)
 **File:** `README.md`
 
-High-level overview, getting started, quick examples. Start here for new users[15].
+High-level overview, getting started, quick examples. Start here for new users.
 
 ### Architecture Deep-Dives
 **Location:** `docs/`
