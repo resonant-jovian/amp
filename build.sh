@@ -32,10 +32,10 @@ echo "✓ Keystore found"
 
 # Backup original Dioxus.toml BEFORE modifying it
 echo "📝 Backing up original Dioxus.toml..."
-DIOXUS_BACKUP="Dioxus.toml.backup.$(date +%s)"
+DIOXUS_BACKUP="$SCRIPT_DIR/android/Dioxus.toml.backup.$(date +%s)"
 if [ -f "Dioxus.toml" ]; then
     cp -- "Dioxus.toml" "$DIOXUS_BACKUP"
-    echo "✓ Backup created: $DIOXUS_BACKUP"
+    echo "✓ Backup created: $(basename "$DIOXUS_BACKUP")"
 else
     echo "⚠️  No existing Dioxus.toml found, will create new one"
     DIOXUS_BACKUP=""
@@ -100,12 +100,12 @@ if ! dx build --android --release --device HQ646M01AF; then
     echo "🔧 Fixing generated gradle files for Java 21..."
 
     if [ -d "$ANDROID_DIR" ]; then
-        # Fix app/build.gradle.kts
+        # Fix build.gradle.kts
         if [ -f "$ANDROID_DIR/build.gradle.kts" ]; then
-            echo "  Patching: app/build.gradle.kts"
+            echo "  Patching: build.gradle.kts"
             sed -i 's/VERSION_1_8/VERSION_21/g' "$ANDROID_DIR/build.gradle.kts" 2>/dev/null || true
             sed -i 's/jvmTarget = "1.8"/jvmTarget = "21"/g' "$ANDROID_DIR/build.gradle.kts" 2>/dev/null || true
-            echo "✓ Fixed app/build.gradle.kts"
+            echo "✓ Fixed build.gradle.kts"
         fi
 
         # Fix root build.gradle.kts
@@ -133,8 +133,24 @@ if ! dx build --android --release --device HQ646M01AF; then
         echo "📦 Rebuilding with fixed gradle configuration..."
         if ! "$ANDROID_DIR/gradlew" -p "$ANDROID_DIR" clean assembleRelease; then
             echo ""
-            echo "❌ Gradle build failed even after Java 21 fix"
-            echo "This might be a different issue. Check the error above."
+            echo "❌ Gradle build failed after Java 21 fix"
+            echo ""
+            echo "⚠️  This may be a different issue (not Java 8 related):"
+            echo "   - Lint validator crash (error 25.0.2)"
+            echo "   - Android manifest warnings"
+            echo "   - Other compatibility issues"
+            echo ""
+            echo "Check the error output above for details."
+
+            # Still try to restore Dioxus.toml even on failure
+            if [ -n "$DIOXUS_BACKUP" ] && [ -f "$DIOXUS_BACKUP" ]; then
+                echo ""
+                echo "🔄 Restoring Dioxus.toml before exiting..."
+                cp -- "$DIOXUS_BACKUP" "Dioxus.toml"
+                rm -f -- "$DIOXUS_BACKUP"
+                echo "✓ Restored"
+            fi
+
             exit 1
         fi
         echo ""
