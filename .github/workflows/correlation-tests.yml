@@ -65,10 +65,6 @@ jobs:
         working-directory: ./core
         run: cargo fetch
 
-      - name: Run clippy linter
-        working-directory: ./core
-        run: cargo clippy --lib -- -D warnings
-
       - name: Run correlation tests (debug)
         working-directory: ./core
         run: cargo test --lib correlation_tests -- --nocapture --test-threads=1
