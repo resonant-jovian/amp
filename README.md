@@ -7,6 +7,8 @@
 
 **AMP** is a production-grade geospatial correlation library written in Rust that matches street addresses to environmental parking zones in Malmö, Sweden. All so you can have an app on your phone to avoid parking tickets from the environmental parking restrictions or know that you have been ticked when you shouldn't have been, without needing internet access at that!
 
+***NOTE:*** [Issue reported #1](https://github.com/DioxusLabs/dioxus/issues/5251)
+
 ## Quick Overview
 
 AMP solves a specific problem: **How do we efficiently and accurately match residential addresses to their applicable parking zone restrictions?** And more importantly **How do I avoid constantly getting parking tickets!? It feels like I'm single-handedly funding Malmö...**
