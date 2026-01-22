@@ -1,9 +1,7 @@
 use crate::structs::*;
 use anyhow;
 use arrow::{
-    array::{
-        BooleanArray, BooleanBuilder, StringArray, StringBuilder, UInt8Array, UInt8Builder,
-    },
+    array::{BooleanArray, BooleanBuilder, StringArray, StringBuilder, UInt8Array, UInt8Builder},
     datatypes::{DataType, Field, Schema},
     record_batch::RecordBatch,
 };
@@ -28,7 +26,7 @@ pub fn read_db_parquet() -> anyhow::Result<Vec<AdressInfo>> {
 
     while let Some(batch) = reader.next().transpose()? {
         let batch: RecordBatch = batch;
-        
+
         let relevant = batch
             .column(batch.schema().index_of("relevant")?)
             .as_any()
@@ -200,7 +198,6 @@ pub fn write_local_parquet(data: Vec<Local>) -> anyhow::Result<()> {
         let key = d.postnummer.clone();
         grouped.entry(key).or_insert_with(Vec::new).push(d);
     }
-
 
     let path = "local.parquet".to_string();
     let file = File::create(&path).expect("Failed to create file");
