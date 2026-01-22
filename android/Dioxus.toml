@@ -21,7 +21,6 @@ jks_password = "$storePassword"
 key_password = "$keyPassword"
 key_alias = "$keyAlias"
 jks_file = "$storeFile"
-# Load from keystore.properties in CI/deployment
 
 [bundle.android.permissions]
 android.permission.LOCATION_FINE = true
@@ -29,6 +28,5 @@ android.permission.NOTIFICATIONS = true
 
 [profile.android-release]
 inherits = "release"
-# Android-specific optimizations
 opt-level = 3
-strip = false          # Keep for debugging on-device
+strip = false

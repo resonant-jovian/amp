@@ -1,34 +1,4 @@
-#[application]
-#name = "amp"
-#version = "1.0.0"
-#out_dir = "/home/albin/Documents/"
-#default_platform = "mobile"
-#asset_dir = "assets"
-#
-#[bundle]
-#publisher = "Skäggbyrån Malmö"
-#icon = ["assets/icon/icon-512.png"]
-#resources = ["assets/data/adress_info.parquet"]
-#
-#[bundle.android]
-#publisher = "Skäggbyrån Malmö"
-#icon = ["assets/icon/icon-512.png"]
-#resources = ["assets/data/adress_info.parquet"]
-#min_sdk_version = 21
-#target_sdk_version = 36
-#orientation = "portrait"
-#jks_password = "$storePassword"
-#key_password = "$keyPassword"
-#key_alias = "$keyAlias"
-#jks_file = "$storeFile"
-## Load from keystore.properties in CI/deployment
-#
-#[bundle.android.permissions]
-#android.permission.LOCATION_FINE = true
-#android.permission.NOTIFICATIONS = true
-#
-#[profile.android-release]
-#inherits = "release"
-## Android-specific optimizations
-#opt-level = 3
-#strip = false          # Keep for debugging on-device
+[application]
+name = "amp"
+version = "1.0.0"
+out_dir = "/home/albin/Documents/"
