@@ -1,10 +1,10 @@
+use crate::structs::{AdressClean, MiljoeDataClean};
+use geodesy::prelude::*;
 use geojson::JsonValue;
 use geojson::{GeoJson, Value};
-use serde::{Deserialize, Serialize};
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
-use geodesy::prelude::*;
-use crate::structs::{AdressClean, MiljoeDataClean};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ArcGISFeature {
@@ -20,7 +20,7 @@ pub struct ArcGISClient {
 pub struct ArcGISResponse {
     pub features: Vec<ArcGISFeature>,
 
-    #[serde(default, rename = "exceededTransferLimit")]  // ← Add this rename
+    #[serde(default, rename = "exceededTransferLimit")] // ← Add this rename
     pub exceeded_transfer_limit: bool,
 }
 
@@ -31,14 +31,15 @@ impl ArcGISClient {
         }
     }
 
-    fn convert_web_mercator_to_sweref99tm(x: f64, y: f64) -> Result<(Decimal, Decimal), Box<dyn std::error::Error>> {
+    fn convert_web_mercator_to_sweref99tm(
+        x: f64,
+        y: f64,
+    ) -> Result<(Decimal, Decimal), Box<dyn std::error::Error>> {
         let mut context = Minimal::new();
 
-        let op = context.op(
-            "cart  +xy:in +xy:out | \
+        let op = context.op("cart  +xy:in +xy:out | \
          adapt +xy:proj=merc +R=6378137 +xy:in | \
-         adapt +xy:proj=tmerc lon_0=15 k=0.9996 x_0=500000 y_0=0 +xy:out"
-        )?;
+         adapt +xy:proj=tmerc lon_0=15 k=0.9996 x_0=500000 y_0=0 +xy:out")?;
 
         let mut data = [Coor2D::raw(x, y)];
         context.apply(op, Fwd, &mut data)?;
@@ -55,7 +56,6 @@ impl ArcGISClient {
         Ok((x_result, y_result))
     }
 
-
     async fn fetch_all_features(
         &self,
         service_url: &str,
@@ -71,11 +71,11 @@ impl ArcGISClient {
                 service_url, layer_id, result_offset, RESULT_RECORD_COUNT
             );
 
-            println!("Fetching: {}", url);  // ← ADD THIS
+            println!("Fetching: {}", url); // ← ADD THIS
 
             let response: ArcGISResponse = self.client.get(&url).send().await?.json().await?;
 
-            println!("Received {} features", response.features.len());  // ← ADD THIS
+            println!("Received {} features", response.features.len()); // ← ADD THIS
 
             let feature_count = response.features.len();
             all_features.extend(response.features);
@@ -87,10 +87,9 @@ impl ArcGISClient {
             result_offset += RESULT_RECORD_COUNT;
         }
 
-        println!("Total features collected: {}", all_features.len());  // ← ADD THIS
+        println!("Total features collected: {}", all_features.len()); // ← ADD THIS
         Ok(all_features)
     }
-
 
     fn extract_point_from_geojson(geometry: &JsonValue) -> Option<[Decimal; 2]> {
         // Try ArcGIS Multipoint format first (points array)
@@ -99,8 +98,10 @@ impl ArcGISClient {
                 if let Some(first_point) = points.first() {
                     if let Some(coords) = first_point.as_array() {
                         if coords.len() >= 2 {
-                            let x = Decimal::from_f64_retain(coords[0].as_f64()?).unwrap_or_default();
-                            let y = Decimal::from_f64_retain(coords[1].as_f64()?).unwrap_or_default();
+                            let x =
+                                Decimal::from_f64_retain(coords[0].as_f64()?).unwrap_or_default();
+                            let y =
+                                Decimal::from_f64_retain(coords[1].as_f64()?).unwrap_or_default();
                             return Some([x, y]);
                         }
                     }
@@ -134,7 +135,6 @@ impl ArcGISClient {
         }
     }
 
-
     fn extract_polyline_from_geojson(geometry: &JsonValue) -> Option<[[Decimal; 2]; 2]> {
         // Try ArcGIS polyline format (paths array)
         if let Some(paths) = geometry.get("paths") {
@@ -144,18 +144,19 @@ impl ArcGISClient {
                         if first_path.len() >= 2 {
                             // Get first point
                             let first_pt = &first_path[0];
-                            let first_x = Decimal::from_f64_retain(first_pt[0].as_f64()?).unwrap_or_default();
-                            let first_y = Decimal::from_f64_retain(first_pt[1].as_f64()?).unwrap_or_default();
+                            let first_x =
+                                Decimal::from_f64_retain(first_pt[0].as_f64()?).unwrap_or_default();
+                            let first_y =
+                                Decimal::from_f64_retain(first_pt[1].as_f64()?).unwrap_or_default();
 
                             // Get last point
                             let last_pt = &first_path[first_path.len() - 1];
-                            let last_x = Decimal::from_f64_retain(last_pt[0].as_f64()?).unwrap_or_default();
-                            let last_y = Decimal::from_f64_retain(last_pt[1].as_f64()?).unwrap_or_default();
+                            let last_x =
+                                Decimal::from_f64_retain(last_pt[0].as_f64()?).unwrap_or_default();
+                            let last_y =
+                                Decimal::from_f64_retain(last_pt[1].as_f64()?).unwrap_or_default();
 
-                            return Some([
-                                [first_x, first_y],
-                                [last_x, last_y],
-                            ]);
+                            return Some([[first_x, first_y], [last_x, last_y]]);
                         }
                     }
                 }
@@ -165,30 +166,24 @@ impl ArcGISClient {
         // Fallback to GeoJSON format
         let geom_json = serde_json::to_string(geometry).ok()?;
         match geom_json.parse::<GeoJson>() {
-            Ok(GeoJson::Geometry(geom)) => {
-                match geom.value {
-                    Value::LineString(coords) => {
-                        if coords.len() < 2 {
-                            return None;
-                        }
-                        let first = &coords[0];
-                        let last = &coords[coords.len() - 1];
-                        let first_x = Decimal::from_f64_retain(first[0]).unwrap_or_default();
-                        let first_y = Decimal::from_f64_retain(first[1]).unwrap_or_default();
-                        let last_x = Decimal::from_f64_retain(last[0]).unwrap_or_default();
-                        let last_y = Decimal::from_f64_retain(last[1]).unwrap_or_default();
-                        Some([
-                            [first_x, first_y],
-                            [last_x, last_y],
-                        ])
+            Ok(GeoJson::Geometry(geom)) => match geom.value {
+                Value::LineString(coords) => {
+                    if coords.len() < 2 {
+                        return None;
                     }
-                    _ => None,
+                    let first = &coords[0];
+                    let last = &coords[coords.len() - 1];
+                    let first_x = Decimal::from_f64_retain(first[0]).unwrap_or_default();
+                    let first_y = Decimal::from_f64_retain(first[1]).unwrap_or_default();
+                    let last_x = Decimal::from_f64_retain(last[0]).unwrap_or_default();
+                    let last_y = Decimal::from_f64_retain(last[1]).unwrap_or_default();
+                    Some([[first_x, first_y], [last_x, last_y]])
                 }
-            }
+                _ => None,
+            },
             _ => None,
         }
     }
-
 
     fn to_adress_clean(&self, features: Vec<ArcGISFeature>) -> Vec<AdressClean> {
         let mut converted = 0;
@@ -220,7 +215,7 @@ impl ArcGISClient {
                                 return None;
                             }
                         }
-                    },
+                    }
                     None => {
                         extraction_failed += 1;
                         return None;
@@ -251,9 +246,6 @@ impl ArcGISClient {
 
         result
     }
-
-
-
 
     fn to_miljoe_clean(&self, features: Vec<ArcGISFeature>) -> Vec<MiljoeDataClean> {
         let mut converted = 0;
@@ -313,16 +305,14 @@ impl ArcGISClient {
             })
             .collect();
 
-        println!("  Conversion stats - No geometry: {}, Extraction failed: {}, Converted: {}",
-                 no_geometry, extraction_failed, converted);
+        println!(
+            "  Conversion stats - No geometry: {}, Extraction failed: {}, Converted: {}",
+            no_geometry, extraction_failed, converted
+        );
 
         result
     }
-
-
 }
-
-
 
 pub async fn api() -> Result<(Vec<AdressClean>, Vec<MiljoeDataClean>), Box<dyn std::error::Error>> {
     let client = ArcGISClient::new();
