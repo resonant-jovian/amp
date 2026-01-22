@@ -1,96 +1,102 @@
-name: Android Tests
+name: Android Build & Test
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main, develop ]
   pull_request:
-    branches:
-      - main
+    branches: [ main, develop ]
   workflow_dispatch:
 
 jobs:
-  android-tests:
+  android-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
 
-      - name: Setup Rust
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          log-accepted-android-sdk-licenses: true
 
       - name: Install Dioxus CLI
-        timeout-minutes: 30
-        run: |
-          set -e
-          echo "Installing Dioxus CLI..."
-          cargo install dioxus-cli --locked
-          dx --version
+        run: cargo install dioxus-cli@0.7.3 --locked
 
-      - name: Build Android APK with Dioxus CLI
-        timeout-minutes: 45
+      - name: Create keystore.properties
         run: |
-          set -e
-          echo "Building Android APK using Dioxus CLI..."
-          dx build --android --release --bundle android --package amp-android
-          
-          echo ""
-          echo "Build completed successfully!"
-          echo "APK location:"
-          find target/dx -name "*.apk" -type f 2>/dev/null | head -5
+          cat > keystore.properties << 'EOF'
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          storeFile=${{ secrets.ANDROID_KEYSTORE_FILE }}
+          EOF
+          chmod 600 keystore.properties
 
-      - name: Verify APK exists
-        timeout-minutes: 5
+      - name: Decode and save keystore file
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
-          set -e
-          echo "Verifying APK build..."
-          
-          # Find the built APK
-          APK_PATH=$(find target/dx -type f -name "*.apk" | head -1)
-          
-          if [ -z "$APK_PATH" ]; then
-            echo "ERROR: APK not found!"
-            echo "Searching in target/dx:"
-            find target/dx -type f || true
-            exit 1
-          fi
-          
-          echo "✓ APK found: $APK_PATH"
-          ls -lh "$APK_PATH"
-          echo ""
-          echo "Build artifacts:"
-          find target/dx -type f \( -name "*.apk" -o -name "*.aab" \) -exec ls -lh {} \;
+          echo "$KEYSTORE_BASE64" | base64 -d > release.jks
+          chmod 600 release.jks
 
-      - name: Upload build artifacts
+      - name: Make scripts executable
+        run: |
+          chmod +x build.sh
+          chmod +x serve.sh
+          chmod +x adb-install.sh
+
+      - name: Build Android APK
+        run: ./build.sh
+        env:
+          GRADLE_OPTS: "-Xmx4096m"
+
+      - name: List build outputs
         if: always()
+        run: |
+          echo "=== Build Artifacts ==="
+          find target/dx/amp/release/android/app/build/outputs -type f -name "*.apk" 2>/dev/null || echo "No APK found"
+          find target/dx/amp/release/android/app/build/outputs -type f -name "*.aab" 2>/dev/null || echo "No AAB found"
+
+      - name: Upload APK artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: android-build
-          path: target/dx/
+          name: amp-release-apk
+          path: target/dx/amp/release/android/app/build/outputs/apk/release/*.apk
+          retention-days: 30
           if-no-files-found: warn
 
-      - name: Workflow summary
+      - name: Upload AAB artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: amp-release-aab
+          path: target/dx/amp/release/android/app/build/outputs/bundle/release/*.aab
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Generate build summary
         if: always()
         run: |
-          echo "=== Workflow Summary ==="
-          echo "Build tool: Dioxus CLI (dx)"
-          echo "Platform: Android"
-          echo "Build mode: Release"
-          echo "Bundle: Android"
-          echo ""
-          echo "Next steps:"
-          echo "1. Download the APK from artifacts"
-          echo "2. Install on your device: adb install -r <APK_PATH>"
-          echo "3. For testing, use your local emulator or physical device"
-          echo ""
-          if [ -f target/dx/amp/release/android/app/build/outputs/apk/release/app-release.apk ]; then
-            echo "✓ Release APK ready"
-          elif [ -f target/dx/amp/release/android/app/build/outputs/apk/debug/app-debug.apk ]; then
-            echo "✓ Debug APK ready"
-          else
-            echo "⚠ APK location varies by Dioxus version"
+          echo "## Android Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Java Version:** 21" >> $GITHUB_STEP_SUMMARY
+          echo "**Build Tool:** Dioxus CLI 0.7.3" >> $GITHUB_STEP_SUMMARY
+          echo "**Target SDK:** 36" >> $GITHUB_STEP_SUMMARY
+          echo "**Min SDK:** 21" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ job.status }}" = "success" ]; then
+            APK_COUNT=$(find target/dx/amp/release/android/app/build/outputs/apk/release -name "*.apk" 2>/dev/null | wc -l)
+            echo "**APKs Generated:** $APK_COUNT" >> $GITHUB_STEP_SUMMARY
           fi
