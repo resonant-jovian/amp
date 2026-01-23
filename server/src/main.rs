@@ -9,6 +9,7 @@ use amp_core::correlation_algorithms::{
 use amp_core::checksum::DataChecksum;
 use amp_core::benchmark::Benchmarker;
 use clap::{Parser, Subcommand};
+use rayon::prelude::*;
 
 #[derive(Parser)]
 #[command(name = "amp-server")]
@@ -98,7 +99,7 @@ fn run_correlation(
     println!("Loaded {} addresses, {} zones", addresses.len(), zones.len());
     
     // Select and run algorithm
-    println!("Running correlation with {:?} algorithm...", algorithm);
+    println!("Running correlation with {:?} algorithm (parallelized)...", algorithm);
     let results = match algorithm {
         AlgorithmChoice::DistanceBased => {
             let algo = DistanceBasedAlgo;
@@ -127,12 +128,13 @@ fn run_correlation(
     Ok(())
 }
 
-fn correlate_all<A: CorrelationAlgo>(
+/// Correlate all addresses with parking zones using parallel iteration (Rayon)
+fn correlate_all<A: CorrelationAlgo + Sync>(
     addresses: &[AdressClean],
     zones: &[MiljoeDataClean],
     algo: &A,
 ) -> Vec<(String, f64)> {
-    addresses.iter()
+    addresses.par_iter()  // <-- Parallel iterator!
         .filter_map(|addr| {
             algo.correlate(addr, zones)
                 .map(|(_, dist)| (addr.adress.clone(), dist))
