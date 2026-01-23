@@ -70,10 +70,7 @@ fn format_time(ms: u128) -> String {
     let minutes = (total_seconds % 3_600) / 60;
     let seconds = total_seconds % 60;
 
-    format!(
-        "{:02}:{:02}:{:02}:{:02}",
-        days, hours, minutes, seconds
-    )
+    format!("{:02}:{:02}:{:02}:{:02}", days, hours, minutes, seconds)
 }
 
 #[component]

@@ -1,9 +1,12 @@
 #[cfg(test)]
 mod tests {
+    use crate::correlation_algorithms::{
+        CorrelationAlgo, DistanceBasedAlgo, GridNearestAlgo, KDTreeSpatialAlgo,
+        OverlappingChunksAlgo, RTreeSpatialAlgo, RaycastingAlgo,
+    };
+    use crate::structs::*;
     use rust_decimal::Decimal;
     use std::str::FromStr;
-    use crate::structs::*;
-    use crate::correlation_algorithms::{CorrelationAlgo, DistanceBasedAlgo, RaycastingAlgo, OverlappingChunksAlgo, RTreeSpatialAlgo, KDTreeSpatialAlgo, GridNearestAlgo};
 
     /// Helper to create a Decimal from string
     fn decimal(val: &str) -> Decimal {
@@ -20,7 +23,13 @@ mod tests {
         }
     }
 
-    fn create_test_zone(lat_start: &str, lon_start: &str, lat_end: &str, lon_end: &str, info: &str) -> MiljoeDataClean {
+    fn create_test_zone(
+        lat_start: &str,
+        lon_start: &str,
+        lat_end: &str,
+        lon_end: &str,
+        info: &str,
+    ) -> MiljoeDataClean {
         MiljoeDataClean {
             coordinates: [
                 [decimal(lon_start), decimal(lat_start)],
@@ -41,7 +50,13 @@ mod tests {
         let address = create_test_address("55.5932645", "13.1945945", "Lilla Torg 1");
 
         // Zone ~20 meters away (should be within 50m threshold)
-        let zone = create_test_zone("55.5932645", "13.1945945", "55.5932945", "13.1946245", "Test Zone");
+        let zone = create_test_zone(
+            "55.5932645",
+            "13.1945945",
+            "55.5932945",
+            "13.1946245",
+            "Test Zone",
+        );
 
         let addresses = vec![address];
         let zones = vec![zone];
@@ -57,7 +72,11 @@ mod tests {
             assert!(result.is_some(), "{}: Should find match within 50m", name);
             let (_, dist) = result.unwrap();
             assert!(dist > 0.0, "{}: Distance should be positive", name);
-            assert!(dist <= 50.0, "{}: Distance should be within 50m threshold", name);
+            assert!(
+                dist <= 50.0,
+                "{}: Distance should be within 50m threshold",
+                name
+            );
         }
     }
 
@@ -69,14 +88,20 @@ mod tests {
         let address = create_test_address("55.5932645", "13.1945945", "Test Address");
 
         // Zone ~200 meters away (beyond threshold)
-        let far_zone = create_test_zone("55.5932645", "13.1925945", "55.5932945", "13.1926245", "Far Zone");
+        let far_zone = create_test_zone(
+            "55.5932645",
+            "13.1925945",
+            "55.5932945",
+            "13.1926245",
+            "Far Zone",
+        );
 
         let addresses = vec![address];
         let zones = vec![far_zone];
 
         let algo = DistanceBasedAlgo;
         let result = algo.correlate(&addresses[0], &zones);
-        
+
         // Should return None because distance exceeds 50m
         assert!(result.is_none(), "Addresses beyond 50m should not match");
     }
@@ -87,7 +112,13 @@ mod tests {
     #[test]
     fn test_all_algorithms_consistency() {
         let address = create_test_address("55.5932645", "13.1945945", "Central Address");
-        let zone = create_test_zone("55.5932645", "13.1945945", "55.5932945", "13.1946245", "Test Zone");
+        let zone = create_test_zone(
+            "55.5932645",
+            "13.1945945",
+            "55.5932945",
+            "13.1946245",
+            "Test Zone",
+        );
 
         let addresses = vec![address];
         let zones = vec![zone];
@@ -105,7 +136,10 @@ mod tests {
         // Overlapping Chunks
         let chunk_algo = OverlappingChunksAlgo::new(&zones);
         let chunk_result = chunk_algo.correlate(&addresses[0], &zones);
-        assert!(chunk_result.is_some(), "Overlapping Chunks should find match");
+        assert!(
+            chunk_result.is_some(),
+            "Overlapping Chunks should find match"
+        );
 
         // R-Tree
         let rtree_algo = RTreeSpatialAlgo::new(&zones);
@@ -123,11 +157,31 @@ mod tests {
         assert!(grid_result.is_some(), "Grid should find match");
 
         // All should find same zone index
-        assert_eq!(db_result.unwrap().0, ray_result.unwrap().0, "Algorithms should find same zone");
-        assert_eq!(db_result.unwrap().0, chunk_result.unwrap().0, "Algorithms should find same zone");
-        assert_eq!(db_result.unwrap().0, rtree_result.unwrap().0, "Algorithms should find same zone");
-        assert_eq!(db_result.unwrap().0, kdtree_result.unwrap().0, "Algorithms should find same zone");
-        assert_eq!(db_result.unwrap().0, grid_result.unwrap().0, "Algorithms should find same zone");
+        assert_eq!(
+            db_result.unwrap().0,
+            ray_result.unwrap().0,
+            "Algorithms should find same zone"
+        );
+        assert_eq!(
+            db_result.unwrap().0,
+            chunk_result.unwrap().0,
+            "Algorithms should find same zone"
+        );
+        assert_eq!(
+            db_result.unwrap().0,
+            rtree_result.unwrap().0,
+            "Algorithms should find same zone"
+        );
+        assert_eq!(
+            db_result.unwrap().0,
+            kdtree_result.unwrap().0,
+            "Algorithms should find same zone"
+        );
+        assert_eq!(
+            db_result.unwrap().0,
+            grid_result.unwrap().0,
+            "Algorithms should find same zone"
+        );
     }
 
     // ============================================================================
@@ -155,7 +209,11 @@ mod tests {
 
         assert!(result2.has_match(), "Should have match");
         assert_eq!(result2.dataset_source(), "Both (Miljödata + Parkering)");
-        assert_eq!(result2.closest_distance(), Some(20.0), "Should return closest distance");
+        assert_eq!(
+            result2.closest_distance(),
+            Some(20.0),
+            "Should return closest distance"
+        );
 
         let result3 = CorrelationResult {
             address: "Storgatan 3".to_string(),
@@ -181,8 +239,20 @@ mod tests {
         ];
 
         let zones = vec![
-            create_test_zone("55.5932645", "13.1945945", "55.5932945", "13.1946245", "Zone 1"),
-            create_test_zone("55.5932745", "13.1946045", "55.5932945", "13.1946345", "Zone 2"),
+            create_test_zone(
+                "55.5932645",
+                "13.1945945",
+                "55.5932945",
+                "13.1946245",
+                "Zone 1",
+            ),
+            create_test_zone(
+                "55.5932745",
+                "13.1946045",
+                "55.5932945",
+                "13.1946345",
+                "Zone 2",
+            ),
         ];
 
         let algo = DistanceBasedAlgo;
@@ -205,9 +275,27 @@ mod tests {
         let address = create_test_address("55.5932645", "13.1945945", "Test Address");
 
         let zones = vec![
-            create_test_zone("55.5842645", "13.1845945", "55.5842945", "13.1846245", "Far Zone"), // ~10km away
-            create_test_zone("55.5932645", "13.1945945", "55.5932945", "13.1946245", "Close Zone"), // ~20m away
-            create_test_zone("55.5932445", "13.1945745", "55.5932545", "13.1945845", "Medium Zone"), // ~50m away
+            create_test_zone(
+                "55.5842645",
+                "13.1845945",
+                "55.5842945",
+                "13.1846245",
+                "Far Zone",
+            ), // ~10km away
+            create_test_zone(
+                "55.5932645",
+                "13.1945945",
+                "55.5932945",
+                "13.1946245",
+                "Close Zone",
+            ), // ~20m away
+            create_test_zone(
+                "55.5932445",
+                "13.1945745",
+                "55.5932545",
+                "13.1945845",
+                "Medium Zone",
+            ), // ~50m away
         ];
 
         let algo = RTreeSpatialAlgo::new(&zones);
@@ -242,8 +330,20 @@ mod tests {
         ];
 
         let zones = vec![
-            create_test_zone("55.5932645", "13.1945945", "55.5932945", "13.1946245", "Lilla Torg Miljözon"),
-            create_test_zone("55.6043210", "13.2004523", "55.6043510", "13.2004823", "Västra Varvsgatan Miljözon"),
+            create_test_zone(
+                "55.5932645",
+                "13.1945945",
+                "55.5932945",
+                "13.1946245",
+                "Lilla Torg Miljözon",
+            ),
+            create_test_zone(
+                "55.6043210",
+                "13.2004523",
+                "55.6043510",
+                "13.2004823",
+                "Västra Varvsgatan Miljözon",
+            ),
         ];
 
         let algo = KDTreeSpatialAlgo::new(&zones);
@@ -259,17 +359,32 @@ mod tests {
     #[test]
     fn test_no_match_beyond_threshold() {
         let address = create_test_address("55.5932645", "13.1945945", "Test Address");
-        
+
         // Create zones that are all beyond 50m
         let zones = vec![
-            create_test_zone("55.5842645", "13.1845945", "55.5842945", "13.1846245", "Far Zone 1"), // ~10km away
-            create_test_zone("55.6142645", "13.2145945", "55.6142945", "13.2146245", "Far Zone 2"), // ~10km away
+            create_test_zone(
+                "55.5842645",
+                "13.1845945",
+                "55.5842945",
+                "13.1846245",
+                "Far Zone 1",
+            ), // ~10km away
+            create_test_zone(
+                "55.6142645",
+                "13.2145945",
+                "55.6142945",
+                "13.2146245",
+                "Far Zone 2",
+            ), // ~10km away
         ];
 
         let algo = GridNearestAlgo::new(&zones);
         let result = algo.correlate(&address, &zones);
-        
-        assert!(result.is_none(), "Should not match zones beyond 50m threshold");
+
+        assert!(
+            result.is_none(),
+            "Should not match zones beyond 50m threshold"
+        );
     }
 
     // ============================================================================
@@ -279,8 +394,20 @@ mod tests {
     fn test_deterministic_results() {
         let address = create_test_address("55.5932645", "13.1945945", "Test Address");
         let zones = vec![
-            create_test_zone("55.5932645", "13.1945945", "55.5932945", "13.1946245", "Zone 1"),
-            create_test_zone("55.5932745", "13.1946045", "55.5932945", "13.1946345", "Zone 2"),
+            create_test_zone(
+                "55.5932645",
+                "13.1945945",
+                "55.5932945",
+                "13.1946245",
+                "Zone 1",
+            ),
+            create_test_zone(
+                "55.5932745",
+                "13.1946045",
+                "55.5932945",
+                "13.1946345",
+                "Zone 2",
+            ),
         ];
 
         let algo = DistanceBasedAlgo;
@@ -393,7 +520,7 @@ mod tests {
     #[test]
     fn test_degenerate_zone_handling() {
         let address = create_test_address("55.5932645", "13.1945945", "Test Address");
-        
+
         // Degenerate zone (both endpoints identical)
         let degenerate_zone = MiljoeDataClean {
             coordinates: [
@@ -407,7 +534,7 @@ mod tests {
 
         let algo = DistanceBasedAlgo;
         let result = algo.correlate(&address, &vec![degenerate_zone]);
-        
+
         // Should handle degenerate segment without panicking
         assert!(result.is_some(), "Should handle degenerate zone");
     }
@@ -418,16 +545,28 @@ mod tests {
     #[test]
     fn test_threshold_returns_only_valid_matches() {
         let address = create_test_address("55.5932645", "13.1945945", "Test Address");
-        
+
         // Mix of zones: some within 50m, some beyond
         let zones = vec![
-            create_test_zone("55.5932645", "13.1945945", "55.5932945", "13.1946245", "Close Zone"), // Within 50m
-            create_test_zone("55.5842645", "13.1845945", "55.5842945", "13.1846245", "Far Zone"), // ~10km away
+            create_test_zone(
+                "55.5932645",
+                "13.1945945",
+                "55.5932945",
+                "13.1946245",
+                "Close Zone",
+            ), // Within 50m
+            create_test_zone(
+                "55.5842645",
+                "13.1845945",
+                "55.5842945",
+                "13.1846245",
+                "Far Zone",
+            ), // ~10km away
         ];
 
         let algo = RaycastingAlgo;
         let result = algo.correlate(&address, &zones);
-        
+
         // Should return the close zone or None (depending on algorithm)
         if let Some((idx, dist)) = result {
             assert!(dist <= 50.0, "Returned distance should not exceed 50m");

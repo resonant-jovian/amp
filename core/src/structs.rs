@@ -22,7 +22,7 @@ pub struct MiljoeDataClean {
 pub struct CorrelationResult {
     pub address: String,
     pub postnummer: String,
-    pub miljo_match: Option<(f64, String)>,     // (distance, info)
+    pub miljo_match: Option<(f64, String)>, // (distance, info)
     pub parkering_match: Option<(f64, String)>, // (distance, info)
 }
 

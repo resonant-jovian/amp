@@ -6,8 +6,8 @@ use arrow::{
     record_batch::RecordBatch,
 };
 use parquet::{
-    arrow::arrow_reader::ParquetRecordBatchReaderBuilder,
     arrow::ArrowWriter,
+    arrow::arrow_reader::ParquetRecordBatchReaderBuilder,
     file::properties::{EnabledStatistics, WriterProperties},
 };
 use std::{collections::BTreeMap, fs::File, sync::Arc};
@@ -74,20 +74,46 @@ pub fn read_correlation_parquet() -> anyhow::Result<Vec<CorrelationResult>> {
         // Convert rows to CorrelationResult
         for i in 0..batch.num_rows() {
             let miljo_match = if let Some(Some(dist)) = miljo_dist.clone().nth(i) {
-                Some((dist, miljo_info.clone().nth(i).flatten().map(|s| s.to_string()).unwrap_or_default()))
+                Some((
+                    dist,
+                    miljo_info
+                        .clone()
+                        .nth(i)
+                        .flatten()
+                        .map(|s| s.to_string())
+                        .unwrap_or_default(),
+                ))
             } else {
                 None
             };
 
             let parkering_match = if let Some(Some(dist)) = parkering_dist.clone().nth(i) {
-                Some((dist, parkering_info.clone().nth(i).flatten().map(|s| s.to_string()).unwrap_or_default()))
+                Some((
+                    dist,
+                    parkering_info
+                        .clone()
+                        .nth(i)
+                        .flatten()
+                        .map(|s| s.to_string())
+                        .unwrap_or_default(),
+                ))
             } else {
                 None
             };
 
             let entry = CorrelationResult {
-                address: address.clone().nth(i).flatten().map(|s| s.to_string()).unwrap_or_default(),
-                postnummer: postnummer.clone().nth(i).flatten().map(|s| s.to_string()).unwrap_or_default(),
+                address: address
+                    .clone()
+                    .nth(i)
+                    .flatten()
+                    .map(|s| s.to_string())
+                    .unwrap_or_default(),
+                postnummer: postnummer
+                    .clone()
+                    .nth(i)
+                    .flatten()
+                    .map(|s| s.to_string())
+                    .unwrap_or_default(),
                 miljo_match,
                 parkering_match,
             };
@@ -121,13 +147,12 @@ pub fn write_correlation_parquet(data: Vec<CorrelationResult>) -> anyhow::Result
     }
 
     let path = "correlation_results.parquet";
-    let file = File::create(path)
-        .map_err(|e| anyhow::anyhow!("Failed to create file: {}", e))?;
-    
+    let file = File::create(path).map_err(|e| anyhow::anyhow!("Failed to create file: {}", e))?;
+
     let props = WriterProperties::builder()
         .set_statistics_enabled(EnabledStatistics::None)
         .build();
-    
+
     let mut writer = ArrowWriter::try_new(file, schema.clone(), Some(props))
         .map_err(|e| anyhow::anyhow!("Failed to create ArrowWriter: {}", e))?;
 
@@ -142,7 +167,7 @@ pub fn write_correlation_parquet(data: Vec<CorrelationResult>) -> anyhow::Result
         for r in rows {
             address_builder.append_value(&r.address);
             postnummer_builder.append_value(&r.postnummer);
-            
+
             match &r.miljo_match {
                 Some((dist, info)) => {
                     miljo_dist_builder.append_value(*dist);
@@ -153,7 +178,7 @@ pub fn write_correlation_parquet(data: Vec<CorrelationResult>) -> anyhow::Result
                     miljo_info_builder.append_null();
                 }
             }
-            
+
             match &r.parkering_match {
                 Some((dist, info)) => {
                     parkering_dist_builder.append_value(*dist);
@@ -179,11 +204,13 @@ pub fn write_correlation_parquet(data: Vec<CorrelationResult>) -> anyhow::Result
         )
         .map_err(|e| anyhow::anyhow!("Failed to create record batch: {}", e))?;
 
-        writer.write(&batch)
+        writer
+            .write(&batch)
             .map_err(|e| anyhow::anyhow!("Failed to write batch: {}", e))?;
     }
 
-    writer.close()
+    writer
+        .close()
         .map_err(|e| anyhow::anyhow!("Failed to close writer: {}", e))?;
 
     Ok(())

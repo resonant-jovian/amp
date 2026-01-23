@@ -2,10 +2,10 @@
 //! Uses rstar crate for O(log n) nearest-neighbor queries
 //! Best performance for large datasets (1000+ parking zones)
 
-use crate::structs::{AdressClean, MiljoeDataClean};
 use crate::correlation_algorithms::CorrelationAlgo;
+use crate::structs::{AdressClean, MiljoeDataClean};
+use rstar::{AABB, PointDistance, RTree};
 use rust_decimal::prelude::ToPrimitive;
-use rstar::{RTree, AABB, PointDistance};
 use std::f64::consts::PI;
 
 const MAX_DISTANCE_METERS: f64 = 50.0;
@@ -30,7 +30,7 @@ impl rstar::RTreeObject for IndexedLineSegment {
         let min_y = self.start[1].min(self.end[1]);
         let max_x = self.start[0].max(self.end[0]);
         let max_y = self.start[1].max(self.end[1]);
-        
+
         AABB::from_corners([min_x, min_y], [max_x, max_y])
     }
 }
@@ -56,7 +56,7 @@ impl RTreeSpatialAlgo {
                     line.coordinates[1][0].to_f64()?,
                     line.coordinates[1][1].to_f64()?,
                 ];
-                
+
                 Some(IndexedLineSegment {
                     index: idx,
                     start,
@@ -64,7 +64,7 @@ impl RTreeSpatialAlgo {
                 })
             })
             .collect();
-        
+
         Self {
             rtree: RTree::bulk_load(segments),
         }
@@ -81,12 +81,12 @@ impl CorrelationAlgo for RTreeSpatialAlgo {
             address.coordinates[0].to_f64()?,
             address.coordinates[1].to_f64()?,
         ];
-        
+
         // O(log n) nearest neighbor query
         let nearest = self.rtree.nearest_neighbor(&point)?;
-        
+
         let dist = distance_point_to_line_segment(point, nearest.start, nearest.end);
-        
+
         // Only return if within threshold
         if dist <= MAX_DISTANCE_METERS {
             Some((nearest.index, dist))
@@ -94,32 +94,36 @@ impl CorrelationAlgo for RTreeSpatialAlgo {
             None
         }
     }
-    
+
     fn name(&self) -> &'static str {
         "R-Tree Spatial Index"
     }
 }
 
 /// Calculate perpendicular distance from point to line segment using Haversine
-fn distance_point_to_line_segment(point: [f64; 2], line_start: [f64; 2], line_end: [f64; 2]) -> f64 {
+fn distance_point_to_line_segment(
+    point: [f64; 2],
+    line_start: [f64; 2],
+    line_end: [f64; 2],
+) -> f64 {
     let line_vec = [line_end[0] - line_start[0], line_end[1] - line_start[1]];
     let point_vec = [point[0] - line_start[0], point[1] - line_start[1]];
-    
+
     let line_len_sq = line_vec[0] * line_vec[0] + line_vec[1] * line_vec[1];
-    
+
     if line_len_sq == 0.0 {
         return haversine_distance(point, line_start);
     }
-    
+
     let t = ((point_vec[0] * line_vec[0] + point_vec[1] * line_vec[1]) / line_len_sq)
         .max(0.0)
         .min(1.0);
-    
+
     let closest = [
         line_start[0] + t * line_vec[0],
         line_start[1] + t * line_vec[1],
     ];
-    
+
     haversine_distance(point, closest)
 }
 
@@ -128,19 +132,19 @@ fn haversine_distance(point1: [f64; 2], point2: [f64; 2]) -> f64 {
     let lat2 = point2[1] * PI / 180.0;
     let delta_lat = (point2[1] - point1[1]) * PI / 180.0;
     let delta_lon = (point2[0] - point1[0]) * PI / 180.0;
-    
-    let a = (delta_lat / 2.0).sin().powi(2)
-        + lat1.cos() * lat2.cos() * (delta_lon / 2.0).sin().powi(2);
-    
+
+    let a =
+        (delta_lat / 2.0).sin().powi(2) + lat1.cos() * lat2.cos() * (delta_lon / 2.0).sin().powi(2);
+
     let c = 2.0 * a.sqrt().atan2((1.0 - a).sqrt());
-    
+
     EARTH_RADIUS_M * c
 }
 
 #[cfg(test)]
 mod tests {
-    use rstar::RTreeObject;
     use super::*;
+    use rstar::RTreeObject;
 
     #[test]
     fn test_rtree_envelope() {
@@ -149,7 +153,7 @@ mod tests {
             start: [13.0, 55.0],
             end: [13.1, 55.1],
         };
-        
+
         let env = seg.envelope();
         assert_eq!(env.lower(), [13.0, 55.0]);
         assert_eq!(env.upper(), [13.1, 55.1]);
