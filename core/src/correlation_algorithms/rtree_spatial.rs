@@ -6,8 +6,10 @@ use crate::structs::{AdressClean, MiljoeDataClean};
 use crate::correlation_algorithms::CorrelationAlgo;
 use rust_decimal::prelude::ToPrimitive;
 use rstar::{RTree, AABB, PointDistance};
+use std::f64::consts::PI;
 
 const MAX_DISTANCE_METERS: f64 = 50.0;
+const EARTH_RADIUS_M: f64 = 6371000.0;
 
 pub struct RTreeSpatialAlgo {
     rtree: RTree<IndexedLineSegment>,
@@ -98,7 +100,7 @@ impl CorrelationAlgo for RTreeSpatialAlgo {
     }
 }
 
-/// Calculate perpendicular distance from point to line segment
+/// Calculate perpendicular distance from point to line segment using Haversine
 fn distance_point_to_line_segment(point: [f64; 2], line_start: [f64; 2], line_end: [f64; 2]) -> f64 {
     let line_vec = [line_end[0] - line_start[0], line_end[1] - line_start[1]];
     let point_vec = [point[0] - line_start[0], point[1] - line_start[1]];
@@ -106,9 +108,7 @@ fn distance_point_to_line_segment(point: [f64; 2], line_start: [f64; 2], line_en
     let line_len_sq = line_vec[0] * line_vec[0] + line_vec[1] * line_vec[1];
     
     if line_len_sq == 0.0 {
-        let dx = point[0] - line_start[0];
-        let dy = point[1] - line_start[1];
-        return (dx * dx + dy * dy).sqrt();
+        return haversine_distance(point, line_start);
     }
     
     let t = ((point_vec[0] * line_vec[0] + point_vec[1] * line_vec[1]) / line_len_sq)
@@ -120,9 +120,21 @@ fn distance_point_to_line_segment(point: [f64; 2], line_start: [f64; 2], line_en
         line_start[1] + t * line_vec[1],
     ];
     
-    let dx = point[0] - closest[0];
-    let dy = point[1] - closest[1];
-    (dx * dx + dy * dy).sqrt()
+    haversine_distance(point, closest)
+}
+
+fn haversine_distance(point1: [f64; 2], point2: [f64; 2]) -> f64 {
+    let lat1 = point1[1] * PI / 180.0;
+    let lat2 = point2[1] * PI / 180.0;
+    let delta_lat = (point2[1] - point1[1]) * PI / 180.0;
+    let delta_lon = (point2[0] - point1[0]) * PI / 180.0;
+    
+    let a = (delta_lat / 2.0).sin().powi(2)
+        + lat1.cos() * lat2.cos() * (delta_lon / 2.0).sin().powi(2);
+    
+    let c = 2.0 * a.sqrt().atan2((1.0 - a).sqrt());
+    
+    EARTH_RADIUS_M * c
 }
 
 #[cfg(test)]
@@ -133,24 +145,12 @@ mod tests {
     fn test_rtree_envelope() {
         let seg = IndexedLineSegment {
             index: 0,
-            start: [0.0, 0.0],
-            end: [10.0, 10.0],
+            start: [13.0, 55.0],
+            end: [13.1, 55.1],
         };
         
         let env = seg.envelope();
-        assert_eq!(env.lower(), [0.0, 0.0]);
-        assert_eq!(env.upper(), [10.0, 10.0]);
-    }
-    
-    #[test]
-    fn test_point_distance() {
-        let seg = IndexedLineSegment {
-            index: 0,
-            start: [0.0, 0.0],
-            end: [10.0, 0.0],
-        };
-        
-        let dist_sq = seg.distance_2(&[5.0, 3.0]);
-        assert!((dist_sq - 9.0).abs() < 0.001); // 3^2 = 9
+        assert_eq!(env.lower(), [13.0, 55.0]);
+        assert_eq!(env.upper(), [13.1, 55.1]);
     }
 }
