@@ -5,6 +5,8 @@ use crate::correlation_algorithms::{
     CorrelationAlgo, DistanceBasedAlgo, RaycastingAlgo, 
     OverlappingChunksAlgo, LinearAlgebraAlgo
 };
+use rayon::prelude::*;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 #[derive(Debug)]
@@ -29,8 +31,8 @@ impl Benchmarker {
         }
     }
     
-    /// Run benchmark for a specific algorithm
-    pub fn benchmark_algorithm<A: CorrelationAlgo>(
+    /// Run benchmark for a specific algorithm (parallelized)
+    pub fn benchmark_algorithm<A: CorrelationAlgo + Sync>(
         &self,
         algo: &A,
         sample_size: Option<usize>,
@@ -39,13 +41,14 @@ impl Benchmarker {
         let addresses_to_test = &self.addresses[..sample_size.min(self.addresses.len())];
         
         let start = Instant::now();
-        let mut matches = 0;
+        let matches = AtomicUsize::new(0);
         
-        for address in addresses_to_test {
+        // Parallel iteration with Rayon
+        addresses_to_test.par_iter().for_each(|address| {
             if algo.correlate(address, &self.parking_lines).is_some() {
-                matches += 1;
+                matches.fetch_add(1, Ordering::Relaxed);
             }
-        }
+        });
         
         let total_duration = start.elapsed();
         let avg_per_address = total_duration / addresses_to_test.len() as u32;
@@ -55,7 +58,7 @@ impl Benchmarker {
             total_duration,
             avg_per_address,
             addresses_processed: addresses_to_test.len(),
-            matches_found: matches,
+            matches_found: matches.load(Ordering::Relaxed),
         }
     }
     
