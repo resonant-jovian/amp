@@ -1,13 +1,13 @@
 use crate::structs::*;
 use anyhow;
 use arrow::{
-    array::{StringArray, StringBuilder, Float64Array, Float64Builder, BooleanArray, BooleanBuilder},
+    array::{Float64Array, Float64Builder, StringArray, StringBuilder},
     datatypes::{DataType, Field, Schema},
     record_batch::RecordBatch,
 };
 use parquet::{
-    arrow::ArrowWriter,
     arrow::arrow_reader::ParquetRecordBatchReaderBuilder,
+    arrow::ArrowWriter,
     file::properties::{EnabledStatistics, WriterProperties},
 };
 use std::{collections::BTreeMap, fs::File, sync::Arc};
