@@ -145,7 +145,8 @@ fn select_algorithms() -> Vec<&'static str> {
 fn run_correlation(algorithm: AlgorithmChoice) -> Result<(), Box<dyn std::error::Error>> {
     // Load data with progress
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);    pb.set_message("Loading data...");
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
+    pb.set_message("Loading data...");
 
     let (addresses, miljodata, parkering): (
         Vec<AdressClean>,
@@ -177,7 +178,8 @@ fn run_correlation(algorithm: AlgorithmChoice) -> Result<(), Box<dyn std::error:
     let pb = ProgressBar::new(addresses.len() as u64);
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}% {msg}")?            .progress_chars("█▓▒░ "),
+            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}% {msg}")?
+            .progress_chars("█▓▒░ "),
     );
 
     // Correlate with miljödata
@@ -451,7 +453,8 @@ fn merge_results(
 fn run_benchmark(sample_size: usize) -> Result<(), Box<dyn std::error::Error>> {
     // Load data
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);    pb.set_message("Loading data for benchmarking...");
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
+    pb.set_message("Loading data for benchmarking...");
 
     let (addresses, zones) = amp_core::api::api_miljo_only()?;
     pb.finish_with_message(format!(
@@ -494,7 +497,8 @@ fn run_benchmark(sample_size: usize) -> Result<(), Box<dyn std::error::Error>> {
         .collect();
 
     // Run benchmarks with progress updates
-    let results = benchmark_selected_with_progress(&benchmarker, sample_size, &selected_algos, &pbs);
+    let results =
+        benchmark_selected_with_progress(&benchmarker, sample_size, &selected_algos, &pbs);
 
     // Finish all progress bars
     for pb in pbs {
@@ -674,7 +678,8 @@ async fn check_updates(checksum_file: &str) -> Result<(), Box<dyn std::error::Er
     );
 
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);    pb.set_message("Fetching remote data...");
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
+    pb.set_message("Fetching remote data...");
 
     new_checksums.update_from_remote().await?;
     pb.finish_with_message("✓ Data fetched");
