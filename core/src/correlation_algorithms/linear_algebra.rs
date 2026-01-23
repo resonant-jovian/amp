@@ -20,7 +20,7 @@ fn magnitude(v: [f64; 2]) -> f64 {
 }
 
 /// Normalize a vector
-fn normalize(v: [f64; 2]) -> [f64; 2] {
+fn _normalize(v: [f64; 2]) -> [f64; 2] {
     let mag = magnitude(v);
     if mag > 0.0 {
         [v[0] / mag, v[1] / mag]
@@ -114,7 +114,7 @@ mod tests {
     
     #[test]
     fn test_normalize() {
-        let v = normalize([3.0, 4.0]);
+        let v = _normalize([3.0, 4.0]);
         assert!((v[0] - 0.6).abs() < 0.001);
         assert!((v[1] - 0.8).abs() < 0.001);
     }

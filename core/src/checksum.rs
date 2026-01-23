@@ -4,7 +4,8 @@
 use sha2::{Sha256, Digest};
 use serde::{Serialize, Deserialize};
 use std::fs;
-use chrono::{DateTime, Utc};
+use chrono::{Utc};
+use reqwest::Response;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DataChecksum {
@@ -45,7 +46,7 @@ impl DataChecksum {
     
     /// Fetch remote URL and calculate checksum
     pub async fn fetch_and_checksum(url: &str) -> Result<String, Box<dyn std::error::Error>> {
-        let response = reqwest::get(url).await?;
+        let response: Response = reqwest::get(url).await?;
         let bytes = response.bytes().await?;
         let mut hasher = Sha256::new();
         hasher.update(&bytes);

@@ -1,7 +1,6 @@
 use crate::structs::{AdressClean, MiljoeDataClean};
 use geojson::{Feature, GeoJson};
 use rust_decimal::Decimal;
-use rust_decimal::prelude::ToPrimitive;
 use std::fs;
 
 pub struct DataLoader;
@@ -64,7 +63,7 @@ impl DataLoader {
     }
 
     fn parse_address_feature(feature: Feature) -> Option<AdressClean> {
-        let props = feature.properties?;
+        let props = feature.clone().properties?;
         
         let coordinates = Self::extract_point_coordinates(&feature)?;
         
@@ -83,7 +82,7 @@ impl DataLoader {
     }
 
     fn parse_parking_feature(feature: Feature) -> Option<MiljoeDataClean> {
-        let props = feature.properties?;
+        let props = feature.clone().properties?;
         
         let coordinates = Self::extract_linestring_endpoints(&feature)?;
         
@@ -171,7 +170,7 @@ impl DataLoader {
 }
 
 pub fn api() -> Result<(Vec<AdressClean>, Vec<MiljoeDataClean>), Box<dyn std::error::Error>> {
-    let loader = DataLoader::new();
+    let _loader = DataLoader::new();
 
     // Load from local JSON files (Malmö open data, timestamp 2025-12-29)
     let addresses = DataLoader::load_addresses("data/adresser.json")?;
