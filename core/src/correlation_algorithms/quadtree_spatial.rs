@@ -101,7 +101,7 @@ impl CorrelationAlgo for QuadtreeSpatialAlgo {
         ];
         
         let cell = Bounds::cell_key(point);
-        let mut candidates = Vec::new();
+        let mut candidates: Vec<usize> = Vec::new();
         
         // Check this cell and 8 neighbors
         for dx in -1..=1 {
