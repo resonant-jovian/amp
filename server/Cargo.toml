@@ -10,6 +10,7 @@ amp-core = { path = "../core" }
 tokio.workspace = true
 clap.workspace = true
 rayon.workspace = true
+indicatif.workspace = true
 
 [[bin]]
 name = "amp-server"
