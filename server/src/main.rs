@@ -108,8 +108,7 @@ fn run_correlation(
     let pb = ProgressBar::new_spinner();
     pb.set_style(
         ProgressStyle::default_spinner()
-            .template("{spinner:.cyan} {msg}")
-            .unwrap()
+            .template("{spinner:.cyan} {msg}")?
     );
     pb.set_message("Loading data...");
     
@@ -132,8 +131,7 @@ fn run_correlation(
     let pb = ProgressBar::new(addresses.len() as u64);
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}% {msg}")
-            .unwrap()
+            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}% {msg}")?
             .progress_chars("█▓▒░ ")
     );
     
@@ -250,8 +248,7 @@ fn run_benchmark(
     let pb = ProgressBar::new_spinner();
     pb.set_style(
         ProgressStyle::default_spinner()
-            .template("{spinner:.cyan} {msg}")
-            .unwrap()
+            .template("{spinner:.cyan} {msg}")?
     );
     pb.set_message("Loading data for benchmarking...");
     
@@ -403,8 +400,7 @@ async fn check_updates(checksum_file: &str) -> Result<(), Box<dyn std::error::Er
     let pb = ProgressBar::new_spinner();
     pb.set_style(
         ProgressStyle::default_spinner()
-            .template("{spinner:.cyan} {msg}")
-            .unwrap()
+            .template("{spinner:.cyan} {msg}")?
     );
     pb.set_message("Fetching remote data...");
     

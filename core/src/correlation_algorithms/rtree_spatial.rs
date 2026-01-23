@@ -139,6 +139,7 @@ fn haversine_distance(point1: [f64; 2], point2: [f64; 2]) -> f64 {
 
 #[cfg(test)]
 mod tests {
+    use rstar::RTreeObject;
     use super::*;
 
     #[test]
