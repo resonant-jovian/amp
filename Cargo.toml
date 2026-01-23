@@ -20,7 +20,8 @@ geojson = "0.24.2"
 tokio = { version = "1.49.0", features = ["full"] }
 reqwest = { version = "0.13.1", features = ["json"] }
 anyhow = "1.0.100"
-geodesy = "0.14.0"
+geodesyworkspace = true
 clap = { version = "4.5", features = ["derive"] }
 sha2 = "0.10"
 chrono = "0.4"
+rstar = "0.12"
