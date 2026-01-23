@@ -95,7 +95,7 @@ impl CorrelationAlgo for OverlappingChunksAlgo {
         
         // Find closest among candidates using distance calculation
         candidates.into_iter()
-            .filter_map(|&idx| {
+            .filter_map(|idx| {
                 let line = &parking_lines[idx];
                 let line_start = [
                     line.coordinates[0][0].to_f64()?,
