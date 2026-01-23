@@ -131,8 +131,8 @@ fn distance_point_to_line(point: [f64; 2], line_start: [f64; 2], line_end: [f64;
         return haversine_distance(point, line_start);
     }
 
-    let t = ((point_vec[0] * line_vec[0] + point_vec[1] * line_vec[1]) / line_len_sq)
-        .clamp(0.0, 1.0);
+    let t =
+        ((point_vec[0] * line_vec[0] + point_vec[1] * line_vec[1]) / line_len_sq).clamp(0.0, 1.0);
 
     let closest = [
         line_start[0] + t * line_vec[0],
@@ -148,8 +148,8 @@ fn haversine_distance(point1: [f64; 2], point2: [f64; 2]) -> f64 {
     let delta_lat = (point2[1] - point1[1]).to_radians();
     let delta_lon = (point2[0] - point1[0]).to_radians();
 
-    let a = (delta_lat / 2.0).sin().powi(2)
-        + lat1.cos() * lat2.cos() * (delta_lon / 2.0).sin().powi(2);
+    let a =
+        (delta_lat / 2.0).sin().powi(2) + lat1.cos() * lat2.cos() * (delta_lon / 2.0).sin().powi(2);
 
     let c = 2.0 * a.sqrt().atan2((1.0 - a).sqrt());
 
