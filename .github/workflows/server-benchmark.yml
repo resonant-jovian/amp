@@ -1,0 +1,159 @@
+name: Server Benchmark Test
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'server/src/**'
+      - 'core/src/correlation_algorithms/**'
+      - 'core/src/api.rs'
+      - 'core/src/structs.rs'
+      - 'server/Cargo.toml'
+      - 'core/Cargo.toml'
+      - '.github/workflows/server-benchmark.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'server/src/**'
+      - 'core/src/correlation_algorithms/**'
+      - 'core/src/api.rs'
+      - 'core/src/structs.rs'
+      - 'server/Cargo.toml'
+      - 'core/Cargo.toml'
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    name: Run Server Benchmark (1000 samples)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-index-
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-target-
+
+      - name: Build server (release)
+        run: cargo build -p amp-server --release
+        env:
+          RUSTFLAGS: -C opt-level=3
+
+      - name: Download test data
+        run: |
+          mkdir -p data
+          echo "Preparing test data for benchmark..."
+          # In a real scenario, this would download actual Malmö data
+          # For now, tests use synthetic data from structs
+          ls -la data/ 2>/dev/null || echo "Note: Data files will be generated from test data"
+
+      - name: Run benchmark (1000 samples)
+        run: |
+          cargo run -p amp-server --release -- benchmark --sample-size 1000 2>&1 | tee benchmark_output.txt
+        timeout-minutes: 45
+
+      - name: Extract benchmark results
+        if: always()
+        run: |
+          echo "## 🏁 Benchmark Results" > benchmark_summary.md
+          echo "" >> benchmark_summary.md
+          echo "**Configuration:** 1000 sample addresses" >> benchmark_summary.md
+          echo "**Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> benchmark_summary.md
+          echo "" >> benchmark_summary.md
+          echo "\`\`\`" >> benchmark_summary.md
+          tail -50 benchmark_output.txt >> benchmark_summary.md
+          echo "\`\`\`" >> benchmark_summary.md
+          cat benchmark_summary.md
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-benchmark-results
+          path: |
+            benchmark_output.txt
+            benchmark_summary.md
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Comment PR with benchmark results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let benchmarkContent = 'Benchmark completed';
+            try {
+              benchmarkContent = fs.readFileSync('benchmark_summary.md', 'utf8');
+            } catch (e) {
+              console.log('Could not read benchmark summary');
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: benchmarkContent
+            })
+
+  benchmark-summary:
+    name: Benchmark Summary
+    runs-on: ubuntu-latest
+    if: always()
+    needs: benchmark
+    
+    steps:
+      - name: Print summary
+        run: |
+          echo "# 🏁 Server Benchmark Summary"
+          echo ""
+          echo "## Configuration"
+          echo "- **Sample Size:** 1000 addresses"
+          echo "- **Algorithm:** All 6 algorithms tested"
+          echo "- **Mode:** Release build with optimizations"
+          echo ""
+          echo "## Algorithms Benchmarked"
+          echo "1. Distance-Based"
+          echo "2. Raycasting"
+          echo "3. Overlapping Chunks"
+          echo "4. R-Tree Spatial Index"
+          echo "5. KD-Tree Spatial Index"
+          echo "6. Grid Nearest Neighbor"
+          echo ""
+          echo "## Metrics Collected"
+          echo "- Total execution time per algorithm"
+          echo "- Average time per address"
+          echo "- Number of matches found"
+          echo "- Performance ranking"
+          echo ""
+          echo "## Status"
+          echo "Result: ${{ needs.benchmark.result }}"

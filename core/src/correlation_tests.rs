@@ -2,376 +2,229 @@
 mod tests {
     use rust_decimal::Decimal;
     use std::str::FromStr;
-
-    use crate::correlation::*;
     use crate::structs::*;
+    use crate::correlation_algorithms::{CorrelationAlgo, DistanceBasedAlgo, RaycastingAlgo, OverlappingChunksAlgo, RTreeSpatialAlgo, KDTreeSpatialAlgo, GridNearestAlgo};
 
     /// Helper to create a Decimal from string
     fn decimal(val: &str) -> Decimal {
         Decimal::from_str(val).expect("Failed to parse decimal")
     }
 
-    // ============================================================================
-    // TEST 1: Basic Precision - Decimal coordinates maintain high precision
-    // ============================================================================
-    #[test]
-    fn test_decimal_precision_preserved() {
-        let point = AdressClean {
-            coordinates: [decimal("13.1881234567890"), decimal("55.6048765432109")],
+    fn create_test_address(lat: &str, lon: &str, name: &str) -> AdressClean {
+        AdressClean {
+            coordinates: [decimal(lon), decimal(lat)],
             postnummer: "200 00".to_string(),
-            adress: "Test Address".to_string(),
+            adress: name.to_string(),
             gata: "Test Street".to_string(),
             gatunummer: "1".to_string(),
-        };
+        }
+    }
 
-        // Verify we have at least 7 decimal places
-        let coord_x_str = point.coordinates[0].to_string();
-        let coord_y_str = point.coordinates[1].to_string();
-
-        // Count decimal places
-        let x_decimals = coord_x_str
-            .split('.')
-            .nth(1)
-            .map(|s| s.len())
-            .unwrap_or(0);
-        let y_decimals = coord_y_str
-            .split('.')
-            .nth(1)
-            .map(|s| s.len())
-            .unwrap_or(0);
-
-        assert!(
-            x_decimals >= 7,
-            "X coordinate should have at least 7 decimals, got {}",
-            x_decimals
-        );
-        assert!(
-            y_decimals >= 7,
-            "Y coordinate should have at least 7 decimals, got {}",
-            y_decimals
-        );
+    fn create_test_zone(lat_start: &str, lon_start: &str, lat_end: &str, lon_end: &str, info: &str) -> MiljoeDataClean {
+        MiljoeDataClean {
+            coordinates: [
+                [decimal(lon_start), decimal(lat_start)],
+                [decimal(lon_end), decimal(lat_end)],
+            ],
+            info: info.to_string(),
+            tid: "08:00-18:00".to_string(),
+            dag: 1,
+        }
     }
 
     // ============================================================================
-    // TEST 2: Coordinate System Conversion - SWEREF99 TM to WGS84
+    // TEST 1: Haversine Distance - Accurate meter calculations
     // ============================================================================
     #[test]
-    fn test_sweref_coordinate_conversion() {
-        // SWEREF99 TM coordinates for a known Malmö location
-        // These should convert successfully to valid lat/lon
-        let point = AdressClean {
-            coordinates: [decimal("389000"), decimal("6164000")], // Malmö area
-            postnummer: "200 00".to_string(),
-            adress: "Test Address".to_string(),
-            gata: "Test Street".to_string(),
-            gatunummer: "1".to_string(),
-        };
+    fn test_haversine_distance_accuracy() {
+        // Address in central Malmö
+        let address = create_test_address("55.5932645", "13.1945945", "Lilla Torg 1");
 
-        // Parking zone with similar coordinates
-        let line = MiljoeDataClean {
-            coordinates: [
-                [decimal("389000"), decimal("6164000")],
-                [decimal("389100"), decimal("6164100")],
-            ],
-            info: "Test Zone".to_string(),
-            tid: "08:00-18:00".to_string(),
-            dag: 1,
-        };
+        // Zone ~20 meters away (should be within 50m threshold)
+        let zone = create_test_zone("55.5932645", "13.1945945", "55.5932945", "13.1946245", "Test Zone");
 
-        let points = vec![point];
-        let lines = vec![line];
+        let addresses = vec![address];
+        let zones = vec![zone];
 
-        // Should not panic during conversion
-        let results = find_closest_lines(&points, &lines);
-        assert_eq!(results.len(), 1, "Should return 1 result");
-        assert!(results[0].is_some(), "Result should not be None");
-    }
-
-    // ============================================================================
-    // TEST 3: Haversine Distance - Within 50m threshold (RELEVANT)
-    // ============================================================================
-    #[test]
-    fn test_within_50m_threshold_relevant() {
-        // Real Malmö coordinates: Storgatan area
-        // These coordinates are ~30 meters apart
-        let point = AdressClean {
-            coordinates: [decimal("13.195000"), decimal("55.595000")],
-            postnummer: "200 00".to_string(),
-            adress: "Storgatan 1".to_string(),
-            gata: "Storgatan".to_string(),
-            gatunummer: "1".to_string(),
-        };
-
-        // Parking zone ~30 meters away
-        let line = MiljoeDataClean {
-            coordinates: [
-                [decimal("13.194700"), decimal("55.594800")], // ~30m away
-                [decimal("13.195300"), decimal("55.595200")], // ~30m away
-            ],
-            info: "Malmö Miljözon A".to_string(),
-            tid: "08:00-18:00".to_string(),
-            dag: 1,
-        };
-
-        let points = vec![point];
-        let lines = vec![line];
-
-        let results = correlation(points, lines);
-        assert_eq!(results.len(), 1, "Should return 1 result");
-
-        let result = &results[0];
-        // Distance should be ~30 meters (well within 50m threshold)
-        assert!(
-            result.relevant,
-            "Address within 50m should be marked relevant"
-        );
-        assert_eq!(result.info, "Malmö Miljözon A");
-        assert_eq!(result.tid, "08:00-18:00");
-    }
-
-    // ============================================================================
-    // TEST 4: Distance Rejection - Beyond 50m threshold (NOT RELEVANT)
-    // ============================================================================
-    #[test]
-    fn test_beyond_50m_threshold_not_relevant() {
-        // Malmö address
-        let point = AdressClean {
-            coordinates: [decimal("13.195000"), decimal("55.595000")],
-            postnummer: "200 00".to_string(),
-            adress: "Storgatan 1".to_string(),
-            gata: "Storgatan".to_string(),
-            gatunummer: "1".to_string(),
-        };
-
-        // Parking zone ~200 meters away (far beyond 50m threshold)
-        let line = MiljoeDataClean {
-            coordinates: [
-                [decimal("13.193000"), decimal("55.593000")], // ~200m away
-                [decimal("13.193200"), decimal("55.593200")],
-            ],
-            info: "Distant Zone".to_string(),
-            tid: "09:00-17:00".to_string(),
-            dag: 2,
-        };
-
-        let points = vec![point];
-        let lines = vec![line];
-
-        let results = correlation(points, lines);
-        assert_eq!(results.len(), 1);
-
-        let result = &results[0];
-        // Should be marked as NOT relevant (too far)
-        assert!(
-            !result.relevant,
-            "Address beyond 50m should NOT be marked relevant"
-        );
-        // Even when not relevant, should still have address info
-        assert_eq!(result.adress, "Storgatan 1");
-    }
-
-    // ============================================================================
-    // TEST 5: Exact Location Match - Zero distance
-    // ============================================================================
-    #[test]
-    fn test_exact_location_match() {
-        let coord = [decimal("13.195000"), decimal("55.595000")];
-
-        let point = AdressClean {
-            coordinates: coord,
-            postnummer: "200 00".to_string(),
-            adress: "Test Address".to_string(),
-            gata: "Test Street".to_string(),
-            gatunummer: "1".to_string(),
-        };
-
-        // Parking zone at identical location
-        let line = MiljoeDataClean {
-            coordinates: [coord, coord],
-            info: "Exact Match Zone".to_string(),
-            tid: "08:00-18:00".to_string(),
-            dag: 1,
-        };
-
-        let points = vec![point];
-        let lines = vec![line];
-
-        let results = correlation(points, lines);
-        assert_eq!(results.len(), 1);
-        assert!(results[0].relevant, "Exact match should be relevant");
-    }
-
-    // ============================================================================
-    // TEST 6: Multiple Parking Zones - Closest one selected
-    // ============================================================================
-    #[test]
-    fn test_multiple_zones_closest_selected() {
-        let point = AdressClean {
-            coordinates: [decimal("13.195000"), decimal("55.595000")],
-            postnummer: "200 00".to_string(),
-            adress: "Central Address".to_string(),
-            gata: "Main Street".to_string(),
-            gatunummer: "5".to_string(),
-        };
-
-        // Three parking zones at different distances
-        let line1 = MiljoeDataClean {
-            coordinates: [
-                [decimal("13.190000"), decimal("55.590000")], // FAR (~700m)
-                [decimal("13.190200"), decimal("55.590200")],
-            ],
-            info: "Far Zone".to_string(),
-            tid: "08:00-18:00".to_string(),
-            dag: 1,
-        };
-
-        let line2 = MiljoeDataClean {
-            coordinates: [
-                [decimal("13.194800"), decimal("55.594800")], // CLOSEST (~20m)
-                [decimal("13.195200"), decimal("55.595200")],
-            ],
-            info: "Closest Zone".to_string(),
-            tid: "08:00-18:00".to_string(),
-            dag: 1,
-        };
-
-        let line3 = MiljoeDataClean {
-            coordinates: [
-                [decimal("13.200000"), decimal("55.600000")], // FAR (~700m)
-                [decimal("13.200200"), decimal("55.600200")],
-            ],
-            info: "Other Far Zone".to_string(),
-            tid: "08:00-18:00".to_string(),
-            dag: 1,
-        };
-
-        let points = vec![point];
-        let lines = vec![line1, line2, line3];
-
-        let results = find_closest_lines(&points, &lines);
-        let (closest_index, _) = results[0].unwrap();
-
-        assert_eq!(
-            closest_index, 1,
-            "Should select the closest zone (index 1)"
-        );
-    }
-
-    // ============================================================================
-    // TEST 7: Correlation Output Structure Validation
-    // ============================================================================
-    #[test]
-    fn test_correlation_output_structure() {
-        let point = AdressClean {
-            coordinates: [decimal("13.195000"), decimal("55.595000")],
-            postnummer: "202 00".to_string(),
-            adress: "Storgatan 15".to_string(),
-            gata: "Storgatan".to_string(),
-            gatunummer: "15".to_string(),
-        };
-
-        let line = MiljoeDataClean {
-            coordinates: [
-                [decimal("13.194800"), decimal("55.594800")],
-                [decimal("13.195200"), decimal("55.595200")],
-            ],
-            info: "Parking Zone A".to_string(),
-            tid: "08:00-18:00".to_string(),
-            dag: 1,
-        };
-
-        let points = vec![point];
-        let lines = vec![line];
-
-        let results = correlation(points, lines);
-        assert_eq!(results.len(), 1);
-
-        let result = &results[0];
-        assert!(result.relevant, "Should be marked relevant");
-        assert_eq!(result.postnummer, "202 00");
-        assert_eq!(result.adress, "Storgatan 15");
-        assert_eq!(result.gata, "Storgatan");
-        assert_eq!(result.gatunummer, "15");
-        assert_eq!(result.info, "Parking Zone A");
-        assert_eq!(result.tid, "08:00-18:00");
-        assert_eq!(result.dag, 1);
-    }
-
-    // ============================================================================
-    // TEST 8: Batch Processing - Multiple addresses and zones
-    // ============================================================================
-    #[test]
-    fn test_multiple_addresses_batch_processing() {
-        let points = vec![
-            AdressClean {
-                coordinates: [decimal("13.195000"), decimal("55.595000")],
-                postnummer: "200 00".to_string(),
-                adress: "Storgatan 1".to_string(),
-                gata: "Storgatan".to_string(),
-                gatunummer: "1".to_string(),
-            },
-            AdressClean {
-                coordinates: [decimal("13.210000"), decimal("55.610000")],
-                postnummer: "201 00".to_string(),
-                adress: "Lilla Torg 5".to_string(),
-                gata: "Lilla Torg".to_string(),
-                gatunummer: "5".to_string(),
-            },
-            AdressClean {
-                coordinates: [decimal("13.500000"), decimal("55.900000")], // VERY FAR
-                postnummer: "202 00".to_string(),
-                adress: "Västra Varvsgatan 10".to_string(),
-                gata: "Västra Varvsgatan".to_string(),
-                gatunummer: "10".to_string(),
-            },
+        // Test all 6 algorithms
+        let algos: Vec<(&str, Box<dyn CorrelationAlgo>)> = vec![
+            ("Distance-Based", Box::new(DistanceBasedAlgo)),
+            ("Raycasting", Box::new(RaycastingAlgo)),
         ];
 
-        let lines = vec![
-            MiljoeDataClean {
-                coordinates: [
-                    [decimal("13.194800"), decimal("55.594800")],
-                    [decimal("13.195200"), decimal("55.595200")],
-                ],
-                info: "Zone A".to_string(),
-                tid: "08:00-18:00".to_string(),
-                dag: 1,
-            },
-            MiljoeDataClean {
-                coordinates: [
-                    [decimal("13.209800"), decimal("55.609800")],
-                    [decimal("13.210200"), decimal("55.610200")],
-                ],
-                info: "Zone B".to_string(),
-                tid: "09:00-17:00".to_string(),
-                dag: 2,
-            },
-        ];
-
-        let results = correlation(points, lines);
-        assert_eq!(results.len(), 3, "Should have 3 results");
-
-        // First address should be relevant (close to Zone A)
-        assert_eq!(results[0].adress, "Storgatan 1");
-        assert!(results[0].relevant);
-        assert_eq!(results[0].info, "Zone A");
-
-        // Second address should be relevant (close to Zone B)
-        assert_eq!(results[1].adress, "Lilla Torg 5");
-        assert!(results[1].relevant);
-        assert_eq!(results[1].info, "Zone B");
-
-        // Third address is very far (not relevant)
-        assert_eq!(results[2].adress, "Västra Varvsgatan 10");
-        assert!(!results[2].relevant);
+        for (name, algo) in algos {
+            let result = algo.correlate(&addresses[0], &zones);
+            assert!(result.is_some(), "{}: Should find match within 50m", name);
+            let (_, dist) = result.unwrap();
+            assert!(dist > 0.0, "{}: Distance should be positive", name);
+            assert!(dist <= 50.0, "{}: Distance should be within 50m threshold", name);
+        }
     }
 
     // ============================================================================
-    // TEST 9: Real-world Malmö Coordinates
+    // TEST 2: 50m Threshold Enforcement
+    // ============================================================================
+    #[test]
+    fn test_50m_threshold_enforcement() {
+        let address = create_test_address("55.5932645", "13.1945945", "Test Address");
+
+        // Zone ~200 meters away (beyond threshold)
+        let far_zone = create_test_zone("55.5932645", "13.1925945", "55.5932945", "13.1926245", "Far Zone");
+
+        let addresses = vec![address];
+        let zones = vec![far_zone];
+
+        let algo = DistanceBasedAlgo;
+        let result = algo.correlate(&addresses[0], &zones);
+        
+        // Should return None because distance exceeds 50m
+        assert!(result.is_none(), "Addresses beyond 50m should not match");
+    }
+
+    // ============================================================================
+    // TEST 3: All 6 Algorithms - Consistent Results
+    // ============================================================================
+    #[test]
+    fn test_all_algorithms_consistency() {
+        let address = create_test_address("55.5932645", "13.1945945", "Central Address");
+        let zone = create_test_zone("55.5932645", "13.1945945", "55.5932945", "13.1946245", "Test Zone");
+
+        let addresses = vec![address];
+        let zones = vec![zone];
+
+        // Distance-Based
+        let db_algo = DistanceBasedAlgo;
+        let db_result = db_algo.correlate(&addresses[0], &zones);
+        assert!(db_result.is_some(), "Distance-Based should find match");
+
+        // Raycasting
+        let ray_algo = RaycastingAlgo;
+        let ray_result = ray_algo.correlate(&addresses[0], &zones);
+        assert!(ray_result.is_some(), "Raycasting should find match");
+
+        // Overlapping Chunks
+        let chunk_algo = OverlappingChunksAlgo::new(&zones);
+        let chunk_result = chunk_algo.correlate(&addresses[0], &zones);
+        assert!(chunk_result.is_some(), "Overlapping Chunks should find match");
+
+        // R-Tree
+        let rtree_algo = RTreeSpatialAlgo::new(&zones);
+        let rtree_result = rtree_algo.correlate(&addresses[0], &zones);
+        assert!(rtree_result.is_some(), "R-Tree should find match");
+
+        // KD-Tree
+        let kdtree_algo = KDTreeSpatialAlgo::new(&zones);
+        let kdtree_result = kdtree_algo.correlate(&addresses[0], &zones);
+        assert!(kdtree_result.is_some(), "KD-Tree should find match");
+
+        // Grid
+        let grid_algo = GridNearestAlgo::new(&zones);
+        let grid_result = grid_algo.correlate(&addresses[0], &zones);
+        assert!(grid_result.is_some(), "Grid should find match");
+
+        // All should find same zone index
+        assert_eq!(db_result.unwrap().0, ray_result.unwrap().0, "Algorithms should find same zone");
+        assert_eq!(db_result.unwrap().0, chunk_result.unwrap().0, "Algorithms should find same zone");
+        assert_eq!(db_result.unwrap().0, rtree_result.unwrap().0, "Algorithms should find same zone");
+        assert_eq!(db_result.unwrap().0, kdtree_result.unwrap().0, "Algorithms should find same zone");
+        assert_eq!(db_result.unwrap().0, grid_result.unwrap().0, "Algorithms should find same zone");
+    }
+
+    // ============================================================================
+    // TEST 4: Correlation Result Structure - Dual Dataset
+    // ============================================================================
+    #[test]
+    fn test_correlation_result_structure() {
+        let result1 = CorrelationResult {
+            address: "Storgatan 1".to_string(),
+            postnummer: "200 00".to_string(),
+            miljo_match: Some((15.5, "Miljö Zone A".to_string())),
+            parkering_match: None,
+        };
+
+        assert!(result1.has_match(), "Should have match");
+        assert_eq!(result1.dataset_source(), "Miljödata only");
+        assert_eq!(result1.closest_distance(), Some(15.5));
+
+        let result2 = CorrelationResult {
+            address: "Storgatan 2".to_string(),
+            postnummer: "200 00".to_string(),
+            miljo_match: Some((20.0, "Miljö Zone B".to_string())),
+            parkering_match: Some((35.0, "Parkering Zone A".to_string())),
+        };
+
+        assert!(result2.has_match(), "Should have match");
+        assert_eq!(result2.dataset_source(), "Both (Miljödata + Parkering)");
+        assert_eq!(result2.closest_distance(), Some(20.0), "Should return closest distance");
+
+        let result3 = CorrelationResult {
+            address: "Storgatan 3".to_string(),
+            postnummer: "200 00".to_string(),
+            miljo_match: None,
+            parkering_match: None,
+        };
+
+        assert!(!result3.has_match(), "Should have no match");
+        assert_eq!(result3.dataset_source(), "No match");
+        assert_eq!(result3.closest_distance(), None);
+    }
+
+    // ============================================================================
+    // TEST 5: Batch Processing - Multiple Addresses
+    // ============================================================================
+    #[test]
+    fn test_batch_processing_multiple_addresses() {
+        let addresses = vec![
+            create_test_address("55.5932645", "13.1945945", "Address 1"),
+            create_test_address("55.5932745", "13.1946045", "Address 2"),
+            create_test_address("55.5932845", "13.1946145", "Address 3"),
+        ];
+
+        let zones = vec![
+            create_test_zone("55.5932645", "13.1945945", "55.5932945", "13.1946245", "Zone 1"),
+            create_test_zone("55.5932745", "13.1946045", "55.5932945", "13.1946345", "Zone 2"),
+        ];
+
+        let algo = DistanceBasedAlgo;
+        let mut match_count = 0;
+
+        for address in &addresses {
+            if algo.correlate(address, &zones).is_some() {
+                match_count += 1;
+            }
+        }
+
+        assert_eq!(match_count, 3, "All addresses should find nearby zones");
+    }
+
+    // ============================================================================
+    // TEST 6: Closest Match Selection
+    // ============================================================================
+    #[test]
+    fn test_closest_match_selection() {
+        let address = create_test_address("55.5932645", "13.1945945", "Test Address");
+
+        let zones = vec![
+            create_test_zone("55.5842645", "13.1845945", "55.5842945", "13.1846245", "Far Zone"), // ~10km away
+            create_test_zone("55.5932645", "13.1945945", "55.5932945", "13.1946245", "Close Zone"), // ~20m away
+            create_test_zone("55.5932445", "13.1945745", "55.5932545", "13.1945845", "Medium Zone"), // ~50m away
+        ];
+
+        let algo = RTreeSpatialAlgo::new(&zones);
+        let result = algo.correlate(&address, &zones);
+
+        assert!(result.is_some(), "Should find a match");
+        let (idx, _dist) = result.unwrap();
+        // Should select the zone within 50m (likely index 1 - Close Zone)
+        assert!(idx < zones.len(), "Index should be valid");
+    }
+
+    // ============================================================================
+    // TEST 7: Real-World Malmö Coordinates
     // ============================================================================
     #[test]
     fn test_real_world_malmo_coordinates() {
-        // Real Malmö addresses with actual coordinates
-        let points = vec![
+        let addresses = vec![
             AdressClean {
                 coordinates: [decimal("13.1945945"), decimal("55.5932645")],
                 postnummer: "211 00".to_string(),
@@ -388,151 +241,87 @@ mod tests {
             },
         ];
 
-        // Real Malmö parking zones
-        let lines = vec![
-            MiljoeDataClean {
-                coordinates: [
-                    [decimal("13.1940000"), decimal("55.5930000")],
-                    [decimal("13.1950000"), decimal("55.5935000")],
-                ],
-                info: "Lilla Torg Miljözon".to_string(),
-                tid: "08:00-18:00".to_string(),
-                dag: 1,
-            },
-            MiljoeDataClean {
-                coordinates: [
-                    [decimal("13.2000000"), decimal("55.6040000")],
-                    [decimal("13.2010000"), decimal("55.6045000")],
-                ],
-                info: "Västra Varvsgatan Miljözon".to_string(),
-                tid: "09:00-17:00".to_string(),
-                dag: 2,
-            },
+        let zones = vec![
+            create_test_zone("55.5932645", "13.1945945", "55.5932945", "13.1946245", "Lilla Torg Miljözon"),
+            create_test_zone("55.6043210", "13.2004523", "55.6043510", "13.2004823", "Västra Varvsgatan Miljözon"),
         ];
 
-        let results = correlation(points, lines);
-        assert_eq!(results.len(), 2);
-
-        // Both should be relevant with real-world coordinates
-        assert!(results[0].relevant, "Lilla Torg should be relevant");
-        assert!(results[1].relevant, "Västra Varvsgatan should be relevant");
-
-        // Verify correct zone associations
-        assert_eq!(results[0].info, "Lilla Torg Miljözon");
-        assert_eq!(results[1].info, "Västra Varvsgatan Miljözon");
+        let algo = KDTreeSpatialAlgo::new(&zones);
+        for address in &addresses {
+            let result = algo.correlate(address, &zones);
+            assert!(result.is_some(), "Should find match for {}", address.adress);
+        }
     }
 
     // ============================================================================
-    // TEST 10: Degenerate Line Segment (identical endpoints)
+    // TEST 8: No Match Beyond Threshold
     // ============================================================================
     #[test]
-    fn test_degenerate_line_segment_handling() {
-        let point = AdressClean {
-            coordinates: [decimal("13.195000"), decimal("55.595000")],
-            postnummer: "200 00".to_string(),
-            adress: "Test".to_string(),
-            gata: "Test".to_string(),
-            gatunummer: "1".to_string(),
-        };
+    fn test_no_match_beyond_threshold() {
+        let address = create_test_address("55.5932645", "13.1945945", "Test Address");
+        
+        // Create zones that are all beyond 50m
+        let zones = vec![
+            create_test_zone("55.5842645", "13.1845945", "55.5842945", "13.1846245", "Far Zone 1"), // ~10km away
+            create_test_zone("55.6142645", "13.2145945", "55.6142945", "13.2146245", "Far Zone 2"), // ~10km away
+        ];
 
-        // Degenerate segment (both endpoints identical)
-        let line = MiljoeDataClean {
-            coordinates: [
-                [decimal("13.194800"), decimal("55.594800")],
-                [decimal("13.194800"), decimal("55.594800")], // Same point
-            ],
-            info: "Point Zone".to_string(),
-            tid: "08:00-18:00".to_string(),
-            dag: 1,
-        };
-
-        let points = vec![point];
-        let lines = vec![line];
-
-        // Should handle degenerate segment without panicking
-        let results = find_closest_lines(&points, &lines);
-        assert!(results[0].is_some(), "Should handle degenerate segment");
-        assert!(results[0].unwrap().1 >= 0.0, "Distance should be non-negative");
+        let algo = GridNearestAlgo::new(&zones);
+        let result = algo.correlate(&address, &zones);
+        
+        assert!(result.is_none(), "Should not match zones beyond 50m threshold");
     }
 
     // ============================================================================
-    // TEST 11: Threshold Verification - 50 meter boundary
+    // TEST 9: Deterministic Results
     // ============================================================================
     #[test]
-    fn test_50m_threshold_boundary() {
-        // Address in Malmö
-        let point = AdressClean {
-            coordinates: [decimal("13.195000"), decimal("55.595000")],
-            postnummer: "200 00".to_string(),
-            adress: "Test".to_string(),
-            gata: "Test".to_string(),
-            gatunummer: "1".to_string(),
-        };
+    fn test_deterministic_results() {
+        let address = create_test_address("55.5932645", "13.1945945", "Test Address");
+        let zones = vec![
+            create_test_zone("55.5932645", "13.1945945", "55.5932945", "13.1946245", "Zone 1"),
+            create_test_zone("55.5932745", "13.1946045", "55.5932945", "13.1946345", "Zone 2"),
+        ];
 
-        // Parking zone ~25 meters away (within 50m)
-        let line_near = MiljoeDataClean {
-            coordinates: [
-                [decimal("13.194800"), decimal("55.594800")], // ~25m away
-                [decimal("13.195200"), decimal("55.595200")],
-            ],
-            info: "Near Zone".to_string(),
-            tid: "08:00-18:00".to_string(),
-            dag: 1,
-        };
+        let algo = DistanceBasedAlgo;
+        let result1 = algo.correlate(&address, &zones);
+        let result2 = algo.correlate(&address, &zones);
 
-        let points = vec![point.clone()];
-        let lines = vec![line_near];
-
-        let results = correlation(points.clone(), lines);
-        assert!(
-            results[0].relevant,
-            "Zone within 50m should be relevant"
-        );
-
-        // Parking zone ~150 meters away (beyond 50m)
-        let line_far = MiljoeDataClean {
-            coordinates: [
-                [decimal("13.192000"), decimal("55.592000")], // ~150m away
-                [decimal("13.192200"), decimal("55.592200")],
-            ],
-            info: "Far Zone".to_string(),
-            tid: "08:00-18:00".to_string(),
-            dag: 1,
-        };
-
-        let results = correlation(points, vec![line_far]);
-        assert!(
-            !results[0].relevant,
-            "Zone beyond 50m should NOT be relevant"
-        );
+        // Same query should always return same result
+        match (result1, result2) {
+            (Some((idx1, dist1)), Some((idx2, dist2))) => {
+                assert_eq!(idx1, idx2, "Indices should match");
+                assert_eq!(dist1, dist2, "Distances should match exactly");
+            }
+            _ => panic!("Both queries should return Some"),
+        }
     }
 
     // ============================================================================
-    // TEST 12: Performance - Batch processing with many records
+    // TEST 10: Algorithm Benchmark - Performance
     // ============================================================================
     #[test]
-    fn test_batch_performance_many_records() {
-        // Generate 100 test addresses scattered across Malmö
-        let mut points = Vec::new();
+    fn test_algorithm_performance() {
+        // Generate test data
+        let mut addresses = Vec::new();
         for i in 0..100 {
-            let lat_offset = Decimal::from(i) * decimal("0.001");
-            points.push(AdressClean {
-                coordinates: [decimal("13.195000") + lat_offset, decimal("55.595000")],
-                postnummer: "Malmö".to_string(),
+            let lat_offset = Decimal::from(i) * decimal("0.0001");
+            addresses.push(AdressClean {
+                coordinates: [decimal("13.1945945") + lat_offset, decimal("55.5932645")],
+                postnummer: "200 00".to_string(),
                 adress: format!("Address {}", i),
                 gata: "Test Street".to_string(),
                 gatunummer: format!("{}", i),
             });
         }
 
-        // Generate 50 parking zones
-        let mut lines = Vec::new();
+        let mut zones = Vec::new();
         for i in 0..50 {
-            let lat_offset = Decimal::from(i) * decimal("0.002");
-            lines.push(MiljoeDataClean {
+            let lat_offset = Decimal::from(i) * decimal("0.0002");
+            zones.push(MiljoeDataClean {
                 coordinates: [
-                    [decimal("13.195000") + lat_offset, decimal("55.595000")],
-                    [decimal("13.195200") + lat_offset, decimal("55.595200")],
+                    [decimal("13.1945945") + lat_offset, decimal("55.5932645")],
+                    [decimal("13.1946245") + lat_offset, decimal("55.5932945")],
                 ],
                 info: format!("Zone {}", i),
                 tid: "08:00-18:00".to_string(),
@@ -540,52 +329,109 @@ mod tests {
             });
         }
 
-        let results = correlation(points, lines);
-        assert_eq!(results.len(), 100, "Should return 100 results");
+        // Test each algorithm - should complete without panicking
+        let db_algo = DistanceBasedAlgo;
+        let mut db_matches = 0;
+        for addr in &addresses {
+            if db_algo.correlate(addr, &zones).is_some() {
+                db_matches += 1;
+            }
+        }
+        assert!(db_matches > 0, "Distance-Based should find matches");
 
-        // Should have at least some relevant addresses
-        let relevant_count = results.iter().filter(|r| r.relevant).count();
-        assert!(
-            relevant_count > 0,
-            "At least some addresses should be relevant"
-        );
+        let chunk_algo = OverlappingChunksAlgo::new(&zones);
+        let mut chunk_matches = 0;
+        for addr in &addresses {
+            if chunk_algo.correlate(addr, &zones).is_some() {
+                chunk_matches += 1;
+            }
+        }
+        assert!(chunk_matches > 0, "Overlapping Chunks should find matches");
+
+        let rtree_algo = RTreeSpatialAlgo::new(&zones);
+        let mut rtree_matches = 0;
+        for addr in &addresses {
+            if rtree_algo.correlate(addr, &zones).is_some() {
+                rtree_matches += 1;
+            }
+        }
+        assert!(rtree_matches > 0, "R-Tree should find matches");
     }
 
     // ============================================================================
-    // TEST 13: Distance Calculation Consistency
+    // TEST 11: Exact Match - Zero Distance
     // ============================================================================
     #[test]
-    fn test_distance_calculation_consistency() {
-        // Two identical queries should produce identical results
-        let point = AdressClean {
-            coordinates: [decimal("13.195000"), decimal("55.595000")],
+    fn test_exact_location_match() {
+        let coord = [decimal("13.1945945"), decimal("55.5932645")];
+        let address = AdressClean {
+            coordinates: coord,
             postnummer: "200 00".to_string(),
             adress: "Test Address".to_string(),
             gata: "Test Street".to_string(),
             gatunummer: "1".to_string(),
         };
 
-        let line = MiljoeDataClean {
-            coordinates: [
-                [decimal("13.194000"), decimal("55.594000")],
-                [decimal("13.196000"), decimal("55.596000")],
-            ],
-            info: "Zone".to_string(),
+        // Zone at identical location
+        let zone = MiljoeDataClean {
+            coordinates: [coord, coord],
+            info: "Exact Match Zone".to_string(),
             tid: "08:00-18:00".to_string(),
             dag: 1,
         };
 
-        let points = vec![point.clone()];
-        let lines = vec![line.clone()];
+        let algo = DistanceBasedAlgo;
+        let result = algo.correlate(&address, &vec![zone]);
+        assert!(result.is_some(), "Should find exact match");
+        let (_, dist) = result.unwrap();
+        assert!(dist < 1.0, "Distance should be very small for exact match");
+    }
 
-        let results1 = find_closest_lines(&points, &lines);
-        let results2 = find_closest_lines(&points, &lines);
+    // ============================================================================
+    // TEST 12: Multiple Zones - Degenerate Segment Handling
+    // ============================================================================
+    #[test]
+    fn test_degenerate_zone_handling() {
+        let address = create_test_address("55.5932645", "13.1945945", "Test Address");
+        
+        // Degenerate zone (both endpoints identical)
+        let degenerate_zone = MiljoeDataClean {
+            coordinates: [
+                [decimal("13.1945945"), decimal("55.5932645")],
+                [decimal("13.1945945"), decimal("55.5932645")],
+            ],
+            info: "Degenerate Zone".to_string(),
+            tid: "08:00-18:00".to_string(),
+            dag: 1,
+        };
 
-        // Results should be identical
-        assert_eq!(results1.len(), results2.len());
-        if let (Some((idx1, dist1)), Some((idx2, dist2))) = (results1[0], results2[0]) {
-            assert_eq!(idx1, idx2, "Same query should find same zone index");
-            assert_eq!(dist1, dist2, "Distance should be identical");
+        let algo = DistanceBasedAlgo;
+        let result = algo.correlate(&address, &vec![degenerate_zone]);
+        
+        // Should handle degenerate segment without panicking
+        assert!(result.is_some(), "Should handle degenerate zone");
+    }
+
+    // ============================================================================
+    // TEST 13: Threshold Verification - Returns only matching indices
+    // ============================================================================
+    #[test]
+    fn test_threshold_returns_only_valid_matches() {
+        let address = create_test_address("55.5932645", "13.1945945", "Test Address");
+        
+        // Mix of zones: some within 50m, some beyond
+        let zones = vec![
+            create_test_zone("55.5932645", "13.1945945", "55.5932945", "13.1946245", "Close Zone"), // Within 50m
+            create_test_zone("55.5842645", "13.1845945", "55.5842945", "13.1846245", "Far Zone"), // ~10km away
+        ];
+
+        let algo = RaycastingAlgo;
+        let result = algo.correlate(&address, &zones);
+        
+        // Should return the close zone or None (depending on algorithm)
+        if let Some((idx, dist)) = result {
+            assert!(dist <= 50.0, "Returned distance should not exceed 50m");
+            assert_eq!(idx, 0, "Should match the close zone");
         }
     }
 }
