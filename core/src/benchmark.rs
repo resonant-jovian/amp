@@ -3,7 +3,7 @@
 use crate::structs::{AdressClean, MiljoeDataClean};
 use crate::correlation_algorithms::{
     CorrelationAlgo, DistanceBasedAlgo, RaycastingAlgo, 
-    OverlappingChunksAlgo, RTreeSpatialAlgo, QuadtreeSpatialAlgo,
+    OverlappingChunksAlgo, RTreeSpatialAlgo,
     KDTreeSpatialAlgo, GridNearestAlgo
 };
 use rayon::prelude::*;
@@ -20,8 +20,8 @@ pub struct BenchmarkResult {
 }
 
 pub struct Benchmarker {
-    addresses: Vec<AdressClean>,
-    parking_lines: Vec<MiljoeDataClean>,
+    pub addresses: Vec<AdressClean>,
+    pub parking_lines: Vec<MiljoeDataClean>,
 }
 
 impl Benchmarker {
@@ -81,10 +81,6 @@ impl Benchmarker {
         
         // R-tree spatial
         let algo = RTreeSpatialAlgo::new(&self.parking_lines);
-        results.push(self.benchmark_algorithm(&algo, sample_size));
-        
-        // Quadtree spatial
-        let algo = QuadtreeSpatialAlgo::new(&self.parking_lines);
         results.push(self.benchmark_algorithm(&algo, sample_size));
         
         // KD-tree spatial
