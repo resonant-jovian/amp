@@ -1,111 +1,156 @@
-use crate::correlation_algorithms::CorrelationAlgo;
-use crate::structs::*;
-use rust_decimal::prelude::ToPrimitive;
+//! R-tree spatial indexing algorithm
+//! Uses rstar crate for O(log n) nearest-neighbor queries
+//! Best performance for large datasets (1000+ parking zones)
 
-pub struct RTreeSpatialAlgo {
-    bounds: Vec<([f64; 2], [f64; 2], usize)>,
-}
+use crate::correlation_algorithms::CorrelationAlgo;
+use crate::structs::{AdressClean, MiljoeDataClean};
+use rstar::{AABB, PointDistance, RTree};
+use rust_decimal::prelude::ToPrimitive;
+use std::f64::consts::PI;
 
 const MAX_DISTANCE_METERS: f64 = 50.0;
+const EARTH_RADIUS_M: f64 = 6371000.0;
 
-fn haversine_distance(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
-    const R: f64 = 6371000.0;
-    let lat1_rad = lat1.to_radians();
-    let lat2_rad = lat2.to_radians();
-    let delta_lat = (lat2 - lat1).to_radians();
-    let delta_lon = (lon2 - lon1).to_radians();
-
-    let a = (delta_lat / 2.0).sin().powi(2)
-        + lat1_rad.cos() * lat2_rad.cos() * (delta_lon / 2.0).sin().powi(2);
-    let c = 2.0 * a.sqrt().atan2((1.0 - a).sqrt());
-    R * c
+pub struct RTreeSpatialAlgo {
+    rtree: RTree<IndexedLineSegment>,
 }
 
-fn sweref_to_latlon(x: f64, y: f64) -> (f64, f64) {
-    let lon = (x - 500000.0) / 111320.0 + 15.0;
-    let lat = y / 111320.0 + 55.5;
-    (lat, lon)
+#[derive(Debug, Clone)]
+struct IndexedLineSegment {
+    index: usize,
+    start: [f64; 2],
+    end: [f64; 2],
 }
 
-fn _distance_point_to_segment(point: [f64; 2], start: [f64; 2], end: [f64; 2]) -> f64 {
-    let point_vec = [point[0] - start[0], point[1] - start[1]];
-    let line_vec = [end[0] - start[0], end[1] - start[1]];
-    let line_len_sq = line_vec[0] * line_vec[0] + line_vec[1] * line_vec[1];
+impl rstar::RTreeObject for IndexedLineSegment {
+    type Envelope = AABB<[f64; 2]>;
 
-    if line_len_sq == 0.0 {
-        return (point_vec[0] * point_vec[0] + point_vec[1] * point_vec[1]).sqrt();
+    fn envelope(&self) -> Self::Envelope {
+        let min_x = self.start[0].min(self.end[0]);
+        let min_y = self.start[1].min(self.end[1]);
+        let max_x = self.start[0].max(self.end[0]);
+        let max_y = self.start[1].max(self.end[1]);
+
+        AABB::from_corners([min_x, min_y], [max_x, max_y])
     }
+}
 
-    let t =
-        ((point_vec[0] * line_vec[0] + point_vec[1] * line_vec[1]) / line_len_sq).clamp(0.0, 1.0);
-    let proj = [start[0] + t * line_vec[0], start[1] + t * line_vec[1]];
-    let diff = [point[0] - proj[0], point[1] - proj[1]];
-
-    (diff[0] * diff[0] + diff[1] * diff[1]).sqrt()
+impl PointDistance for IndexedLineSegment {
+    fn distance_2(&self, point: &[f64; 2]) -> f64 {
+        let dist = distance_point_to_line_segment(*point, self.start, self.end);
+        dist * dist // Return squared distance for efficiency
+    }
 }
 
 impl RTreeSpatialAlgo {
-    pub fn new(zones: &[MiljoeDataClean]) -> Self {
-        let mut bounds = Vec::new();
+    pub fn new(parking_lines: &[MiljoeDataClean]) -> Self {
+        let segments: Vec<IndexedLineSegment> = parking_lines
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, line)| {
+                let start = [
+                    line.coordinates[0][0].to_f64()?,
+                    line.coordinates[0][1].to_f64()?,
+                ];
+                let end = [
+                    line.coordinates[1][0].to_f64()?,
+                    line.coordinates[1][1].to_f64()?,
+                ];
 
-        for (idx, zone) in zones.iter().enumerate() {
-            let x1 = zone.coordinates[0][0].to_f64().unwrap_or(0.0);
-            let y1 = zone.coordinates[0][1].to_f64().unwrap_or(0.0);
-            let x2 = zone.coordinates[1][0].to_f64().unwrap_or(0.0);
-            let y2 = zone.coordinates[1][1].to_f64().unwrap_or(0.0);
+                Some(IndexedLineSegment {
+                    index: idx,
+                    start,
+                    end,
+                })
+            })
+            .collect();
 
-            let min_x = x1.min(x2);
-            let min_y = y1.min(y2);
-            let max_x = x1.max(x2);
-            let max_y = y1.max(y2);
-
-            bounds.push(([min_x, min_y], [max_x, max_y], idx));
+        Self {
+            rtree: RTree::bulk_load(segments),
         }
-
-        RTreeSpatialAlgo { bounds }
     }
 }
 
 impl CorrelationAlgo for RTreeSpatialAlgo {
-    fn correlate(&self, address: &AdressClean, zones: &[MiljoeDataClean]) -> Option<(usize, f64)> {
-        let _addr_x = address.coordinates[0].to_f64()?;
-        let _addr_y = address.coordinates[1].to_f64()?;
-        let addr_lat_f64 = address.coordinates[1].to_f64()?;
-        let addr_lon_f64 = address.coordinates[0].to_f64()?;
-        let (addr_lat, addr_lon) = sweref_to_latlon(addr_lon_f64, addr_lat_f64);
+    fn correlate(
+        &self,
+        address: &AdressClean,
+        _parking_lines: &[MiljoeDataClean],
+    ) -> Option<(usize, f64)> {
+        let point = [
+            address.coordinates[0].to_f64()?,
+            address.coordinates[1].to_f64()?,
+        ];
 
-        let mut closest: Option<(usize, f64)> = None;
+        // O(log n) nearest neighbor query
+        let nearest = self.rtree.nearest_neighbor(&point)?;
 
-        for (_min_bound, _max_bound, idx) in &self.bounds {
-            let zone = &zones[*idx];
+        let dist = distance_point_to_line_segment(point, nearest.start, nearest.end);
 
-            let start_f64 = [
-                zone.coordinates[0][0].to_f64()?,
-                zone.coordinates[0][1].to_f64()?,
-            ];
-            let end_f64 = [
-                zone.coordinates[1][0].to_f64()?,
-                zone.coordinates[1][1].to_f64()?,
-            ];
-
-            let (start_lat, start_lon) = sweref_to_latlon(start_f64[0], start_f64[1]);
-            let (end_lat, end_lon) = sweref_to_latlon(end_f64[0], end_f64[1]);
-
-            let dist_to_start = haversine_distance(addr_lat, addr_lon, start_lat, start_lon);
-            let dist_to_end = haversine_distance(addr_lat, addr_lon, end_lat, end_lon);
-            let min_dist = dist_to_start.min(dist_to_end);
-
-            if min_dist <= MAX_DISTANCE_METERS
-                && (closest.is_none() || min_dist < closest.unwrap().1)
-            {
-                closest = Some((*idx, min_dist))
-            }
-        }
-
-        closest
+        // Only return if within threshold
+        (dist <= MAX_DISTANCE_METERS).then_some((nearest.index, dist))
     }
 
     fn name(&self) -> &'static str {
         "R-Tree Spatial Index"
+    }
+}
+
+/// Calculate perpendicular distance from point to line segment using Haversine
+fn distance_point_to_line_segment(
+    point: [f64; 2],
+    line_start: [f64; 2],
+    line_end: [f64; 2],
+) -> f64 {
+    let line_vec = [line_end[0] - line_start[0], line_end[1] - line_start[1]];
+    let point_vec = [point[0] - line_start[0], point[1] - line_start[1]];
+
+    let line_len_sq = line_vec[0] * line_vec[0] + line_vec[1] * line_vec[1];
+
+    if line_len_sq == 0.0 {
+        return haversine_distance(point, line_start);
+    }
+
+    let t = ((point_vec[0] * line_vec[0] + point_vec[1] * line_vec[1]) / line_len_sq)
+        .clamp(0.0, 1.0);
+
+    let closest = [
+        line_start[0] + t * line_vec[0],
+        line_start[1] + t * line_vec[1],
+    ];
+
+    haversine_distance(point, closest)
+}
+
+fn haversine_distance(point1: [f64; 2], point2: [f64; 2]) -> f64 {
+    let lat1 = point1[1].to_radians();
+    let lat2 = point2[1].to_radians();
+    let delta_lat = (point2[1] - point1[1]).to_radians();
+    let delta_lon = (point2[0] - point1[0]).to_radians();
+
+    let a = (delta_lat / 2.0).sin().powi(2)
+        + lat1.cos() * lat2.cos() * (delta_lon / 2.0).sin().powi(2);
+
+    let c = 2.0 * a.sqrt().atan2((1.0 - a).sqrt());
+
+    EARTH_RADIUS_M * c
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstar::RTreeObject;
+
+    #[test]
+    fn test_rtree_envelope() {
+        let seg = IndexedLineSegment {
+            index: 0,
+            start: [13.0, 55.0],
+            end: [13.1, 55.1],
+        };
+
+        let env = seg.envelope();
+        assert_eq!(env.lower(), [13.0, 55.0]);
+        assert_eq!(env.upper(), [13.1, 55.1]);
     }
 }
