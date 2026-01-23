@@ -14,6 +14,7 @@ use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use rayon::prelude::*;
+use std::io::{self, Write};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
@@ -92,11 +93,59 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// Prompt user to select which algorithms to benchmark
+fn select_algorithms() -> Vec<&'static str> {
+    let algorithms = vec![
+        "Distance-Based",
+        "Raycasting",
+        "Overlapping Chunks",
+        "R-Tree",
+        "KD-Tree",
+        "Grid",
+    ];
+
+    println!("\n🔧 Algorithm Selection (Y/N to include, default is Y if just Enter is pressed):\n");
+
+    let mut selected = Vec::new();
+
+    for algo in &algorithms {
+        loop {
+            print!("   Include {} benchmark? [Y/n]: ", algo);
+            io::stdout().flush().ok();
+
+            let mut input = String::new();
+            io::stdin()
+                .read_line(&mut input)
+                .expect("Failed to read input");
+            let input = input.trim().to_lowercase();
+
+            // Default to "y" if just Enter is pressed
+            if input.is_empty() || input == "y" || input == "yes" {
+                selected.push(*algo);
+                println!("      ✓ {} selected", algo);
+                break;
+            } else if input == "n" || input == "no" {
+                println!("      ✗ {} skipped", algo);
+                break;
+            } else {
+                println!("      ❌ Invalid input. Please enter Y/N");
+            }
+        }
+    }
+
+    if selected.is_empty() {
+        println!("\n⚠️  No algorithms selected! Running all algorithms instead.\n");
+        algorithms
+    } else {
+        println!();
+        selected
+    }
+}
+
 fn run_correlation(algorithm: AlgorithmChoice) -> Result<(), Box<dyn std::error::Error>> {
     // Load data with progress
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
-    pb.set_message("Loading data...");
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);    pb.set_message("Loading data...");
 
     let (addresses, miljodata, parkering): (
         Vec<AdressClean>,
@@ -128,8 +177,7 @@ fn run_correlation(algorithm: AlgorithmChoice) -> Result<(), Box<dyn std::error:
     let pb = ProgressBar::new(addresses.len() as u64);
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}% {msg}")?
-            .progress_chars("█▓▒░ "),
+            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}% {msg}")?            .progress_chars("█▓▒░ "),
     );
 
     // Correlate with miljödata
@@ -403,8 +451,7 @@ fn merge_results(
 fn run_benchmark(sample_size: usize) -> Result<(), Box<dyn std::error::Error>> {
     // Load data
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
-    pb.set_message("Loading data for benchmarking...");
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);    pb.set_message("Loading data for benchmarking...");
 
     let (addresses, zones) = amp_core::api::api_miljo_only()?;
     pb.finish_with_message(format!(
@@ -413,27 +460,22 @@ fn run_benchmark(sample_size: usize) -> Result<(), Box<dyn std::error::Error>> {
         zones.len()
     ));
 
+    // Let user select which algorithms to benchmark
+    let selected_algos = select_algorithms();
+
     let benchmarker = Benchmarker::new(addresses, zones);
 
     println!(
-        "\n🏁 Benchmarking all 6 algorithms with {} samples\n",
+        "🏁 Benchmarking {} selected algorithm(s) with {} samples\n",
+        selected_algos.len(),
         sample_size
     );
 
-    // Create multi-progress for all algorithms
+    // Create multi-progress for selected algorithms
     let multi_pb = MultiProgress::new();
 
-    let algorithms = [
-        "Distance-Based",
-        "Raycasting",
-        "Overlapping Chunks",
-        "R-Tree",
-        "KD-Tree",
-        "Grid",
-    ];
-
-    // Create progress bars for each algorithm
-    let pbs: Vec<_> = algorithms
+    // Create progress bars for each selected algorithm
+    let pbs: Vec<_> = selected_algos
         .iter()
         .map(|name| {
             let pb = multi_pb.add(ProgressBar::new(sample_size as u64));
@@ -452,7 +494,7 @@ fn run_benchmark(sample_size: usize) -> Result<(), Box<dyn std::error::Error>> {
         .collect();
 
     // Run benchmarks with progress updates
-    let results = benchmark_all_with_progress(&benchmarker, Some(sample_size), &pbs);
+    let results = benchmark_selected_with_progress(&benchmarker, sample_size, &selected_algos, &pbs);
 
     // Finish all progress bars
     for pb in pbs {
@@ -469,19 +511,20 @@ type Alg<'a> = Vec<(
     &'a str,
     fn(&Benchmarker, &[AdressClean], &ProgressBar, &AtomicUsize, &Arc<AtomicUsize>) -> (),
 )>;
-fn benchmark_all_with_progress(
+fn benchmark_selected_with_progress(
     benchmarker: &Benchmarker,
-    sample_size: Option<usize>,
+    sample_size: usize,
+    selected_algos: &[&str],
     pbs: &[ProgressBar],
 ) -> Vec<amp_core::benchmark::BenchmarkResult> {
     use amp_core::benchmark::BenchmarkResult;
 
-    let sample_size = sample_size.unwrap_or(benchmarker.addresses.len());
-    let addresses_to_test = &benchmarker.addresses[..sample_size.min(benchmarker.addresses.len())];
+    let sample_size = sample_size.min(benchmarker.addresses.len());
+    let addresses_to_test = &benchmarker.addresses[..sample_size];
 
     let mut results = Vec::new();
 
-    let algos: Alg = vec![
+    let all_algos: Alg = vec![
         ("Distance-Based", |bm, addrs, pb, matches, counter| {
             let algo = DistanceBasedAlgo;
             run_single_benchmark(
@@ -556,8 +599,14 @@ fn benchmark_all_with_progress(
         }),
     ];
 
-    for (idx, (name, run_fn)) in algos.iter().enumerate() {
-        pbs[idx].set_message("running...");
+    let mut pb_idx = 0;
+    for (name, run_fn) in all_algos.iter() {
+        // Only run if this algorithm was selected
+        if !selected_algos.contains(name) {
+            continue;
+        }
+
+        pbs[pb_idx].set_message("running...");
 
         let start = Instant::now();
         let matches = AtomicUsize::new(0);
@@ -566,7 +615,7 @@ fn benchmark_all_with_progress(
         run_fn(
             benchmarker,
             addresses_to_test,
-            &pbs[idx],
+            &pbs[pb_idx],
             &matches,
             &counter,
         );
@@ -574,7 +623,7 @@ fn benchmark_all_with_progress(
         let total_duration = start.elapsed();
         let avg_per_address = total_duration / addresses_to_test.len() as u32;
 
-        pbs[idx].finish_with_message(format!("✓ {:.2?}", total_duration));
+        pbs[pb_idx].finish_with_message(format!("✓ {:.2?}", total_duration));
 
         results.push(BenchmarkResult {
             algorithm_name: name.to_string(),
@@ -583,6 +632,8 @@ fn benchmark_all_with_progress(
             addresses_processed: addresses_to_test.len(),
             matches_found: matches.load(Ordering::Relaxed),
         });
+
+        pb_idx += 1;
     }
 
     results
@@ -623,8 +674,7 @@ async fn check_updates(checksum_file: &str) -> Result<(), Box<dyn std::error::Er
     );
 
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
-    pb.set_message("Fetching remote data...");
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);    pb.set_message("Fetching remote data...");
 
     new_checksums.update_from_remote().await?;
     pb.finish_with_message("✓ Data fetched");
