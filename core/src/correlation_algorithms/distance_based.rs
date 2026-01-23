@@ -5,6 +5,8 @@ use crate::structs::{AdressClean, MiljoeDataClean};
 use crate::correlation_algorithms::CorrelationAlgo;
 use rust_decimal::prelude::ToPrimitive;
 
+const MAX_DISTANCE_METERS: f64 = 50.0;
+
 pub struct DistanceBasedAlgo;
 
 impl DistanceBasedAlgo {
@@ -61,7 +63,13 @@ impl CorrelationAlgo for DistanceBasedAlgo {
                 ];
                 
                 let dist = self.distance_to_line(point, line_start, line_end);
-                Some((idx, dist))
+                
+                // Only include if within threshold
+                if dist <= MAX_DISTANCE_METERS {
+                    Some((idx, dist))
+                } else {
+                    None
+                }
             })
             .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
     }
