@@ -3,7 +3,8 @@
 use crate::structs::{AdressClean, MiljoeDataClean};
 use crate::correlation_algorithms::{
     CorrelationAlgo, DistanceBasedAlgo, RaycastingAlgo, 
-    OverlappingChunksAlgo, LinearAlgebraAlgo
+    OverlappingChunksAlgo, RTreeSpatialAlgo, QuadtreeSpatialAlgo,
+    KDTreeSpatialAlgo, GridNearestAlgo
 };
 use rayon::prelude::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -74,12 +75,24 @@ impl Benchmarker {
         let algo = RaycastingAlgo;
         results.push(self.benchmark_algorithm(&algo, sample_size));
         
-        // Overlapping chunks (needs pre-built grid)
+        // Overlapping chunks
         let algo = OverlappingChunksAlgo::new(&self.parking_lines);
         results.push(self.benchmark_algorithm(&algo, sample_size));
         
-        // Linear algebra
-        let algo = LinearAlgebraAlgo;
+        // R-tree spatial
+        let algo = RTreeSpatialAlgo::new(&self.parking_lines);
+        results.push(self.benchmark_algorithm(&algo, sample_size));
+        
+        // Quadtree spatial
+        let algo = QuadtreeSpatialAlgo::new(&self.parking_lines);
+        results.push(self.benchmark_algorithm(&algo, sample_size));
+        
+        // KD-tree spatial
+        let algo = KDTreeSpatialAlgo::new(&self.parking_lines);
+        results.push(self.benchmark_algorithm(&algo, sample_size));
+        
+        // Grid nearest neighbor
+        let algo = GridNearestAlgo::new(&self.parking_lines);
         results.push(self.benchmark_algorithm(&algo, sample_size));
         
         results
@@ -87,12 +100,12 @@ impl Benchmarker {
     
     /// Print benchmark results in a formatted table
     pub fn print_results(results: &[BenchmarkResult]) {
-        println!("\n{:<20} {:<15} {:<20} {:<15} {:<15}", 
+        println!("\n{:<25} {:<15} {:<20} {:<15} {:<15}", 
                  "Algorithm", "Total Time", "Avg per Address", "Processed", "Matches");
-        println!("{}", "-".repeat(85));
+        println!("{}", "-".repeat(95));
         
         for result in results {
-            println!("{:<20} {:<15.2?} {:<20.2?} {:<15} {:<15}",
+            println!("{:<25} {:<15.2?} {:<20.2?} {:<15} {:<15}",
                      result.algorithm_name,
                      result.total_duration,
                      result.avg_per_address,
