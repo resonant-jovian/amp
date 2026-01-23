@@ -42,7 +42,7 @@ impl CorrelationResult {
 
     pub fn closest_distance(&self) -> Option<f64> {
         match (self.miljo_match.as_ref(), self.parkering_match.as_ref()) {
-            (Some((d1, _)), Some((d2, _))) => Some(d1.min(d2)),
+            (Some((d1, _)), Some((d2, _))) => Some(d1.min(*d2)),
             (Some((d, _)), None) => Some(*d),
             (None, Some((d, _))) => Some(*d),
             (None, None) => None,
