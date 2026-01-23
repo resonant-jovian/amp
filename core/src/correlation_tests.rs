@@ -49,35 +49,45 @@ mod tests {
         // Address in central Malmö
         let address = create_test_address("55.5932645", "13.1945945", "Lilla Torg 1");
 
-        // Zone ~20 meters away (should be within 50m threshold)
+        // Zone ~30 meters away (should be within 50m threshold)
+        // Offset by ~0.00025 degrees in both lat and lon (~25-30m)
         let zone = create_test_zone(
-            "55.5932645",
-            "13.1945945",
-            "55.5932945",
-            "13.1946245",
+            "55.5932895",  // lat_start: offset ~30m north
+            "13.1946195",  // lon_start: offset ~25m east
+            "55.5933195",  // lat_end: further north
+            "55.5946495",  // lon_end: further east
             "Test Zone",
         );
 
         let addresses = vec![address];
         let zones = vec![zone];
 
-        // Test all 6 algorithms
-        let algos: Vec<(&str, Box<dyn CorrelationAlgo>)> = vec![
-            ("Distance-Based", Box::new(DistanceBasedAlgo)),
-            ("Raycasting", Box::new(RaycastingAlgo)),
-        ];
+        // Test Distance-Based and Raycasting algorithms
+        let db_algo = DistanceBasedAlgo;
+        let db_result = db_algo.correlate(&addresses[0], &zones);
+        assert!(
+            db_result.is_some(),
+            "Distance-Based: Should find match within 50m"
+        );
+        let (_, db_dist) = db_result.unwrap();
+        assert!(db_dist > 0.0, "Distance-Based: Distance should be positive");
+        assert!(
+            db_dist <= 50.0,
+            "Distance-Based: Distance should be within 50m threshold"
+        );
 
-        for (name, algo) in algos {
-            let result = algo.correlate(&addresses[0], &zones);
-            assert!(result.is_some(), "{}: Should find match within 50m", name);
-            let (_, dist) = result.unwrap();
-            assert!(dist > 0.0, "{}: Distance should be positive", name);
-            assert!(
-                dist <= 50.0,
-                "{}: Distance should be within 50m threshold",
-                name
-            );
-        }
+        let ray_algo = RaycastingAlgo;
+        let ray_result = ray_algo.correlate(&addresses[0], &zones);
+        assert!(
+            ray_result.is_some(),
+            "Raycasting: Should find match within 50m"
+        );
+        let (_, ray_dist) = ray_result.unwrap();
+        assert!(ray_dist > 0.0, "Raycasting: Distance should be positive");
+        assert!(
+            ray_dist <= 50.0,
+            "Raycasting: Distance should be within 50m threshold"
+        );
     }
 
     // ============================================================================
