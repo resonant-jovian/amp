@@ -128,7 +128,7 @@ AMP is organized as a **Rust workspace with four integrated modules**:
 │   │            │              │          │      │
 │ ┌─┴─────┐   ┌──┴──┐      ┌────┴───┐   ┌──┴───┐  │
 │ │ANDROID│   │ iOS │      │ SERVER │   │ DOCS │  │
-│ │  + UI  │   │+ UI │      │  + CLI │   │+Guide│  │
+│ │  + UI │   │+ UI │      │  + CLI │   │+Guide│  │
 │ └───────┘   └─────┘      └────────┘   └──────┘  │
 │                                                 │
 └─────────────────────────────────────────────────┘
