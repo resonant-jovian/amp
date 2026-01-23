@@ -144,8 +144,8 @@ impl DataLoader {
         Ok(addresses)
     }
 
-    pub fn load_parking(path: &str) -> Result<Vec<MiljoeDataClean>, Box<dyn std::error::Error>> {
-        println!("\nLoading parking data from: {}", path);
+    pub fn load_parking(path: &str, dataset_name: &str) -> Result<Vec<MiljoeDataClean>, Box<dyn std::error::Error>> {
+        println!("\nLoading {} from: {}", dataset_name, path);
         let content = fs::read_to_string(path)?;
         let geojson: GeoJson = content.parse()?;
 
@@ -155,10 +155,10 @@ impl DataLoader {
                 .filter_map(Self::parse_parking_feature)
                 .collect()
         } else {
-            return Err("Invalid GeoJSON format for parking data".into());
+            return Err(format!("Invalid GeoJSON format for {}", dataset_name).into());
         };
 
-        println!("Loaded {} parking zones", parking.len());
+        println!("Loaded {} {}", parking.len(), dataset_name);
         
         // Show sample
         for (i, park) in parking.iter().take(3).enumerate() {
@@ -169,16 +169,25 @@ impl DataLoader {
     }
 }
 
-pub fn api() -> Result<(Vec<AdressClean>, Vec<MiljoeDataClean>), Box<dyn std::error::Error>> {
+pub fn api() -> Result<(Vec<AdressClean>, Vec<MiljoeDataClean>, Vec<MiljoeDataClean>), Box<dyn std::error::Error>> {
     let _loader = DataLoader::new();
 
-    // Load from local JSON files (Malmö open data, timestamp 2025-12-29)
+    // Load from local JSON files (Malmö open data)
     let addresses = DataLoader::load_addresses("data/adresser.json")?;
-    let parking = DataLoader::load_parking("data/miljoparkeringar.json")?;
+    let miljodata = DataLoader::load_parking("data/miljoparkeringar.json", "Miljödata")?;
+    let parkering = DataLoader::load_parking("data/parkeringsavgifter.json", "Parkering avgifter")?;
 
     println!("\n✓ Data loading complete");
     println!("  Total addresses: {}", addresses.len());
-    println!("  Total parking zones: {}", parking.len());
+    println!("  Total miljödata zones: {}", miljodata.len());
+    println!("  Total parkering zones: {}", parkering.len());
 
-    Ok((addresses, parking))
+    Ok((addresses, miljodata, parkering))
+}
+
+pub fn api_miljo_only() -> Result<(Vec<AdressClean>, Vec<MiljoeDataClean>), Box<dyn std::error::Error>> {
+    let _loader = DataLoader::new();
+    let addresses = DataLoader::load_addresses("data/adresser.json")?;
+    let miljodata = DataLoader::load_parking("data/miljoparkeringar.json", "Miljödata")?;
+    Ok((addresses, miljodata))
 }
