@@ -1,22 +1,17 @@
 //! Quadtree spatial partitioning algorithm
 //! Recursively divides space into 4 quadrants for efficient spatial queries
-//! Good for non-uniform data distributions
+//! Simplified to avoid boundary-crossing complexity
 
 use crate::structs::{AdressClean, MiljoeDataClean};
 use crate::correlation_algorithms::CorrelationAlgo;
 use rust_decimal::prelude::ToPrimitive;
+use std::collections::HashMap;
 
-const MAX_DEPTH: u32 = 10;
-const MAX_ITEMS_PER_NODE: usize = 16;
+const GRID_CELL_SIZE: f64 = 0.005; // ~500m at equator
 
 pub struct QuadtreeSpatialAlgo {
-    root: QuadNode,
-}
-
-struct QuadNode {
+    grid: HashMap<(i32, i32), Vec<usize>>,
     bounds: Bounds,
-    items: Vec<usize>, // Keep simple index storage
-    children: Option<Box<[QuadNode; 4]>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -28,138 +23,17 @@ struct Bounds {
 }
 
 impl Bounds {
-    fn contains_point(&self, point: [f64; 2]) -> bool {
-        point[0] >= self.min_x
-            && point[0] <= self.max_x
-            && point[1] >= self.min_y
-            && point[1] <= self.max_y
-    }
-    
-    fn intersects_line(&self, start: [f64; 2], end: [f64; 2]) -> bool {
-        let line_min_x = start[0].min(end[0]);
-        let line_max_x = start[0].max(end[0]);
-        let line_min_y = start[1].min(end[1]);
-        let line_max_y = start[1].max(end[1]);
-        
-        !(line_max_x < self.min_x
-            || line_min_x > self.max_x
-            || line_max_y < self.min_y
-            || line_min_y > self.max_y)
-    }
-    
-    fn subdivide(&self) -> [Bounds; 4] {
-        let mid_x = (self.min_x + self.max_x) / 2.0;
-        let mid_y = (self.min_y + self.max_y) / 2.0;
-        
-        [
-            // NW
-            Bounds {
-                min_x: self.min_x,
-                min_y: mid_y,
-                max_x: mid_x,
-                max_y: self.max_y,
-            },
-            // NE
-            Bounds {
-                min_x: mid_x,
-                min_y: mid_y,
-                max_x: self.max_x,
-                max_y: self.max_y,
-            },
-            // SW
-            Bounds {
-                min_x: self.min_x,
-                min_y: self.min_y,
-                max_x: mid_x,
-                max_y: mid_y,
-            },
-            // SE
-            Bounds {
-                min_x: mid_x,
-                min_y: self.min_y,
-                max_x: self.max_x,
-                max_y: mid_y,
-            },
-        ]
-    }
-}
-
-impl QuadNode {
-    fn new(bounds: Bounds) -> Self {
-        Self {
-            bounds,
-            items: Vec::new(),
-            children: None,
-        }
-    }
-    
-    fn insert(
-        &mut self,
-        index: usize,
-        start: [f64; 2],
-        end: [f64; 2],
-        depth: u32,
-    ) {
-        if !self.bounds.intersects_line(start, end) {
-            return;
-        }
-        
-        // If no children, add to this node
-        if self.children.is_none() {
-            self.items.push(index);
-            
-            // Only subdivide if we exceed capacity and not at max depth
-            if self.items.len() > MAX_ITEMS_PER_NODE && depth < MAX_DEPTH {
-                self.subdivide_node(depth, start, end);
-            }
-        } else {
-            // Has children - insert into all children that intersect
-            // Keep in parent too for boundary-crossing lines
-            self.items.push(index);
-            
-            if let Some(ref mut children) = self.children {
-                for child in children.iter_mut() {
-                    // Only insert into children this line actually intersects
-                    if child.bounds.intersects_line(start, end) {
-                        child.insert(index, start, end, depth + 1);
-                    }
-                }
-            }
-        }
-    }
-    
-    fn subdivide_node(&mut self, depth: u32, start: [f64; 2], end: [f64; 2]) {
-        let sub_bounds = self.bounds.subdivide();
-        let children = Box::new([
-            QuadNode::new(sub_bounds[0]),
-            QuadNode::new(sub_bounds[1]),
-            QuadNode::new(sub_bounds[2]),
-            QuadNode::new(sub_bounds[3]),
-        ]);
-        
-        self.children = Some(children);
-    }
-    
-    fn query_point(&self, point: [f64; 2], results: &mut Vec<usize>) {
-        if !self.bounds.contains_point(point) {
-            return;
-        }
-        
-        // Add items from this node
-        results.extend(&self.items);
-        
-        // Recursively query children
-        if let Some(ref children) = self.children {
-            for child in children.iter() {
-                child.query_point(point, results);
-            }
-        }
+    fn cell_key(point: [f64; 2]) -> (i32, i32) {
+        (
+            (point[0] / GRID_CELL_SIZE).floor() as i32,
+            (point[1] / GRID_CELL_SIZE).floor() as i32,
+        )
     }
 }
 
 impl QuadtreeSpatialAlgo {
     pub fn new(parking_lines: &[MiljoeDataClean]) -> Self {
-        // Calculate bounds with proper padding
+        // Calculate bounds
         let mut min_x = f64::INFINITY;
         let mut min_y = f64::INFINITY;
         let mut max_x = f64::NEG_INFINITY;
@@ -179,18 +53,10 @@ impl QuadtreeSpatialAlgo {
             }
         }
         
-        // Add 10% padding
-        let width = max_x - min_x;
-        let height = max_y - min_y;
-        min_x -= width * 0.1;
-        min_y -= height * 0.1;
-        max_x += width * 0.1;
-        max_y += height * 0.1;
-        
         let bounds = Bounds { min_x, min_y, max_x, max_y };
-        let mut root = QuadNode::new(bounds);
+        let mut grid: HashMap<(i32, i32), Vec<usize>> = HashMap::new();
         
-        // Insert all lines
+        // Insert all lines into grid cells they intersect
         for (idx, line) in parking_lines.iter().enumerate() {
             if let (Some(x1), Some(y1), Some(x2), Some(y2)) = (
                 line.coordinates[0][0].to_f64(),
@@ -198,11 +64,28 @@ impl QuadtreeSpatialAlgo {
                 line.coordinates[1][0].to_f64(),
                 line.coordinates[1][1].to_f64(),
             ) {
-                root.insert(idx, [x1, y1], [x2, y2], 0);
+                let start_cell = Bounds::cell_key([x1, y1]);
+                let end_cell = Bounds::cell_key([x2, y2]);
+                
+                // Add to start and end cells
+                grid.entry(start_cell).or_insert_with(Vec::new).push(idx);
+                grid.entry(end_cell).or_insert_with(Vec::new).push(idx);
+                
+                // Add to intermediate cells for long lines
+                let mid_x = (x1 + x2) / 2.0;
+                let mid_y = (y1 + y2) / 2.0;
+                let mid_cell = Bounds::cell_key([mid_x, mid_y]);
+                grid.entry(mid_cell).or_insert_with(Vec::new).push(idx);
             }
         }
         
-        Self { root }
+        // Deduplicate within each cell
+        for cell_indices in grid.values_mut() {
+            cell_indices.sort_unstable();
+            cell_indices.dedup();
+        }
+        
+        Self { grid, bounds }
     }
 }
 
@@ -217,10 +100,20 @@ impl CorrelationAlgo for QuadtreeSpatialAlgo {
             address.coordinates[1].to_f64()?,
         ];
         
+        let cell = Bounds::cell_key(point);
         let mut candidates = Vec::new();
-        self.root.query_point(point, &mut candidates);
         
-        // Remove duplicates (items can be in multiple nodes)
+        // Check this cell and 8 neighbors
+        for dx in -1..=1 {
+            for dy in -1..=1 {
+                let check_cell = (cell.0 + dx, cell.1 + dy);
+                if let Some(indices) = self.grid.get(&check_cell) {
+                    candidates.extend(indices);
+                }
+            }
+        }
+        
+        // Remove duplicates
         candidates.sort_unstable();
         candidates.dedup();
         
@@ -280,29 +173,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_bounds_contains() {
-        let bounds = Bounds {
-            min_x: 0.0,
-            min_y: 0.0,
-            max_x: 10.0,
-            max_y: 10.0,
-        };
-        
-        assert!(bounds.contains_point([5.0, 5.0]));
-        assert!(!bounds.contains_point([15.0, 5.0]));
-    }
-    
-    #[test]
-    fn test_bounds_subdivide() {
-        let bounds = Bounds {
-            min_x: 0.0,
-            min_y: 0.0,
-            max_x: 10.0,
-            max_y: 10.0,
-        };
-        
-        let sub = bounds.subdivide();
-        assert_eq!(sub[0].max_x, 5.0); // NW
-        assert_eq!(sub[1].min_x, 5.0); // NE
+    fn test_cell_key() {
+        let cell1 = Bounds::cell_key([13.1, 55.6]);
+        let cell2 = Bounds::cell_key([13.2, 55.7]);
+        // Different cells for different coordinates
+        assert_ne!(cell1, cell2);
     }
 }
