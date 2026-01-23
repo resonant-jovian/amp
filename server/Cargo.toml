@@ -9,6 +9,7 @@ license.workspace = true
 amp-core = { path = "../core" }
 tokio.workspace = true
 clap.workspace = true
+rayon.workspace = true
 
 [[bin]]
 name = "amp-server"
