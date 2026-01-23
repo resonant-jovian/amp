@@ -15,7 +15,7 @@ pub struct QuadtreeSpatialAlgo {
 
 struct QuadNode {
     bounds: Bounds,
-    items: Vec<usize>,
+    items: Vec<(usize, [f64; 2], [f64; 2])>, // (index, start, end)
     children: Option<Box<[QuadNode; 4]>>,
 }
 
@@ -105,7 +105,7 @@ impl QuadNode {
         }
         
         if self.children.is_none() {
-            self.items.push(index);
+            self.items.push((index, start, end));
             
             // Subdivide if over capacity and not at max depth
             if self.items.len() > MAX_ITEMS_PER_NODE && depth < MAX_DEPTH {
@@ -121,17 +121,24 @@ impl QuadNode {
         }
     }
     
-    fn subdivide_node(&mut self, _depth: u32) {
+    fn subdivide_node(&mut self, depth: u32) {
         let sub_bounds = self.bounds.subdivide();
-        let children = Box::new([
+        let mut children = Box::new([
             QuadNode::new(sub_bounds[0]),
             QuadNode::new(sub_bounds[1]),
             QuadNode::new(sub_bounds[2]),
             QuadNode::new(sub_bounds[3]),
         ]);
         
-        // Redistribute existing items - items stay in parent too
-        // This is intentional for lines that cross quadrant boundaries
+        // CRITICAL FIX: Redistribute existing items to children
+        let items_to_redistribute = std::mem::take(&mut self.items);
+        
+        for (idx, start, end) in items_to_redistribute {
+            for child in children.iter_mut() {
+                child.insert(idx, start, end, depth + 1);
+            }
+        }
+        
         self.children = Some(children);
     }
     
@@ -140,8 +147,12 @@ impl QuadNode {
             return;
         }
         
-        results.extend(&self.items);
+        // Add items from this node
+        for (idx, _, _) in &self.items {
+            results.push(*idx);
+        }
         
+        // Recursively query children
         if let Some(ref children) = self.children {
             for child in children.iter() {
                 child.query_point(point, results);
@@ -212,6 +223,10 @@ impl CorrelationAlgo for QuadtreeSpatialAlgo {
         
         let mut candidates = Vec::new();
         self.root.query_point(point, &mut candidates);
+        
+        // Remove duplicates (lines may be in multiple nodes)
+        candidates.sort_unstable();
+        candidates.dedup();
         
         // Find closest among candidates
         candidates
