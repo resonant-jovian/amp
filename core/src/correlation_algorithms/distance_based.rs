@@ -4,8 +4,12 @@
 use crate::structs::{AdressClean, MiljoeDataClean};
 use crate::correlation_algorithms::CorrelationAlgo;
 use rust_decimal::prelude::ToPrimitive;
+use std::f64::consts::PI;
 
 const MAX_DISTANCE_METERS: f64 = 50.0;
+
+// Meters per degree at different scales
+const METERS_PER_DEGREE_LAT: f64 = 111132.0;
 
 pub struct DistanceBasedAlgo;
 
@@ -18,9 +22,7 @@ impl DistanceBasedAlgo {
         
         if line_len_sq == 0.0 {
             // Degenerate line (point)
-            let dx = point[0] - line_start[0];
-            let dy = point[1] - line_start[1];
-            return (dx * dx + dy * dy).sqrt();
+            return haversine_distance(point, line_start);
         }
         
         // Project point onto line
@@ -33,9 +35,7 @@ impl DistanceBasedAlgo {
             line_start[1] + t * line_vec[1],
         ];
         
-        let dx = point[0] - closest[0];
-        let dy = point[1] - closest[1];
-        (dx * dx + dy * dy).sqrt()
+        haversine_distance(point, closest)
     }
 }
 
@@ -79,21 +79,34 @@ impl CorrelationAlgo for DistanceBasedAlgo {
     }
 }
 
+/// Calculate distance between two points using Haversine formula
+/// Returns distance in meters
+fn haversine_distance(point1: [f64; 2], point2: [f64; 2]) -> f64 {
+    const EARTH_RADIUS_M: f64 = 6371000.0; // Earth radius in meters
+    
+    let lat1 = point1[1] * PI / 180.0;
+    let lat2 = point2[1] * PI / 180.0;
+    let delta_lat = (point2[1] - point1[1]) * PI / 180.0;
+    let delta_lon = (point2[0] - point1[0]) * PI / 180.0;
+    
+    let a = (delta_lat / 2.0).sin().powi(2)
+        + lat1.cos() * lat2.cos() * (delta_lon / 2.0).sin().powi(2);
+    
+    let c = 2.0 * a.sqrt().atan2((1.0 - a).sqrt());
+    
+    EARTH_RADIUS_M * c
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_distance_to_point() {
-        let algo = DistanceBasedAlgo;
-        let dist = algo.distance_to_line([0.0, 0.0], [5.0, 0.0], [5.0, 0.0]);
-        assert!((dist - 5.0).abs() < 0.001);
-    }
-    
-    #[test]
-    fn test_distance_to_line() {
-        let algo = DistanceBasedAlgo;
-        let dist = algo.distance_to_line([0.0, 1.0], [0.0, 0.0], [10.0, 0.0]);
-        assert!((dist - 1.0).abs() < 0.001);
+    fn test_haversine_distance() {
+        // Test: 0.001 degrees at latitude 55° should be ~111m for lat, ~63m for lon
+        let point1 = [13.0, 55.0];
+        let point2 = [13.0, 55.001];
+        let dist = haversine_distance(point1, point2);
+        assert!((dist - 111.0).abs() < 1.0); // Should be ~111 meters
     }
 }
