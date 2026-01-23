@@ -5,14 +5,16 @@
 use crate::correlation_algorithms::CorrelationAlgo;
 use crate::structs::{AdressClean, MiljoeDataClean};
 use rust_decimal::prelude::ToPrimitive;
+use std::collections::HashMap;
 
-const MAX_LEAF_SIZE: usize = 8;
+const CELL_SIZE: f64 = 0.0005; // ~50m in degrees at Malmö latitude
 const MAX_DISTANCE_METERS: f64 = 50.0;
 const EARTH_RADIUS_M: f64 = 6371000.0;
 
 pub struct KDTreeSpatialAlgo {
-    root: Option<Box<KDNode>>,
+    grid: HashMap<(i32, i32), Vec<usize>>,
     lines: Vec<LineSegment>,
+    cell_size: f64,
 }
 
 #[derive(Clone)]
@@ -20,131 +22,96 @@ struct LineSegment {
     index: usize,
     start: [f64; 2],
     end: [f64; 2],
-    midpoint: [f64; 2],
-}
-
-struct KDNode {
-    axis: usize, // 0 for x, 1 for y
-    split_value: f64,
-    indices: Vec<usize>, // Indices into lines array
-    left: Option<Box<KDNode>>,
-    right: Option<Box<KDNode>>,
-}
-
-impl KDNode {
-    fn build(segments: &mut [(usize, [f64; 2])], depth: usize) -> Option<Box<Self>> {
-        if segments.is_empty() {
-            return None;
-        }
-
-        let axis = depth % 2;
-
-        if segments.len() <= MAX_LEAF_SIZE {
-            // Leaf node
-            return Some(Box::new(KDNode {
-                axis,
-                split_value: 0.0,
-                indices: segments.iter().map(|(idx, _)| *idx).collect(),
-                left: None,
-                right: None,
-            }));
-        }
-
-        // Sort by current axis and split at median
-        segments.sort_by(|a, b| a.1[axis].partial_cmp(&b.1[axis]).unwrap());
-        let mid = segments.len() / 2;
-        let split_value = segments[mid].1[axis];
-
-        let (left_data, right_data) = segments.split_at_mut(mid);
-
-        Some(Box::new(KDNode {
-            axis,
-            split_value,
-            indices: Vec::new(),
-            left: Self::build(left_data, depth + 1),
-            right: Self::build(right_data, depth + 1),
-        }))
-    }
-
-    fn query_nearest(
-        &self,
-        point: [f64; 2],
-        lines: &[LineSegment],
-        best: &mut Option<(usize, f64)>,
-    ) {
-        if !self.indices.is_empty() {
-            // Leaf node - check all segments
-            for &idx in &self.indices {
-                let line = &lines[idx];
-                let dist = distance_point_to_line(point, line.start, line.end);
-
-                // Only consider if within threshold
-                if dist <= MAX_DISTANCE_METERS && (best.is_none() || dist < best.unwrap().1) {
-                    *best = Some((line.index, dist));
-                }
-            }
-            return;
-        }
-
-        // Internal node - traverse tree
-        let diff = point[self.axis] - self.split_value;
-        let (primary, secondary) = if diff < 0.0 {
-            (&self.left, &self.right)
-        } else {
-            (&self.right, &self.left)
-        };
-
-        // Search primary side
-        if let Some(node) = primary {
-            node.query_nearest(point, lines, best);
-        }
-
-        // Check if we need to search secondary side
-        // Convert degree difference to approximate meters for comparison
-        let diff_meters = diff.abs() * 111000.0; // Rough approximation
-        let should_search_secondary = best.is_none() || diff_meters < best.unwrap().1;
-
-        if should_search_secondary && let Some(node) = secondary {
-            node.query_nearest(point, lines, best);
-        }
-    }
 }
 
 impl KDTreeSpatialAlgo {
     pub fn new(parking_lines: &[MiljoeDataClean]) -> Self {
-        let lines: Vec<LineSegment> = parking_lines
-            .iter()
-            .enumerate()
-            .filter_map(|(idx, line)| {
-                let start = [
-                    line.coordinates[0][0].to_f64()?,
-                    line.coordinates[0][1].to_f64()?,
-                ];
-                let end = [
-                    line.coordinates[1][0].to_f64()?,
-                    line.coordinates[1][1].to_f64()?,
-                ];
-                let midpoint = [(start[0] + end[0]) / 2.0, (start[1] + end[1]) / 2.0];
+        let mut grid: HashMap<(i32, i32), Vec<usize>> = HashMap::new();
+        let mut lines = Vec::new();
 
-                Some(LineSegment {
+        for (idx, line) in parking_lines.iter().enumerate() {
+            if let (Some(x1), Some(y1), Some(x2), Some(y2)) = (
+                line.coordinates[0][0].to_f64(),
+                line.coordinates[0][1].to_f64(),
+                line.coordinates[1][0].to_f64(),
+                line.coordinates[1][1].to_f64(),
+            ) {
+                lines.push(LineSegment {
                     index: idx,
-                    start,
-                    end,
-                    midpoint,
-                })
-            })
-            .collect();
+                    start: [x1, y1],
+                    end: [x2, y2],
+                });
 
-        // Build KD-tree using line midpoints
-        let mut indexed_midpoints: Vec<(usize, [f64; 2])> = lines
-            .iter()
-            .enumerate()
-            .map(|(i, seg)| (i, seg.midpoint))
-            .collect();
+                // Get all cells this line passes through
+                let cells = Self::line_cells(x1, y1, x2, y2, CELL_SIZE);
 
-        let root = KDNode::build(&mut indexed_midpoints, 0);
+                for cell in cells {
+                    grid.entry(cell).or_default().push(idx);
+                }
+            }
+        }
 
-        Self { root, lines }
+        Self {
+            grid,
+            lines,
+            cell_size: CELL_SIZE,
+        }
+    }
+
+    /// Get all grid cells a line segment passes through using DDA algorithm
+    fn line_cells(x1: f64, y1: f64, x2: f64, y2: f64, cell_size: f64) -> Vec<(i32, i32)> {
+        let mut cells = Vec::new();
+
+        let cell_x1 = (x1 / cell_size).floor() as i32;
+        let cell_y1 = (y1 / cell_size).floor() as i32;
+        let cell_x2 = (x2 / cell_size).floor() as i32;
+        let cell_y2 = (y2 / cell_size).floor() as i32;
+
+        // Simple approach: add start, end, and midpoint cells
+        cells.push((cell_x1, cell_y1));
+        cells.push((cell_x2, cell_y2));
+
+        // Add cells along the line
+        let mid_x = (x1 + x2) / 2.0;
+        let mid_y = (y1 + y2) / 2.0;
+        let mid_cell_x = (mid_x / cell_size).floor() as i32;
+        let mid_cell_y = (mid_y / cell_size).floor() as i32;
+        cells.push((mid_cell_x, mid_cell_y));
+
+        // For longer lines, add more intermediate points
+        let dx = (cell_x2 - cell_x1).abs();
+        let dy = (cell_y2 - cell_y1).abs();
+        let steps = dx.max(dy).max(1);
+
+        for i in 1..steps {
+            let t = i as f64 / steps as f64;
+            let x = x1 + t * (x2 - x1);
+            let y = y1 + t * (y2 - y1);
+            let cx = (x / cell_size).floor() as i32;
+            let cy = (y / cell_size).floor() as i32;
+            cells.push((cx, cy));
+        }
+
+        cells.sort_unstable();
+        cells.dedup();
+        cells
+    }
+
+    fn get_cell(point: [f64; 2], cell_size: f64) -> (i32, i32) {
+        (
+            (point[0] / cell_size).floor() as i32,
+            (point[1] / cell_size).floor() as i32,
+        )
+    }
+
+    fn get_nearby_cells(cell: (i32, i32)) -> Vec<(i32, i32)> {
+        let mut cells = Vec::with_capacity(9);
+        for dx in -1..=1 {
+            for dy in -1..=1 {
+                cells.push((cell.0 + dx, cell.1 + dy));
+            }
+        }
+        cells
     }
 }
 
@@ -159,10 +126,23 @@ impl CorrelationAlgo for KDTreeSpatialAlgo {
             address.coordinates[1].to_f64()?,
         ];
 
-        let mut best = None;
+        let cell = Self::get_cell(point, self.cell_size);
+        let nearby_cells = Self::get_nearby_cells(cell);
 
-        if let Some(ref root) = self.root {
-            root.query_nearest(point, &self.lines, &mut best);
+        let mut best: Option<(usize, f64)> = None;
+
+        for check_cell in nearby_cells {
+            if let Some(indices) = self.grid.get(&check_cell) {
+                for &idx in indices {
+                    let line = &self.lines[idx];
+                    let dist = distance_point_to_line(point, line.start, line.end);
+
+                    // Only consider if within threshold
+                    if dist <= MAX_DISTANCE_METERS && (best.is_none() || dist < best.unwrap().1) {
+                        best = Some((line.index, dist));
+                    }
+                }
+            }
         }
 
         best
@@ -183,8 +163,8 @@ fn distance_point_to_line(point: [f64; 2], line_start: [f64; 2], line_end: [f64;
         return haversine_distance(point, line_start);
     }
 
-    let t =
-        ((point_vec[0] * line_vec[0] + point_vec[1] * line_vec[1]) / line_len_sq).clamp(0.0, 1.0);
+    let t = ((point_vec[0] * line_vec[0] + point_vec[1] * line_vec[1]) / line_len_sq)
+        .clamp(0.0, 1.0);
 
     let closest = [
         line_start[0] + t * line_vec[0],
@@ -200,8 +180,8 @@ fn haversine_distance(point1: [f64; 2], point2: [f64; 2]) -> f64 {
     let delta_lat = (point2[1] - point1[1]).to_radians();
     let delta_lon = (point2[0] - point1[0]).to_radians();
 
-    let a =
-        (delta_lat / 2.0).sin().powi(2) + lat1.cos() * lat2.cos() * (delta_lon / 2.0).sin().powi(2);
+    let a = (delta_lat / 2.0).sin().powi(2)
+        + lat1.cos() * lat2.cos() * (delta_lon / 2.0).sin().powi(2);
 
     let c = 2.0 * a.sqrt().atan2((1.0 - a).sqrt());
 
@@ -213,10 +193,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_kdtree_build() {
-        let mut data = vec![(0, [13.0, 55.0]), (1, [13.1, 55.1]), (2, [13.2, 55.2])];
-
-        let root = KDNode::build(&mut data, 0);
-        assert!(root.is_some());
+    fn test_line_cells() {
+        let cells = KDTreeSpatialAlgo::line_cells(13.0, 55.0, 13.1, 55.1, CELL_SIZE);
+        assert!(!cells.is_empty());
     }
 }
