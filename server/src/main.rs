@@ -5,7 +5,7 @@ use amp_core::api::api;
 use amp_core::structs::{AdressClean, MiljoeDataClean};
 use amp_core::correlation_algorithms::{
     DistanceBasedAlgo, RaycastingAlgo, OverlappingChunksAlgo, 
-    RTreeSpatialAlgo, QuadtreeSpatialAlgo, KDTreeSpatialAlgo, GridNearestAlgo,
+    RTreeSpatialAlgo, KDTreeSpatialAlgo, GridNearestAlgo,
     CorrelationAlgo
 };
 use amp_core::checksum::DataChecksum;
@@ -72,8 +72,6 @@ enum AlgorithmChoice {
     OverlappingChunks,
     #[value(name = "rtree")]
     RTree,
-    #[value(name = "quadtree")]
-    Quadtree,
     #[value(name = "kdtree")]
     KDTree,
     #[value(name = "grid")]
@@ -148,10 +146,6 @@ fn run_correlation(
             let algo = RTreeSpatialAlgo::new(&zones);
             correlate_with_progress(&addresses, &zones, &algo, &pb)
         }
-        AlgorithmChoice::Quadtree => {
-            let algo = QuadtreeSpatialAlgo::new(&zones);
-            correlate_with_progress(&addresses, &zones, &algo, &pb)
-        }
         AlgorithmChoice::KDTree => {
             let algo = KDTreeSpatialAlgo::new(&zones);
             correlate_with_progress(&addresses, &zones, &algo, &pb)
@@ -165,13 +159,21 @@ fn run_correlation(
     let duration = start.elapsed();
     pb.finish_with_message(format!("✓ Completed in {:.2?}", duration));
     
+    let match_percentage = (results.len() as f64 / addresses.len() as f64) * 100.0;
+    
     println!("\n📊 Results:");
-    println!("   Total matches: {}/{}", results.len(), addresses.len());
+    println!("   Addresses processed: {}", addresses.len());
+    println!("   Matches found: {} ({:.1}%)", results.len(), match_percentage);
+    println!("   No match: {}", addresses.len() - results.len());
     println!("   Average time per address: {:.2?}", duration / addresses.len() as u32);
     
-    println!("\n🔝 First 10 matches:");
-    for (addr, dist) in results.iter().take(10) {
-        println!("   {} - {:.2}m", addr, dist);
+    if results.is_empty() {
+        println!("\n⚠️  Warning: No matches found! Check data files.");
+    } else {
+        println!("\n🔝 First 10 matches:");
+        for (addr, dist) in results.iter().take(10) {
+            println!("   {} - {:.2}m", addr, dist);
+        }
     }
     
     Ok(())
@@ -224,7 +226,7 @@ fn run_benchmark(
     
     let benchmarker = Benchmarker::new(addresses, zones);
     
-    println!("\n🏁 Benchmarking all 7 algorithms with {} samples\n", sample_size);
+    println!("\n🏁 Benchmarking all 6 algorithms with {} samples\n", sample_size);
     
     // Create multi-progress for all algorithms
     let multi_pb = MultiProgress::new();
@@ -234,7 +236,6 @@ fn run_benchmark(
         "Raycasting",
         "Overlapping Chunks",
         "R-Tree",
-        "Quadtree",
         "KD-Tree",
         "Grid",
     ];
@@ -272,75 +273,47 @@ fn benchmark_all_with_progress(
     pbs: &[ProgressBar],
 ) -> Vec<amp_core::benchmark::BenchmarkResult> {
     use amp_core::benchmark::BenchmarkResult;
-    use std::time::Duration;
     
     let sample_size = sample_size.unwrap_or(benchmarker.addresses.len());
     let addresses_to_test = &benchmarker.addresses[..sample_size.min(benchmarker.addresses.len())];
     
     let mut results = Vec::new();
-    let algos: Vec<(&str, Box<dyn Fn(&AdressClean) -> Option<(usize, f64)> + Sync>)> = vec![
-        ("Distance-Based", Box::new(|addr| {
-            DistanceBasedAlgo.correlate(addr, &benchmarker.parking_lines)
-        })),
-        ("Raycasting", Box::new(|addr| {
-            RaycastingAlgo.correlate(addr, &benchmarker.parking_lines)
-        })),
-        ("Overlapping Chunks", Box::new(|addr| {
-            OverlappingChunksAlgo::new(&benchmarker.parking_lines).correlate(addr, &benchmarker.parking_lines)
-        })),
-        ("R-Tree", Box::new(|addr| {
-            RTreeSpatialAlgo::new(&benchmarker.parking_lines).correlate(addr, &benchmarker.parking_lines)
-        })),
-        ("Quadtree", Box::new(|addr| {
-            QuadtreeSpatialAlgo::new(&benchmarker.parking_lines).correlate(addr, &benchmarker.parking_lines)
-        })),
-        ("KD-Tree", Box::new(|addr| {
-            KDTreeSpatialAlgo::new(&benchmarker.parking_lines).correlate(addr, &benchmarker.parking_lines)
-        })),
-        ("Grid", Box::new(|addr| {
-            GridNearestAlgo::new(&benchmarker.parking_lines).correlate(addr, &benchmarker.parking_lines)
-        })),
+    
+    let algos: Vec<(&str, fn(&Benchmarker, &[AdressClean], &ProgressBar, &AtomicUsize, &Arc<AtomicUsize>) -> ())> = vec![
+        ("Distance-Based", |bm, addrs, pb, matches, counter| {
+            let algo = DistanceBasedAlgo;
+            run_single_benchmark(&algo, addrs, &bm.parking_lines, pb, matches, counter, "Distance-Based");
+        }),
+        ("Raycasting", |bm, addrs, pb, matches, counter| {
+            let algo = RaycastingAlgo;
+            run_single_benchmark(&algo, addrs, &bm.parking_lines, pb, matches, counter, "Raycasting");
+        }),
+        ("Overlapping Chunks", |bm, addrs, pb, matches, counter| {
+            let algo = OverlappingChunksAlgo::new(&bm.parking_lines);
+            run_single_benchmark(&algo, addrs, &bm.parking_lines, pb, matches, counter, "Overlapping Chunks");
+        }),
+        ("R-Tree", |bm, addrs, pb, matches, counter| {
+            let algo = RTreeSpatialAlgo::new(&bm.parking_lines);
+            run_single_benchmark(&algo, addrs, &bm.parking_lines, pb, matches, counter, "R-Tree");
+        }),
+        ("KD-Tree", |bm, addrs, pb, matches, counter| {
+            let algo = KDTreeSpatialAlgo::new(&bm.parking_lines);
+            run_single_benchmark(&algo, addrs, &bm.parking_lines, pb, matches, counter, "KD-Tree");
+        }),
+        ("Grid", |bm, addrs, pb, matches, counter| {
+            let algo = GridNearestAlgo::new(&bm.parking_lines);
+            run_single_benchmark(&algo, addrs, &bm.parking_lines, pb, matches, counter, "Grid");
+        }),
     ];
     
-    for (idx, (name, _)) in algos.iter().enumerate() {
+    for (idx, (name, run_fn)) in algos.iter().enumerate() {
         pbs[idx].set_message("running...");
         
         let start = Instant::now();
         let matches = AtomicUsize::new(0);
         let counter = Arc::new(AtomicUsize::new(0));
         
-        // Create the algorithm for this benchmark
-        let result = match *name {
-            "Distance-Based" => {
-                let algo = DistanceBasedAlgo;
-                run_single_benchmark(&algo, addresses_to_test, &benchmarker.parking_lines, &pbs[idx], &matches, &counter, name)
-            }
-            "Raycasting" => {
-                let algo = RaycastingAlgo;
-                run_single_benchmark(&algo, addresses_to_test, &benchmarker.parking_lines, &pbs[idx], &matches, &counter, name)
-            }
-            "Overlapping Chunks" => {
-                let algo = OverlappingChunksAlgo::new(&benchmarker.parking_lines);
-                run_single_benchmark(&algo, addresses_to_test, &benchmarker.parking_lines, &pbs[idx], &matches, &counter, name)
-            }
-            "R-Tree" => {
-                let algo = RTreeSpatialAlgo::new(&benchmarker.parking_lines);
-                run_single_benchmark(&algo, addresses_to_test, &benchmarker.parking_lines, &pbs[idx], &matches, &counter, name)
-            }
-            "Quadtree" => {
-                let algo = QuadtreeSpatialAlgo::new(&benchmarker.parking_lines);
-                run_single_benchmark(&algo, addresses_to_test, &benchmarker.parking_lines, &pbs[idx], &matches, &counter, name)
-            }
-            "KD-Tree" => {
-                let algo = KDTreeSpatialAlgo::new(&benchmarker.parking_lines);
-                run_single_benchmark(&algo, addresses_to_test, &benchmarker.parking_lines, &pbs[idx], &matches, &counter, name)
-            }
-            "Grid" => {
-                let algo = GridNearestAlgo::new(&benchmarker.parking_lines);
-                run_single_benchmark(&algo, addresses_to_test, &benchmarker.parking_lines, &pbs[idx], &matches, &counter, name)
-            }
-            _ => unreachable!(),
-        };
+        run_fn(benchmarker, addresses_to_test, &pbs[idx], &matches, &counter);
         
         let total_duration = start.elapsed();
         let avg_per_address = total_duration / addresses_to_test.len() as u32;
@@ -367,7 +340,7 @@ fn run_single_benchmark<A: CorrelationAlgo + Sync>(
     matches: &AtomicUsize,
     counter: &Arc<AtomicUsize>,
     _name: &str,
-) -> () {
+) {
     addresses.par_iter().for_each(|address| {
         if algo.correlate(address, parking_lines).is_some() {
             matches.fetch_add(1, Ordering::Relaxed);
