@@ -1,289 +1,341 @@
-# AMP Core Library
+# Core Library
 
-Core geospatial correlation library for matching addresses to environmental parking zones in Malmö, Sweden.
+Geospatial correlation engine for matching addresses to parking zones.
 
-**Documentation Hub:** See [docs/](../docs/) folder for comprehensive architecture guides.
+## Overview
+
+The `amp_core` library provides:
+- Six correlation algorithms
+- ArcGIS API integration
+- Data structures for addresses and parking zones
+- Benchmarking framework
+- Data verification with checksums
 
 ## Quick Start
 
+Add to `Cargo.toml`:
+```toml
+[dependencies]
+amp_core = { path = "../amp/core" }
+tokio = { version = "1", features = ["full"] }
+```
+
+Basic usage:
 ```rust
-use amp_core::api::api;
-use amp_core::correlation::correlation;
+use amp_core::api::api_miljo_only;
+use amp_core::correlation_algorithms::{RTreeSpatialAlgo, CorrelationAlgo};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Fetch data from ArcGIS services
-    let (addresses, zones) = api().await?;
+    // Fetch data from Malmö Open Data
+    let (addresses, zones) = api_miljo_only()?;
     
-    // Correlate addresses to parking zones
-    let results = correlation(addresses, zones);
+    // Create R-Tree spatial index
+    let algo = RTreeSpatialAlgo::new(&zones);
     
-    // Filter for relevant matches
-    let matched: Vec<_> = results.iter().filter(|r| r.relevant).collect();
-    println!("Found {} matching addresses", matched.len());
+    // Correlate addresses
+    for addr in addresses.iter().take(10) {
+        if let Some((idx, dist)) = algo.correlate(addr, &zones) {
+            println!("{}: {:.2}m to zone {}", addr.adress, dist, zones[idx].info);
+        }
+    }
     
     Ok(())
 }
 ```
 
-## Modules
+## Module Structure
 
-### `api` - ArcGIS Integration
+```
+core/src/
+├── lib.rs                     # Public API
+├── api.rs                     # ArcGIS data fetching
+├── structs.rs                 # Data types
+├── correlation_algorithms/    # Algorithm implementations
+│   ├── mod.rs
+│   ├── distance_based.rs      # O(n×m) brute-force
+│   ├── raycasting.rs          # Ray intersection
+│   ├── overlapping_chunks.rs  # Spatial grid
+│   ├── rtree_spatial.rs       # R-tree index
+│   ├── kdtree_spatial.rs      # KD-tree index
+│   └── grid_nearest.rs        # Fixed grid
+├── benchmark.rs               # Performance testing
+├── checksum.rs                # Data verification
+├── parquet.rs                 # Result storage
+└── correlation_tests.rs       # Integration tests
+```
 
-**File:** `src/api.rs`
+## Data Types
 
-**Purpose:** Fetch and transform geospatial data from ArcGIS Feature Services.
+### AdressClean
 
-**Key Functions:**
-- `api()` - Main entry point, returns addresses and parking zones
-- `ArcGISClient::fetch_all_features()` - Handles pagination
-- `ArcGISClient::to_adress_clean()` - Transforms addresses
-- `ArcGISClient::to_miljoe_clean()` - Transforms parking zones
+```rust
+pub struct AdressClean {
+    pub coordinates: [Decimal; 2],  // [lat, lon]
+    pub postnummer: String,          // Postal code
+    pub adress: String,              // Full address
+    pub gata: String,                // Street name
+    pub gatunummer: String,          // Street number
+}
+```
 
-**Documentation:** [docs/API_ARCHITECTURE.md](../docs/API_ARCHITECTURE.md)
+### MiljoeDataClean
 
-**Reference Keys:**
-- [REF-API-001] through [REF-API-014] - See API architecture document
+```rust
+pub struct MiljoeDataClean {
+    pub coordinates: [[Decimal; 2]; 2],  // Line segment [start, end]
+    pub info: String,                     // Zone description
+    pub tid: String,                      // Time restrictions
+    pub dag: u8,                          // Day bitmask
+}
+```
 
-### `correlation` - Geographic Matching
+### CorrelationResult
 
-**File:** `src/correlation.rs`
+```rust
+pub struct CorrelationResult {
+    pub address: String,
+    pub postnummer: String,
+    pub miljo_match: Option<(f64, String)>,     // (distance, info)
+    pub parkering_match: Option<(f64, String)>,
+}
+```
 
-**Purpose:** Match addresses to parking zones using point-to-line distance calculations.
+## Algorithms
 
-**Key Functions:**
-- `correlation()` - Main correlation pipeline
-- `find_closest_lines()` - Parallel distance finding
-- `distance_point_to_line_squared()` - Distance calculation
+All algorithms implement the `CorrelationAlgo` trait:
 
-**Algorithm:**
-- Perpendicular distance from point to line segment
-- Distance threshold: 0.001 degrees (≈111 meters)
-- Parallel processing with Rayon
+```rust
+pub trait CorrelationAlgo {
+    fn correlate(
+        &self,
+        address: &AdressClean,
+        zones: &[MiljoeDataClean]
+    ) -> Option<(usize, f64)>;  // (zone_index, distance)
+}
+```
 
-**Documentation:** [docs/CORRELATION_ALGORITHM.md](../docs/CORRELATION_ALGORITHM.md)
+### Distance-Based
 
-**Reference Keys:**
-- [REF-CORR-001] through [REF-CORR-015] - See algorithm document
+```rust
+use amp_core::correlation_algorithms::{DistanceBasedAlgo, CorrelationAlgo};
 
-### `structs` - Data Types
+let algo = DistanceBasedAlgo;
+let result = algo.correlate(&address, &zones);
+```
 
-**File:** `src/structs.rs`
+**Use:** Small datasets (<1000 zones)
 
-**Types:**
-- `AdressClean` - Cleaned address with coordinates
-- `MiljoeDataClean` - Parking zone with time/day restrictions
-- `AdressInfo` - Correlation result with matching zone info
+### R-Tree (Recommended)
 
-### `parquet` - Data Serialization
+```rust
+use amp_core::correlation_algorithms::{RTreeSpatialAlgo, CorrelationAlgo};
 
-**File:** `src/parquet.rs`
+let algo = RTreeSpatialAlgo::new(&zones);
+let result = algo.correlate(&address, &zones);
+```
 
-**Purpose:** Save/load correlation results to Parquet format.
+**Use:** General purpose, production
 
-**Functions:**
-- `save_to_parquet()` - Write results to file
-- `load_from_parquet()` - Read results from file
+### Overlapping Chunks
 
-### `error` - Error Types
+```rust
+use amp_core::correlation_algorithms::{OverlappingChunksAlgo, CorrelationAlgo};
 
-**File:** `src/error.rs`
+let algo = OverlappingChunksAlgo::new(&zones);
+let result = algo.correlate(&address, &zones);
+```
 
-**Custom error handling for library operations.**
+**Use:** Large datasets (>10K zones)
+
+See [../docs/algorithms.md](../docs/algorithms.md) for complete algorithm comparison.
+
+## API Functions
+
+### Fetch All Datasets
+
+```rust
+use amp_core::api::api;
+
+let (addresses, miljo_zones, parkering_zones) = api().await?;
+```
+
+### Fetch Miljödata Only
+
+```rust
+use amp_core::api::api_miljo_only;
+
+let (addresses, zones) = api_miljo_only()?;
+```
+
+**Data Sources:**
+- Miljöparkering (Environmental Parking)
+- Parkeringsavgifter (Parking Fees)
+- Adresser (Addresses)
+
+See [../docs/api-integration.md](../docs/api-integration.md) for API details.
+
+## Benchmarking
+
+```rust
+use amp_core::benchmark::Benchmarker;
+
+let benchmarker = Benchmarker::new(addresses, zones);
+let results = benchmarker.benchmark_all(Some(1000));
+
+Benchmarker::print_results(&results);
+```
+
+**Output:**
+```
+Algorithm            Total Time    Avg/Address    Matches
+──────────────────────────────────────────────────────
+R-Tree              1.15s         2.30ms         423
+```
+
+## Data Verification
+
+```rust
+use amp_core::checksum::DataChecksum;
+
+let mut checksums = DataChecksum::new(
+    miljo_url.to_string(),
+    parkering_url.to_string(),
+    adress_url.to_string()
+);
+
+checksums.update_from_remote().await?;
+
+if let Some(old) = DataChecksum::load_from_file("checksums.json").ok() {
+    if checksums.has_changed(&old) {
+        println!("Data updated!");
+    }
+}
+
+checksums.save_to_file("checksums.json")?;
+```
 
 ## Testing
 
-The library includes 12 comprehensive tests with pass/not token system:
-
-**File:** `src/correlation_tests.rs`
-
-**Tests Cover:**
-1. Decimal precision preservation
-2. Exact coordinate matches
-3. Threshold acceptance/rejection
-4. Multiple zone selection
-5. Batch processing
-6. Edge cases (degenerate segments)
-7. Real-world Malmö coordinates
-
-**Documentation:** [docs/TEST_STRATEGY.md](../docs/TEST_STRATEGY.md)
-
-**Run All Tests:**
 ```bash
-cargo test --release -p amp_core
+# Unit tests
+cargo test --lib
+
+# Integration tests
+cargo test --test correlation_tests
+
+# Benchmarks
+cargo bench
+
+# Documentation tests
+cargo test --doc
 ```
 
-**Reference Keys:**
-- [REF-TEST-001] through [REF-TEST-020] - See test strategy document
-
-## Data Flow
-
-```
-┌─ ArcGIS Services ─┐
-│ Addresses         │
-│ Parking Zones     │
-└───────────────────┘
-          │
-          │ api()
-          │ [REF-API-013]
-          │
-          │
-    ┌─────▼─────┐
-    │           │
-    │  Raw Data │
-    │           │
-    └─────│─────┘
-          │
-          │ correlation()
-          │ [REF-CORR-002]
-          │
-    ┌─────▼────────┐
-    │              │
-    │  Results     │
-    │  - relevant  │
-    │  - info      │
-    │  - tid       │
-    │  - dag       │
-    └──────────────┘
-```
-
-## Key Concepts
-
-### Precision Handling
-
-Coordinates use `Decimal` type to maintain 7+ decimal places (±0.111 meters precision). This prevents floating-point accumulation errors in distance calculations.
-
-**Reference:** [REF-CORR-005]
-
-### Distance Threshold
-
-**0.001 degrees ≈ 111 meters**
-
-Covers neighborhood-level precision while avoiding false matches with distant zones.
-
-**Reference:** [REF-CORR-006]
-
-### Parallelization
-
-Rayon `par_iter()` processes multiple addresses simultaneously. No file I/O - data stays in memory.
-
-**Reference:** [REF-CORR-009]
-
-## Performance
-
-- **100 addresses + 50 zones:** <1 second
-- **Memory:** Linear with data size
-- **Optimization:** Parallel processing, early exit on closest match
-
-**Reference:** [REF-TEST-017]
+See [../docs/testing.md](../docs/testing.md) for test strategy.
 
 ## Dependencies
 
-- `rust-decimal` - Precise coordinate handling
-- `rayon` - Parallel iteration
-- `reqwest` - Async HTTP client
-- `tokio` - Async runtime
-- `serde` - Serialization
-- `geojson` - GeoJSON parsing
-- `parquet` - Columnar storage
+Key dependencies:
+- `rust_decimal` — High-precision coordinates
+- `rayon` — Parallel processing
+- `tokio` — Async runtime
+- `reqwest` — HTTP client
+- `serde` — Serialization
+- `rstar` — R-tree spatial indexing
+- `kiddo` — KD-tree spatial indexing
+- `geojson` — GeoJSON parsing
 
-## Error Handling
+See `Cargo.toml` for complete list.
 
-- Missing API fields: Records skipped gracefully
-- Network errors: Propagated to caller
-- Degenerate geometries: Handled without panics
-- NaN values: Prevented by Decimal type
+## Examples
 
-**Reference:** [REF-API-010]
+### Dual Dataset Correlation
 
-## Integration Points
+```rust
+use amp_core::api::api;
+use amp_core::correlation_algorithms::{RTreeSpatialAlgo, CorrelationAlgo};
+use amp_core::structs::CorrelationResult;
 
-### With Android App
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let (addresses, miljo, parkering) = api().await?;
+    
+    let miljo_algo = RTreeSpatialAlgo::new(&miljo);
+    let parkering_algo = RTreeSpatialAlgo::new(&parkering);
+    
+    for addr in addresses.iter().take(10) {
+        let miljo_match = miljo_algo.correlate(addr, &miljo)
+            .map(|(idx, dist)| (dist, miljo[idx].info.clone()));
+        
+        let parkering_match = parkering_algo.correlate(addr, &parkering)
+            .map(|(idx, dist)| (dist, parkering[idx].info.clone()));
+        
+        let result = CorrelationResult {
+            address: addr.adress.clone(),
+            postnummer: addr.postnummer.clone(),
+            miljo_match,
+            parkering_match,
+        };
+        
+        if result.has_match() {
+            println!("{}: {}", result.address, result.dataset_source());
+        }
+    }
+    
+    Ok(())
+}
+```
 
-The Android module queries correlation results and displays relevant parking restrictions.
+### Custom Algorithm Implementation
 
-**See:** [android/](../android/) module documentation
+```rust
+use amp_core::correlation_algorithms::CorrelationAlgo;
+use amp_core::structs::{AdressClean, MiljoeDataClean};
 
-### With iOS App
+struct MyAlgorithm;
 
-The iOS module integrates similar correlation functionality with native APIs.
+impl CorrelationAlgo for MyAlgorithm {
+    fn correlate(
+        &self,
+        address: &AdressClean,
+        zones: &[MiljoeDataClean]
+    ) -> Option<(usize, f64)> {
+        // Your implementation
+        None
+    }
+}
+```
 
-**See:** [ios/](../ios/) module documentation
+## Performance Tips
 
-### With Server
+**Choose right algorithm:**
+- Small dataset: `DistanceBasedAlgo`
+- General use: `RTreeSpatialAlgo`
+- Large dataset: `OverlappingChunksAlgo`
 
-The server module exposes correlation results via REST API.
+**Parallel processing:**
+```rust
+use rayon::prelude::*;
 
-**See:** [server/](../server/) module documentation
+let results: Vec<_> = addresses
+    .par_iter()  // Parallel iterator
+    .map(|addr| algo.correlate(addr, &zones))
+    .collect();
+```
 
-## Reference Key Index
+**Pre-build indexes:**
+```rust
+// Build once, reuse many times
+let algo = RTreeSpatialAlgo::new(&zones);
 
-### API References
-- API Architecture: [docs/API_ARCHITECTURE.md](../docs/API_ARCHITECTURE.md)
-  - [REF-API-001] Overview
-  - [REF-API-002] ArcGISClient structure
-  - [REF-API-003] Pagination strategy
-  - [REF-API-004] GeoJSON point extraction
-  - [REF-API-005] GeoJSON polygon extraction
-  - [REF-API-006] Address transformation
-  - [REF-API-007] Parking zone transformation
-  - [REF-API-008] Malmö addresses source
-  - [REF-API-009] Environmental parking source
-  - [REF-API-010] Error handling
-  - [REF-API-011] Pagination performance
-  - [REF-API-012] Async/await runtime
-  - [REF-API-013] Integration entry point
-  - [REF-API-014] Field mapping flexibility
+for address in addresses {
+    algo.correlate(&address, &zones);  // Fast lookup
+}
+```
 
-### Correlation References
-- Correlation Algorithm: [docs/CORRELATION_ALGORITHM.md](../docs/CORRELATION_ALGORITHM.md)
-  - [REF-CORR-001] Overview
-  - [REF-CORR-002] Algorithm flow
-  - [REF-CORR-003] Point-to-line function
-  - [REF-CORR-004] Mathematical steps
-  - [REF-CORR-005] Precision handling
-  - [REF-CORR-006] Threshold justification
-  - [REF-CORR-007] Threshold application
-  - [REF-CORR-008] Result structure
-  - [REF-CORR-009] Parallel processing
-  - [REF-CORR-010] Complexity analysis
-  - [REF-CORR-011] Degenerate segments
-  - [REF-CORR-012] No lines available
-  - [REF-CORR-013] No correlation edge case
-  - [REF-CORR-014] Test coverage
-  - [REF-CORR-015] Pass/not token system
+## Related Documentation
 
-### Test References
-- Test Strategy: [docs/TEST_STRATEGY.md](../docs/TEST_STRATEGY.md)
-  - [REF-TEST-001] Overview
-  - [REF-TEST-002] Pass/not token definition
-  - [REF-TEST-003] Boolean assertions
-  - [REF-TEST-004] Equality assertions
-  - [REF-TEST-005] Inequality assertions
-  - [REF-TEST-006] Test 1: Precision
-  - [REF-TEST-007] Test 2: Exact match
-  - [REF-TEST-008] Test 3: Within threshold
-  - [REF-TEST-009] Test 4: Outside threshold
-  - [REF-TEST-010] Test 5: Multiple lines
-  - [REF-TEST-011] Test 6: Output structure
-  - [REF-TEST-012] Test 7: Batch processing
-  - [REF-TEST-013] Test 8: Degenerate segment
-  - [REF-TEST-014] Test 9: Threshold calibration
-  - [REF-TEST-015] Test 10: Real-world coords
-  - [REF-TEST-016] Test 11: Precision loss
-  - [REF-TEST-017] Test 12: Performance
-  - [REF-TEST-018] Running tests
-  - [REF-TEST-019] Results interpretation
-  - [REF-TEST-020] Best practices
-
-## Contributing
-
-When modifying code:
-1. Replace inline comments with reference keys pointing to docs
-2. Update docs/ files with detailed explanations
-3. Add pass/not tokens for all tests
-4. Reference existing keys when relevant
-
-## License
-
-See [LICENSE](../LICENSE) file.
+- [Algorithms](../docs/algorithms.md) — Algorithm comparison
+- [API Integration](../docs/api-integration.md) — Data fetching
+- [Architecture](../docs/architecture.md) — System design
+- [Testing](../docs/testing.md) — Test strategy
