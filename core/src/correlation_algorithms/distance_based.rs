@@ -8,9 +8,6 @@ use std::f64::consts::PI;
 
 const MAX_DISTANCE_METERS: f64 = 50.0;
 
-// Meters per degree at different scales
-const METERS_PER_DEGREE_LAT: f64 = 111132.0;
-
 pub struct DistanceBasedAlgo;
 
 impl DistanceBasedAlgo {
