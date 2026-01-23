@@ -4,7 +4,10 @@
 pub mod distance_based;
 pub mod raycasting;
 pub mod overlapping_chunks;
-pub mod linear_algebra;
+pub mod rtree_spatial;
+pub mod quadtree_spatial;
+pub mod kdtree_spatial;
+pub mod grid_nearest;
 
 use crate::structs::{AdressClean, MiljoeDataClean};
 
@@ -26,4 +29,7 @@ pub trait CorrelationAlgo {
 pub use distance_based::DistanceBasedAlgo;
 pub use raycasting::RaycastingAlgo;
 pub use overlapping_chunks::OverlappingChunksAlgo;
-pub use linear_algebra::LinearAlgebraAlgo;
+pub use rtree_spatial::RTreeSpatialAlgo;
+pub use quadtree_spatial::QuadtreeSpatialAlgo;
+pub use kdtree_spatial::KDTreeSpatialAlgo;
+pub use grid_nearest::GridNearestAlgo;
