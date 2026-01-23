@@ -1,7 +1,7 @@
 use crate::structs::*;
 use anyhow;
 use arrow::{
-    array::{BooleanArray, BooleanBuilder, StringArray, StringBuilder, UInt8Array, UInt8Builder},
+    array::{StringArray, StringBuilder, Float64Array, Float64Builder, BooleanArray, BooleanBuilder},
     datatypes::{DataType, Field, Schema},
     record_batch::RecordBatch,
 };
@@ -12,80 +12,84 @@ use parquet::{
 };
 use std::{collections::BTreeMap, fs::File, sync::Arc};
 
-pub fn read_db_parquet() -> anyhow::Result<Vec<AdressInfo>> {
-    let file = File::open("adress_info.parquet").expect("Failed to open adress_info.parquet");
+/// Read correlation results from parquet file
+pub fn read_correlation_parquet() -> anyhow::Result<Vec<CorrelationResult>> {
+    let file = File::open("correlation_results.parquet")
+        .map_err(|e| anyhow::anyhow!("Failed to open correlation_results.parquet: {}", e))?;
 
     let builder = ParquetRecordBatchReaderBuilder::try_new(file)
-        .expect("Failed to create Parquet reader builder");
+        .map_err(|e| anyhow::anyhow!("Failed to create Parquet reader builder: {}", e))?;
 
     let mut reader = builder
         .build()
-        .expect("Failed to build Parquet record batch reader");
+        .map_err(|e| anyhow::anyhow!("Failed to build Parquet record batch reader: {}", e))?;
 
     let mut result = Vec::new();
 
     while let Some(batch) = reader.next().transpose()? {
         let batch: RecordBatch = batch;
 
-        let relevant = batch
-            .column(batch.schema().index_of("relevant")?)
+        let address = batch
+            .column(batch.schema().index_of("address")?)
             .as_any()
-            .downcast_ref::<BooleanArray>()
-            .expect("relevant column missing or wrong type");
+            .downcast_ref::<StringArray>()
+            .ok_or_else(|| anyhow::anyhow!("address column missing or wrong type"))?
+            .iter();
 
         let postnummer = batch
             .column(batch.schema().index_of("postnummer")?)
             .as_any()
             .downcast_ref::<StringArray>()
-            .expect("postnummer column missing or wrong type");
+            .ok_or_else(|| anyhow::anyhow!("postnummer column missing or wrong type"))?
+            .iter();
 
-        let adress = batch
-            .column(batch.schema().index_of("adress")?)
+        let miljo_dist = batch
+            .column(batch.schema().index_of("miljo_distance")?)
+            .as_any()
+            .downcast_ref::<Float64Array>()
+            .ok_or_else(|| anyhow::anyhow!("miljo_distance column missing or wrong type"))?
+            .iter();
+
+        let miljo_info = batch
+            .column(batch.schema().index_of("miljo_info")?)
             .as_any()
             .downcast_ref::<StringArray>()
-            .expect("adress column missing or wrong type");
+            .ok_or_else(|| anyhow::anyhow!("miljo_info column missing or wrong type"))?
+            .iter();
 
-        let gata = batch
-            .column(batch.schema().index_of("gata")?)
+        let parkering_dist = batch
+            .column(batch.schema().index_of("parkering_distance")?)
+            .as_any()
+            .downcast_ref::<Float64Array>()
+            .ok_or_else(|| anyhow::anyhow!("parkering_distance column missing or wrong type"))?
+            .iter();
+
+        let parkering_info = batch
+            .column(batch.schema().index_of("parkering_info")?)
             .as_any()
             .downcast_ref::<StringArray>()
-            .expect("gata column missing or wrong type");
+            .ok_or_else(|| anyhow::anyhow!("parkering_info column missing or wrong type"))?
+            .iter();
 
-        let gatunummer = batch
-            .column(batch.schema().index_of("gatunummer")?)
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .expect("gatunummer column missing or wrong type");
-
-        let info = batch
-            .column(batch.schema().index_of("info")?)
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .expect("info column missing or wrong type");
-
-        let tid = batch
-            .column(batch.schema().index_of("tid")?)
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .expect("tid column missing or wrong type");
-
-        let dag = batch
-            .column(batch.schema().index_of("dag")?)
-            .as_any()
-            .downcast_ref::<UInt8Array>()
-            .expect("dag column missing or wrong type");
-
-        // Convert rows to AdressInfo
+        // Convert rows to CorrelationResult
         for i in 0..batch.num_rows() {
-            let entry = AdressInfo {
-                relevant: relevant.value(i),
-                postnummer: postnummer.value(i).to_string(),
-                adress: adress.value(i).to_string(),
-                gata: gata.value(i).to_string(),
-                gatunummer: gatunummer.value(i).to_string(),
-                info: info.value(i).to_string(),
-                tid: tid.value(i).to_string(),
-                dag: dag.value(i),
+            let miljo_match = if let Some(Some(dist)) = miljo_dist.clone().nth(i) {
+                Some((dist, miljo_info.clone().nth(i).flatten().map(|s| s.to_string()).unwrap_or_default()))
+            } else {
+                None
+            };
+
+            let parkering_match = if let Some(Some(dist)) = parkering_dist.clone().nth(i) {
+                Some((dist, parkering_info.clone().nth(i).flatten().map(|s| s.to_string()).unwrap_or_default()))
+            } else {
+                None
+            };
+
+            let entry = CorrelationResult {
+                address: address.clone().nth(i).flatten().map(|s| s.to_string()).unwrap_or_default(),
+                postnummer: postnummer.clone().nth(i).flatten().map(|s| s.to_string()).unwrap_or_default(),
+                miljo_match,
+                parkering_match,
             };
             result.push(entry);
         }
@@ -94,234 +98,93 @@ pub fn read_db_parquet() -> anyhow::Result<Vec<AdressInfo>> {
     Ok(result)
 }
 
-pub fn read_local_parquet() -> anyhow::Result<Vec<Local>> {
-    let file = File::open("local.parquet").expect("Failed to open local.parquet");
-
-    let builder = ParquetRecordBatchReaderBuilder::try_new(file)
-        .expect("Failed to create Parquet reader builder");
-
-    let mut reader = builder
-        .build()
-        .expect("Failed to build Parquet record batch reader");
-
-    let mut result = Vec::new();
-
-    while let Some(batch) = reader.next().transpose()? {
-        let batch: RecordBatch = batch;
-
-        let postnummer = batch
-            .column(batch.schema().index_of("postnummer")?)
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .expect("postnummer column missing or wrong type");
-
-        let adress = batch
-            .column(batch.schema().index_of("adress")?)
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .expect("adress column missing or wrong type");
-
-        let gata = batch
-            .column(batch.schema().index_of("gata")?)
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .expect("gata column missing or wrong type");
-
-        let gatunummer = batch
-            .column(batch.schema().index_of("gatunummer")?)
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .expect("gatunummer column missing or wrong type");
-
-        let info = batch
-            .column(batch.schema().index_of("info")?)
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .expect("info column missing or wrong type");
-
-        let tid = batch
-            .column(batch.schema().index_of("tid")?)
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .expect("tid column missing or wrong type");
-
-        let dag = batch
-            .column(batch.schema().index_of("dag")?)
-            .as_any()
-            .downcast_ref::<UInt8Array>()
-            .expect("dag column missing or wrong type");
-
-        let active = batch
-            .column(batch.schema().index_of("active")?)
-            .as_any()
-            .downcast_ref::<BooleanArray>()
-            .expect("active column missing or wrong type");
-
-        // Convert rows to AdressInfo
-        for i in 0..batch.num_rows() {
-            let entry = Local {
-                postnummer: postnummer.value(i).to_string(),
-                adress: adress.value(i).to_string(),
-                gata: gata.value(i).to_string(),
-                gatunummer: gatunummer.value(i).to_string(),
-                info: info.value(i).to_string(),
-                tid: tid.value(i).to_string(),
-                dag: dag.value(i),
-                active: active.value(i),
-            };
-            result.push(entry);
-        }
-    }
-
-    Ok(result)
-}
-
-pub fn write_local_parquet(data: Vec<Local>) -> anyhow::Result<()> {
+/// Write correlation results to parquet file
+pub fn write_correlation_parquet(data: Vec<CorrelationResult>) -> anyhow::Result<()> {
     if data.is_empty() {
-        return Err::<(), anyhow::Error>(anyhow::anyhow!("Empty local parquet"));
+        return Err(anyhow::anyhow!("Empty correlation results"));
     }
 
     let schema = Arc::new(Schema::new(vec![
+        Field::new("address", DataType::Utf8, false),
         Field::new("postnummer", DataType::Utf8, false),
-        Field::new("gata", DataType::Utf8, false),
-        Field::new("adress", DataType::Utf8, false),
-        Field::new("gatunummer", DataType::Utf8, false),
-        Field::new("dag", DataType::UInt8, false),
-        Field::new("tid", DataType::Utf8, false),
-        Field::new("info", DataType::Utf8, false),
-        Field::new("active", DataType::Boolean, false),
+        Field::new("miljo_distance", DataType::Float64, true),
+        Field::new("miljo_info", DataType::Utf8, true),
+        Field::new("parkering_distance", DataType::Float64, true),
+        Field::new("parkering_info", DataType::Utf8, true),
     ]));
 
-    let mut grouped: BTreeMap<String, Vec<Local>> = BTreeMap::new();
+    let mut grouped: BTreeMap<String, Vec<CorrelationResult>> = BTreeMap::new();
 
-    for d in data {
-        let key = d.postnummer.clone();
-        grouped.entry(key).or_insert_with(Vec::new).push(d);
+    for result in data {
+        let key = result.postnummer.clone();
+        grouped.entry(key).or_insert_with(Vec::new).push(result);
     }
 
-    let path = "local.parquet".to_string();
-    let file = File::create(&path).expect("Failed to create file");
+    let path = "correlation_results.parquet";
+    let file = File::create(path)
+        .map_err(|e| anyhow::anyhow!("Failed to create file: {}", e))?;
+    
     let props = WriterProperties::builder()
         .set_statistics_enabled(EnabledStatistics::None)
         .build();
+    
     let mut writer = ArrowWriter::try_new(file, schema.clone(), Some(props))
-        .expect("Failed to create ArrowWriter");
+        .map_err(|e| anyhow::anyhow!("Failed to create ArrowWriter: {}", e))?;
 
-    for (postnummer, rows) in grouped {
-        let mut post_builder = StringBuilder::new();
-        let mut gata_builder = StringBuilder::new();
-        let mut adress_builder = StringBuilder::new();
-        let mut nr_builder = StringBuilder::new();
-        let mut dag_builder = UInt8Builder::new();
-        let mut tid_builder = StringBuilder::new();
-        let mut info_builder = StringBuilder::new();
-        let mut active_builder = BooleanBuilder::new();
+    for (_, rows) in grouped {
+        let mut address_builder = StringBuilder::new();
+        let mut postnummer_builder = StringBuilder::new();
+        let mut miljo_dist_builder = Float64Builder::new();
+        let mut miljo_info_builder = StringBuilder::new();
+        let mut parkering_dist_builder = Float64Builder::new();
+        let mut parkering_info_builder = StringBuilder::new();
 
         for r in rows {
-            post_builder.append_value(&postnummer);
-            gata_builder.append_value(&r.gata);
-            adress_builder.append_value(&r.adress);
-            nr_builder.append_value(&r.gatunummer);
-            dag_builder.append_value(r.dag);
-            tid_builder.append_value(&r.tid);
-            info_builder.append_value(&r.info);
-            active_builder.append_value(r.active);
+            address_builder.append_value(&r.address);
+            postnummer_builder.append_value(&r.postnummer);
+            
+            match &r.miljo_match {
+                Some((dist, info)) => {
+                    miljo_dist_builder.append_value(*dist);
+                    miljo_info_builder.append_value(info);
+                }
+                None => {
+                    miljo_dist_builder.append_null();
+                    miljo_info_builder.append_null();
+                }
+            }
+            
+            match &r.parkering_match {
+                Some((dist, info)) => {
+                    parkering_dist_builder.append_value(*dist);
+                    parkering_info_builder.append_value(info);
+                }
+                None => {
+                    parkering_dist_builder.append_null();
+                    parkering_info_builder.append_null();
+                }
+            }
         }
 
         let batch = RecordBatch::try_new(
             schema.clone(),
             vec![
-                Arc::new(post_builder.finish()),
-                Arc::new(gata_builder.finish()),
-                Arc::new(adress_builder.finish()),
-                Arc::new(nr_builder.finish()),
-                Arc::new(dag_builder.finish()),
-                Arc::new(tid_builder.finish()),
-                Arc::new(info_builder.finish()),
-                Arc::new(active_builder.finish()),
+                Arc::new(address_builder.finish()),
+                Arc::new(postnummer_builder.finish()),
+                Arc::new(miljo_dist_builder.finish()),
+                Arc::new(miljo_info_builder.finish()),
+                Arc::new(parkering_dist_builder.finish()),
+                Arc::new(parkering_info_builder.finish()),
             ],
         )
-        .expect("Failed to create record batch");
+        .map_err(|e| anyhow::anyhow!("Failed to create record batch: {}", e))?;
 
-        writer.write(&batch).expect("Failed to write batch");
+        writer.write(&batch)
+            .map_err(|e| anyhow::anyhow!("Failed to write batch: {}", e))?;
     }
 
-    writer.close().expect("Writer failed to close");
-
-    Ok(())
-}
-
-pub fn write_correlation(data: Vec<AdressInfo>) -> anyhow::Result<()> {
-    if data.is_empty() {
-        return Err::<(), anyhow::Error>(anyhow::anyhow!("Empty info parquet"));
-    }
-
-    let schema = Arc::new(Schema::new(vec![
-        Field::new("postnummer", DataType::Utf8, false),
-        Field::new("gata", DataType::Utf8, false),
-        Field::new("adress", DataType::Utf8, false),
-        Field::new("gatunummer", DataType::Utf8, false),
-        Field::new("dag", DataType::UInt8, false),
-        Field::new("tid", DataType::Utf8, false),
-        Field::new("info", DataType::Utf8, false),
-        Field::new("relevant", DataType::Boolean, false),
-    ]));
-
-    let mut grouped: BTreeMap<String, Vec<AdressInfo>> = BTreeMap::new();
-
-    for d in data {
-        let key = d.postnummer.clone();
-        grouped.entry(key).or_insert_with(Vec::new).push(d);
-    }
-
-    let path = "adress_info.parquet".to_string();
-    let file = File::create(&path).expect("Failed to create file");
-    let props = WriterProperties::builder()
-        .set_statistics_enabled(EnabledStatistics::None)
-        .build();
-    let mut writer = ArrowWriter::try_new(file, schema.clone(), Some(props))
-        .expect("Failed to create ArrowWriter");
-
-    for (postnummer, rows) in grouped {
-        let mut post_builder = StringBuilder::new();
-        let mut gata_builder = StringBuilder::new();
-        let mut adress_builder = StringBuilder::new();
-        let mut nr_builder = StringBuilder::new();
-        let mut dag_builder = UInt8Builder::new();
-        let mut tid_builder = StringBuilder::new();
-        let mut info_builder = StringBuilder::new();
-        let mut relevant_builder = BooleanBuilder::new();
-
-        for r in rows {
-            post_builder.append_value(&postnummer);
-            gata_builder.append_value(&r.gata);
-            adress_builder.append_value(&r.adress);
-            nr_builder.append_value(&r.gatunummer);
-            dag_builder.append_value(r.dag);
-            tid_builder.append_value(&r.tid);
-            info_builder.append_value(&r.info);
-            relevant_builder.append_value(r.relevant);
-        }
-
-        let batch = RecordBatch::try_new(
-            schema.clone(),
-            vec![
-                Arc::new(post_builder.finish()),
-                Arc::new(gata_builder.finish()),
-                Arc::new(adress_builder.finish()),
-                Arc::new(nr_builder.finish()),
-                Arc::new(dag_builder.finish()),
-                Arc::new(tid_builder.finish()),
-                Arc::new(info_builder.finish()),
-                Arc::new(relevant_builder.finish()),
-            ],
-        )
-        .expect("Failed to create record batch");
-
-        writer.write(&batch).expect("Failed to write batch");
-    }
-
-    writer.close().expect("Writer failed to close");
+    writer.close()
+        .map_err(|e| anyhow::anyhow!("Failed to close writer: {}", e))?;
 
     Ok(())
 }
