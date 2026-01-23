@@ -67,34 +67,34 @@ enum AlgorithmChoice {
     LinearAlgebra,
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
     
     match cli.command {
         Commands::Correlate { algorithm, miljo_file, parkering_file, addresses_file } => {
-            run_correlation(algorithm, miljo_file, parkering_file, addresses_file).await?;
+            run_correlation(algorithm, miljo_file, parkering_file, addresses_file)?;
         }
         Commands::Benchmark { miljo_file, addresses_file, sample_size } => {
-            run_benchmark(miljo_file, addresses_file, sample_size).await?;
+            run_benchmark(miljo_file, addresses_file, sample_size)?;
         }
         Commands::CheckUpdates { checksum_file } => {
-            check_updates(&checksum_file).await?;
+            // Only checksum checking needs async
+            tokio::runtime::Runtime::new()?.block_on(check_updates(&checksum_file))?;
         }
     }
     
     Ok(())
 }
 
-async fn run_correlation(
+fn run_correlation(
     algorithm: AlgorithmChoice,
     _miljo_file: Option<String>,
     _parkering_file: Option<String>,
     _addresses_file: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // Load data
+    // Load data synchronously
     println!("Loading data...");
-    let (addresses, zones): (Vec<AdressClean>, Vec<MiljoeDataClean>) = api().await?;
+    let (addresses, zones): (Vec<AdressClean>, Vec<MiljoeDataClean>) = api()?;
     println!("Loaded {} addresses, {} zones", addresses.len(), zones.len());
     
     // Select and run algorithm
@@ -140,13 +140,13 @@ fn correlate_all<A: CorrelationAlgo>(
         .collect()
 }
 
-async fn run_benchmark(
+fn run_benchmark(
     _miljo_file: Option<String>,
     _addresses_file: Option<String>,
     sample_size: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("Loading data for benchmarking...");
-    let (addresses, zones) = api().await?;
+    let (addresses, zones) = api()?;
     
     let benchmarker = Benchmarker::new(addresses, zones);
     
