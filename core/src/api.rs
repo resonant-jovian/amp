@@ -89,6 +89,51 @@ impl DataLoader {
         })
     }
 
+    fn extract_time_from_taxa(taxa_str: &str) -> String {
+        // Look for pattern like "8–22" or "8–20" (with en-dash U+2013)
+        // Split on en-dash and extract the time range
+        let parts: Vec<&str> = taxa_str.split('–').collect();
+        
+        if parts.len() >= 2 {
+            // Find digits before and after the dash
+            if let Some(before_dash) = parts.first() {
+                // Get the last number from before the dash (the start time)
+                let start_time = before_dash
+                    .split_whitespace()
+                    .last()
+                    .and_then(|s| {
+                        s.chars()
+                            .rev()
+                            .take_while(|c| c.is_ascii_digit())
+                            .collect::<String>()
+                            .chars()
+                            .rev()
+                            .collect::<String>()
+                            .parse::<u32>()
+                            .ok()
+                    });
+                
+                if let Some(start) = start_time {
+                    if let Some(after_dash) = parts.get(1) {
+                        // Get the first number after the dash (the end time)
+                        let end_time = after_dash
+                            .chars()
+                            .take_while(|c| c.is_ascii_digit())
+                            .collect::<String>()
+                            .parse::<u32>()
+                            .ok();
+                        
+                        if let Some(end) = end_time {
+                            return format!("{:02}:00–{:02}:00", start, end);
+                        }
+                    }
+                }
+            }
+        }
+        
+        "00:00–23:59".to_string()
+    }
+
     fn parse_parking_feature(feature: Feature, is_avgifter: bool) -> Option<MiljoeDataClean> {
         let props = feature.clone().properties?;
 
@@ -121,36 +166,15 @@ impl DataLoader {
             .map(|s| s.to_string())
             .unwrap_or_else(|| {
                 // For avgifter, try to extract time from taxa field
-                if is_avgifter && let Some(taxa_str) = props.get("taxa").and_then(|v| v.as_str()) {
-                    // Try to extract time range like "8–22" or "8–20"
-                    if let Some(start) = taxa_str.find('–')
-                        && start > 0
-                        && start + 1 < taxa_str.len()
-                    {
-                        // Extract the portion around the time
-                        let before = &taxa_str[..start];
-                        let after = &taxa_str[start + 1..];
-
-                        // Find the digit before the dash
-                        let start_time = before
-                            .chars()
-                            .rev()
-                            .take_while(|c| c.is_ascii_digit())
-                            .collect::<String>();
-                        let start_time = start_time.chars().rev().collect::<String>();
-
-                        // Find the digit after the dash
-                        let end_time = after
-                            .chars()
-                            .take_while(|c| c.is_ascii_digit())
-                            .collect::<String>();
-
-                        if !start_time.is_empty() && !end_time.is_empty() {
-                            return format!("{}:00–{}:00", start_time, end_time);
-                        }
+                if is_avgifter {
+                    if let Some(taxa_str) = props.get("taxa").and_then(|v| v.as_str()) {
+                        Self::extract_time_from_taxa(taxa_str)
+                    } else {
+                        "00:00–23:59".to_string()
                     }
+                } else {
+                    "00:00–23:59".to_string()
                 }
-                "00:00–23:59".to_string()
             });
 
         // Get day info - for avgifter it's always all days (0 means all days in context)
@@ -232,7 +256,7 @@ impl DataLoader {
         // Show sample
         for (i, park) in parking.iter().take(3).enumerate() {
             if is_avgifter {
-                println!("  [{}] {} (All days)", i + 1, park.info);
+                println!("  [{}] {} ({})", i + 1, park.info, park.tid);
             } else {
                 println!("  [{}] {} (Day {})", i + 1, park.info, park.dag);
             }
@@ -256,8 +280,8 @@ pub fn api() -> Result<ApiResult, Box<dyn std::error::Error>> {
     Ok((addresses, miljodata, parkering))
 }
 
-pub fn api_miljo_only()
--> Result<(Vec<AdressClean>, Vec<MiljoeDataClean>), Box<dyn std::error::Error>> {
+pub fn api_miljo_only(
+) -> Result<(Vec<AdressClean>, Vec<MiljoeDataClean>), Box<dyn std::error::Error>> {
     let addresses = DataLoader::load_addresses("data/adresser.json")?;
     let miljodata = DataLoader::load_parking("data/miljoparkeringar.json", "Miljödata")?;
     Ok((addresses, miljodata))
