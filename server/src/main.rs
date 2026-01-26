@@ -130,6 +130,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// Load asset files (HTML, CSS, JS) from server/src/assets/
+fn load_asset_file(filename: &str) -> Result<String, Box<dyn std::error::Error>> {
+    // Try multiple paths to locate assets
+    let paths = vec![
+        format!("server/src/assets/{}", filename),
+        format!("src/assets/{}", filename),
+        format!("assets/{}", filename),
+    ];
+
+    for path in paths {
+        if let Ok(content) = fs::read_to_string(&path) {
+            return Ok(content);
+        }
+    }
+
+    Err(format!("Could not find asset file: {}", filename).into())
+}
+
 /// Prompt user to select which algorithms to benchmark
 fn select_algorithms() -> Vec<&'static str> {
     let algorithms = vec![
@@ -357,8 +375,7 @@ fn run_correlation(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Load data with progress
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
-    pb.set_message("Loading data...");
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);    pb.set_message("Loading data...");
 
     let (addresses, miljodata, parkering): (
         Vec<AdressClean>,
@@ -377,7 +394,7 @@ fn run_correlation(
     println!("   Correlating with: Miljödata + Parkering (dual dataset)");
     println!("   Addresses: {}", addresses.len());
     println!("   Miljödata zones: {}", miljodata.len());
-    println!("   Parkering zones: {}", parkering.len());
+    println!("   Parkering zones: {}\n", parkering.len());
     println!("   Distance threshold: {} meters\n", cutoff);
 
     // Setup algorithm
@@ -390,8 +407,7 @@ fn run_correlation(
     let pb = ProgressBar::new(addresses.len() as u64);
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}% {msg}")?
-            .progress_chars("█▓▒░ "),
+            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}% {msg}")?            .progress_chars("█▓▒░ "),
     );
 
     // Correlate with miljödata
@@ -535,8 +551,7 @@ fn run_test_mode(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Load data with progress
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
-    pb.set_message("Loading data for testing...");
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);    pb.set_message("Loading data for testing...");
 
     let (addresses, miljodata, parkering): (
         Vec<AdressClean>,
@@ -560,8 +575,7 @@ fn run_test_mode(
     let pb = ProgressBar::new(addresses.len() as u64);
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}%")?
-            .progress_chars("█▓▒░ "),
+            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}%")?            .progress_chars("█▓▒░ "),
     );
 
     let miljo_results = correlate_dataset(&algorithm, &addresses, &miljodata, cutoff, &pb)?;
@@ -599,8 +613,8 @@ fn run_test_mode(
     let selected: Vec<_> = sampled.iter().take(actual_windows).collect();
 
     println!("\n🌐 Opening {} browser windows...", actual_windows);
-    println!("   Each window has 4 integrated tabs in a single page:");
-    println!("   - Tab 1: Address search with new tab StadsAtlas navigation");
+    println!("   Each window has 4 integrated tabs with nested StadsAtlas map:");
+    println!("   - Tab 1: Address search with nested StadsAtlas map");
     println!("   - Tab 2: Step-by-step instructions");
     println!("   - Tab 3: Correlation data visualization");
     println!("   - Tab 4: Debug console with address search logs\n");
@@ -690,298 +704,22 @@ fn format_matches_html(result: &CorrelationResult) -> String {
     }
 }
 
-/// Create a single HTML page with 4 integrated tabs
-/// Tab 1: Address search with new tab StadsAtlas navigation
-/// Tab 2: Instructions
-/// Tab 3: Correlation Data
-/// Tab 4: Debug Console
-fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> String {
+/// Create HTML page by loading from assets and substituting placeholders
+fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> Result<String, Box<dyn std::error::Error>> {
+    // Load base HTML template
+    let mut html = load_asset_file("stadsatlas_interface.html")?;
+    
     let matches_html = format_matches_html(result);
     let address_escaped = address.replace('"', "&quot;");
 
-    let mut html = String::new();
-    html.push_str("<!DOCTYPE html>\n<html>\n<head>\n");
-    html.push_str(&format!(
-        "    <title>AMP Testing Interface - {}</title>\n",
-        address
-    ));
-    html.push_str("    <meta charset=\"UTF-8\">\n");
-    html.push_str(
-        "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n",
-    );
-    html.push_str("    <style>\n");
-    html.push_str("        * { margin: 0; padding: 0; box-sizing: border-box; }\n");
-    html.push_str("        html, body { height: 100%; width: 100%; }\n");
-    html.push_str("        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; display: flex; flex-direction: column; }\n");
-    html.push_str("        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1); flex-shrink: 0; }\n");
-    html.push_str("        .header h1 { font-size: 24px; margin-bottom: 8px; }\n");
-    html.push_str(
-        "        .header .address { font-size: 14px; opacity: 0.9; font-weight: 500; }\n",
-    );
-    html.push_str("        .tab-container { flex: 1; display: flex; flex-direction: column; max-width: 1400px; width: 100%; margin: 20px auto; background: white; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); overflow: hidden; }\n");
-    html.push_str("        .tab-buttons { display: flex; border-bottom: 2px solid #e0e0e0; background: #fafafa; flex-shrink: 0; }\n");
-    html.push_str("        .tab-btn { flex: 1; padding: 16px 20px; background: none; border: none; cursor: pointer; font-size: 14px; font-weight: 600; color: #666; text-transform: uppercase; transition: all 0.3s ease; position: relative; }\n");
-    html.push_str("        .tab-btn:hover { background: #f0f0f0; color: #667eea; }\n");
-    html.push_str("        .tab-btn.active { color: #667eea; background: white; }\n");
-    html.push_str("        .tab-btn.active::after { content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 2px; background: #667eea; }\n");
-    html.push_str(
-        "        .tab-content { display: none; flex: 1; overflow-y: auto; padding: 30px; }\n",
-    );
-    html.push_str("        .tab-content.active { display: block; animation: fadeIn 0.3s ease; }\n");
-    html.push_str("        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }\n");
-    html.push_str("        .instruction { background: #e8f5e9; padding: 15px; border-radius: 4px; margin: 15px 0; border-left: 4px solid #4caf50; }\n");
-    html.push_str("        .steps { counter-reset: step-counter; margin: 20px 0; }\n");
-    html.push_str("        .step { counter-increment: step-counter; margin: 15px 0; padding: 15px; background: #f9f9f9; border-radius: 4px; border-left: 3px solid #667eea; }\n");
-    html.push_str("        .step::before { content: counter(step-counter); display: inline-block; background: #667eea; color: white; width: 28px; height: 28px; border-radius: 50%; text-align: center; line-height: 28px; margin-right: 12px; font-weight: bold; font-size: 14px; }\n");
-    html.push_str("        .step strong { color: #667eea; }\n");
-    html.push_str("        .note { color: #666; font-size: 14px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; }\n");
-    html.push_str("        .address-display { background: #fff3e0; padding: 15px; border-radius: 4px; margin: 15px 0; font-weight: bold; border-left: 4px solid #ff9800; }\n");
-    html.push_str("        .field { margin: 20px 0; }\n");
-    html.push_str("        .label { font-weight: bold; color: #666; font-size: 11px; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px; }\n");
-    html.push_str("        .value { color: #333; padding: 12px; background: #f9f9f9; border-radius: 4px; border-left: 3px solid #667eea; font-size: 14px; }\n");
-    html.push_str("        .match { background: #e8f5e9; padding: 15px; border-radius: 4px; margin: 10px 0; border-left: 4px solid #4caf50; }\n");
-    html.push_str("        .match strong { color: #2e7d32; }\n");
-    html.push_str("        .no-match { background: #ffebee; padding: 15px; border-radius: 4px; border-left: 4px solid #c62828; }\n");
-    html.push_str("        .match-item { margin-bottom: 10px; }\n");
-    html.push_str("        .distance { color: #e67e22; font-weight: bold; font-size: 16px; }\n");
-    html.push_str("        .info { color: #7f8c8d; font-size: 12px; margin-top: 8px; }\n");
-    html.push_str("        h2 { color: #555; font-size: 18px; margin-top: 25px; margin-bottom: 15px; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; }\n");
-    html.push_str("        .console-log { background: #1e1e1e; color: #00ff00; padding: 15px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 12px; max-height: 400px; overflow-y: auto; margin-top: 15px; border: 1px solid #444; }\n");
-    html.push_str("        .console-log .error { color: #ff6b6b; }\n");
-    html.push_str("        .console-log .success { color: #51cf66; }\n");
-    html.push_str("        .console-log .info { color: #4dabf7; }\n");
-    html.push_str("        .console-log .warning { color: #ffd43b; }\n");
-    html.push_str("        .log-entry { padding: 4px 0; border-bottom: 1px solid #333; word-break: break-all; }\n");
-    html.push_str("        .log-timestamp { color: #888; margin-right: 8px; }\n");
-    html.push_str("        .control-button { background: #667eea; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin: 10px 10px 10px 0; }\n");
-    html.push_str("        .control-button:hover { background: #764ba2; }\n");
-    html.push_str("        .control-panel { background: #f5f5f5; padding: 15px; border-radius: 4px; margin-bottom: 15px; flex-shrink: 0; }\n");
-    html.push_str("    </style>\n");
-    html.push_str("</head>\n");
-    html.push_str("<body>\n");
-    html.push_str("    <div class=\"header\">\n");
-    html.push_str("        <h1>📍 AMP Correlation Testing Interface</h1>\n");
-    html.push_str(&format!(
-        "        <div class=\"address\">{}</div>\n",
-        address
-    ));
-    html.push_str("    </div>\n");
-    html.push_str("    <div class=\"tab-container\">\n");
-    html.push_str("        <div class=\"tab-buttons\">\n");
-    html.push_str("            <button class=\"tab-btn active\" onclick=\"switchTab(event, 1)\">🔍 Search</button>\n");
-    html.push_str("            <button class=\"tab-btn\" onclick=\"switchTab(event, 2)\">📋 Instructions</button>\n");
-    html.push_str(
-        "            <button class=\"tab-btn\" onclick=\"switchTab(event, 3)\">📊 Data</button>\n",
-    );
-    html.push_str(
-        "            <button class=\"tab-btn\" onclick=\"switchTab(event, 4)\">🐛 Debug</button>\n",
-    );
-    html.push_str("        </div>\n");
-    html.push_str("        <div id=\"tab1\" class=\"tab-content active\">\n");
-    html.push_str("            <div class=\"control-panel\">\n");
-    html.push_str("                <button class=\"control-button\" onclick=\"searchAddress()\">🔍 Search Address & Open Map</button>\n");
-    html.push_str("                <span id=\"status-indicator\" style=\"color: #666; font-size: 14px; margin-left: 20px;\">Ready</span>\n");
-    html.push_str("            </div>\n");
-    html.push_str("            <div style=\"padding: 20px; background: #f9f9f9; border-radius: 4px; margin-top: 20px;\">\n");
-    html.push_str("                <h3>🔍 Address Search</h3>\n");
-    html.push_str(
-        "                <p style=\"color: #666; margin-top: 10px; line-height: 1.6;\">\n",
-    );
-    html.push_str("                    Click the button above to search for this address using Malmö's geo API.\n");
-    html.push_str("                    When found, a new tab will open with StadsAtlas showing the location\n");
-    html.push_str(
-        "                    centered at the exact coordinates. You can then verify the parking\n",
-    );
-    html.push_str("                    zones and other location details on the map.\n");
-    html.push_str("                </p>\n");
-    html.push_str("            </div>\n");
-    html.push_str("        </div>\n");
-    html.push_str("        <div id=\"tab2\" class=\"tab-content\">\n");
-    html.push_str("            <h1>📋 Address Verification Instructions</h1>\n");
-    html.push_str(
-        "            <div class=\"instruction\">✓ Follow these steps to verify the address</div>\n",
-    );
-    html.push_str(&format!(
-        "            <div class=\"address-display\">{}</div>\n",
-        address
-    ));
-    html.push_str("            <div class=\"steps\">\n");
-    html.push_str("                <div class=\"step\"><strong>Click \"Search Address & Open Map\"</strong> on the Search tab. This will call Malmö's geo API and open StadsAtlas in a new browser tab centered on the found coordinates.</div>\n");
-    html.push_str("                <div class=\"step\">A new tab will open automatically. The map will be centered at the exact address coordinates.</div>\n");
-    html.push_str("                <div class=\"step\">Once the map loads, verify that the location is correct by checking nearby street names and landmarks.</div>\n");
-    html.push_str("                <div class=\"step\">Check the <strong>Layers panel</strong> (on the right side of StadsAtlas) and enable <strong>Miljöparkering</strong> or <strong>Parkeringsavgifter</strong> layers if needed.</div>\n");
-    html.push_str("                <div class=\"step\">Verify the parking zone information displayed on the map matches the correlation data shown in the Data tab of this window.</div>\n");
-    html.push_str("            </div>\n");
-    html.push_str("            <div class=\"note\">💡 <strong>How it works:</strong> The API returns coordinates in WKT POINT format (POINT(X Y)) which we parse and pass directly to StadsAtlas via URL. When the page loads, it automatically navigates to those coordinates.</div>\n");
-    html.push_str("        </div>\n");
-    html.push_str("        <div id=\"tab3\" class=\"tab-content\">\n");
-    html.push_str("            <h1>📊 Correlation Result Data</h1>\n");
-    html.push_str("            <div class=\"field\">\n");
-    html.push_str("                <div class=\"label\">Address</div>\n");
-    html.push_str(&format!(
-        "                <div class=\"value\">{}</div>\n",
-        result.address
-    ));
-    html.push_str("            </div>\n");
-    html.push_str("            <div class=\"field\">\n");
-    html.push_str("                <div class=\"label\">Postal Code</div>\n");
-    html.push_str(&format!(
-        "                <div class=\"value\">{}</div>\n",
-        result.postnummer
-    ));
-    html.push_str("            </div>\n");
-    html.push_str("            <div class=\"field\">\n");
-    html.push_str("                <div class=\"label\">Dataset Source</div>\n");
-    html.push_str(&format!(
-        "                <div class=\"value\">{}</div>\n",
-        result.dataset_source()
-    ));
-    html.push_str("            </div>\n");
-    html.push_str("            <h2>Matched Zones</h2>\n");
-    html.push_str(&matches_html);
-    html.push_str("        </div>\n");
-    html.push_str("        <div id=\"tab4\" class=\"tab-content\">\n");
-    html.push_str("            <h1>🐛 Debug Console - Address Search Logs</h1>\n");
-    html.push_str("            <div class=\"note\"><strong>Status:</strong> All address searches are logged below. Also check browser DevTools Console (F12) for extended logs marked with <code>[AMP]</code>.</div>\n");
-    html.push_str("            <div class=\"field\">\n");
-    html.push_str("                <div class=\"label\">Search Status</div>\n");
-    html.push_str(
-        "                <div class=\"value\" id=\"search-status\">Ready to search...</div>\n",
-    );
-    html.push_str("            </div>\n");
-    html.push_str(
-        "            <div class=\"label\" style=\"margin-top: 20px;\">Message Logs</div>\n",
-    );
-    html.push_str("            <div class=\"console-log\" id=\"message-logs\"></div>\n");
-    html.push_str("        </div>\n");
-    html.push_str("    </div>\n");
-    html.push_str("    <script>\n");
-    html.push_str("        const logs = [];\n");
-    html.push_str(&("        const addressToSearch = '".to_owned() + &address_escaped + "';\n"));
-    html.push('\n');
-    html.push_str("        function logMessage(category, message, type = 'info') {\n");
-    html.push_str("            const timestamp = new Date().toLocaleTimeString();\n");
-    html.push_str("            const logEntry = {timestamp, category, message, type};\n");
-    html.push_str("            logs.push(logEntry);\n");
-    html.push('\n');
-    html.push_str(
-        "            console.log('[AMP] [' + timestamp + '] [' + category + '] ' + message);\n",
-    );
-    html.push('\n');
-    html.push_str("            const logsDiv = document.getElementById('message-logs');\n");
-    html.push_str("            if (logsDiv) {\n");
-    html.push_str("                const entry = document.createElement('div');\n");
-    html.push_str("                entry.className = 'log-entry ' + type;\n");
-    html.push_str("                entry.innerHTML = '<span class=\"log-timestamp\">[' + timestamp + ']</span> <strong>' + category + ':</strong> ' + message;\n");
-    html.push_str("                logsDiv.appendChild(entry);\n");
-    html.push_str("                logsDiv.scrollTop = logsDiv.scrollHeight;\n");
-    html.push_str("            }\n");
-    html.push_str("        }\n");
-    html.push('\n');
-    html.push_str("        function updateStatus(status, statusId = 'search-status') {\n");
-    html.push_str("            const statusDiv = document.getElementById(statusId);\n");
-    html.push_str("            if (statusDiv) {\n");
-    html.push_str("                statusDiv.textContent = status;\n");
-    html.push_str("            }\n");
-    html.push_str("        }\n");
-    html.push('\n');
-    html.push_str("        function switchTab(event, tabNumber) {\n");
-    html.push_str("            const tabs = document.querySelectorAll('.tab-content');\n");
-    html.push_str("            tabs.forEach(function(tab) { tab.classList.remove('active'); });\n");
-    html.push_str("            const btns = document.querySelectorAll('.tab-btn');\n");
-    html.push_str("            btns.forEach(function(btn) { btn.classList.remove('active'); });\n");
-    html.push_str(
-        "            document.getElementById('tab' + tabNumber).classList.add('active');\n",
-    );
-    html.push_str("            event.target.classList.add('active');\n");
-    html.push_str("        }\n");
-    html.push('\n');
-    html.push_str("        async function searchAddress() {\n");
-    html.push_str("            logMessage('SEARCH', 'Starting address search for: ' + addressToSearch, 'info');\n");
-    html.push_str("            updateStatus('⏳ Searching for: ' + addressToSearch);\n");
-    html.push('\n');
-    html.push_str("            try {\n");
-    html.push_str("                const searchUrl = 'https://geo.malmo.se/api/search?q=' + encodeURIComponent(addressToSearch);\n");
-    html.push_str("                logMessage('API', 'Calling: ' + searchUrl.substring(0, 60) + '...', 'info');\n");
-    html.push('\n');
-    html.push_str("                const response = await fetch(searchUrl);\n");
-    html.push_str("                if (!response.ok) {\n");
-    html.push_str(
-        "                    throw new Error('API returned status ' + response.status);\n",
-    );
-    html.push_str("                }\n");
-    html.push('\n');
-    html.push_str("                const results = await response.json();\n");
-    html.push_str("                logMessage('API', 'Response received with ' + results.length + ' results', 'success');\n");
-    html.push('\n');
-    html.push_str("                if (results.length === 0) {\n");
-    html.push_str("                    logMessage('RESULT', 'No address found matching: ' + addressToSearch, 'warning');\n");
-    html.push_str("                    updateStatus('❌ Address not found in Malmö');\n");
-    html.push_str("                    return;\n");
-    html.push_str("                }\n");
-    html.push('\n');
-    html.push_str("                const result = results[0];\n");
-    html.push_str("                logMessage('PARSE', 'Result keys: ' + Object.keys(result).join(', '), 'info');\n");
-    html.push_str("                \n");
-    html.push_str("                // Parse Malmö API response with WKT GEOM format\n");
-    html.push_str(
-        "                const name = result.NAMN || result.name || result.adress || 'Unknown';\n",
-    );
-    html.push_str("                let x, y;\n");
-    html.push_str("                \n");
-    html.push_str("                // Extract from WKT POINT format: POINT(X Y)\n");
-    html.push_str("                if (result.GEOM) {\n");
-    html.push_str("                    const match = result.GEOM.match(/POINT\\s*\\(([^\\s]+)\\s+([^)]+)\\)/);\n");
-    html.push_str("                    if (match) {\n");
-    html.push_str("                        x = parseFloat(match[1]);\n");
-    html.push_str("                        y = parseFloat(match[2]);\n");
-    html.push_str("                        logMessage('PARSE', 'Extracted WKT: x=' + x + ', y=' + y, 'info');\n");
-    html.push_str("                    }\n");
-    html.push_str("                }\n");
-    html.push_str("                \n");
-    html.push_str("                // Fallback to x, y properties\n");
-    html.push_str("                if (!x || !y) {\n");
-    html.push_str("                    x = result.x;\n");
-    html.push_str("                    y = result.y;\n");
-    html.push_str("                    if (x && y) logMessage('PARSE', 'Using x, y properties: x=' + x + ', y=' + y, 'info');\n");
-    html.push_str("                }\n");
-    html.push_str("                \n");
-    html.push_str("                if (!x || !y || isNaN(x) || isNaN(y)) {\n");
-    html.push_str(
-        "                    logMessage('ERROR', 'Missing coordinates in response', 'error');\n",
-    );
-    html.push_str("                    updateStatus('❌ Coordinates not found');\n");
-    html.push_str("                    return;\n");
-    html.push_str("                }\n");
-    html.push_str("                \n");
-    html.push_str("                logMessage('RESULT', 'Found: ' + name + ' at (' + x + ', ' + y + ')', 'success');\n");
-    html.push('\n');
-    html.push_str("                // Build StadsAtlas URL with coordinates and OPEN IN NEW TAB\n");
-    html.push_str("                const mapUrl = 'https://stadsatlas.malmo.se/stadsatlas/#center=' + x + ',' + y + '&zoom=18';\n");
-    html.push_str("                logMessage('MAP', 'Opening new tab: ' + mapUrl.substring(0, 80) + '...', 'info');\n");
-    html.push('\n');
-    html.push_str("                // Open in new tab instead of iframe\n");
-    html.push_str("                window.open(mapUrl, '_blank');\n");
-    html.push_str("                logMessage('MAP', 'New tab opened successfully', 'success');\n");
-    html.push_str("                updateStatus('✅ Opened map in new tab: ' + name);\n");
-    html.push('\n');
-    html.push_str("            } catch (error) {\n");
-    html.push_str(
-        "                logMessage('ERROR', 'Search failed: ' + error.message, 'error');\n",
-    );
-    html.push_str("                updateStatus('❌ Error: ' + error.message);\n");
-    html.push_str("            }\n");
-    html.push_str("        }\n");
-    html.push('\n');
-    html.push_str("        // Initial status\n");
-    html.push_str("        window.addEventListener('load', function() {\n");
-    html.push_str("            logMessage('READY', 'AMP Testing Interface loaded. Ready to search address.', 'info');\n");
-    html.push_str("        });\n");
-    html.push_str("    </script>\n");
-    html.push_str("</body>\n");
-    html.push_str("</html>");
+    // Replace placeholders
+    html = html.replace("{ADDRESS}", &address_escaped);
+    html = html.replace("{RESULT_ADDRESS}", &result.address);
+    html = html.replace("{RESULT_POSTNUMMER}", &result.postnummer);
+    html = html.replace("{RESULT_SOURCE}", &result.dataset_source());
+    html = html.replace("{RESULT_MATCHES}", &matches_html);
 
-    html
+    Ok(html)
 }
 
 /// Open a single browser window with integrated tabbed interface
@@ -992,7 +730,7 @@ fn open_browser_window(
     let address = &result.address;
 
     // Create the complete tabbed HTML page
-    let tabbed_page = create_tabbed_interface_page(address, result);
+    let tabbed_page = create_tabbed_interface_page(address, result)?;
 
     // Write to temporary file with unique name
     let temp_dir = std::env::temp_dir();
@@ -1035,8 +773,7 @@ fn open_browser_window(
 fn run_benchmark(sample_size: usize, cutoff: f64) -> Result<(), Box<dyn std::error::Error>> {
     // Load data
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
-    pb.set_message("Loading data for benchmarking...");
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);    pb.set_message("Loading data for benchmarking...");
 
     let (addresses, zones) = amp_core::api::api_miljo_only()?;
 
@@ -1299,8 +1036,7 @@ async fn check_updates(checksum_file: &str) -> Result<(), Box<dyn std::error::Er
     );
 
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
-    pb.set_message("Fetching remote data...");
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);    pb.set_message("Fetching remote data...");
 
     new_checksums.update_from_remote().await?;
     pb.finish_with_message("✓ Data fetched");
