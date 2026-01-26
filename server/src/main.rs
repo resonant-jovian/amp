@@ -695,600 +695,123 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
     let matches_html = format_matches_html(result);
     let address_escaped = address.replace('"', "&quot;");
     
-    let html = format!(r#"<!DOCTYPE html>
-<html>
-<head>
-    <title>AMP Testing Interface - {}</title>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        * {{
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }}
-        
-        body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f5f5f5;
-        }}
-        
-        .header {{
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            text-align: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }}
-        
-        .header h1 {{
-            font-size: 24px;
-            margin-bottom: 8px;
-        }}
-        
-        .header .address {{
-            font-size: 14px;
-            opacity: 0.9;
-            font-weight: 500;
-        }}
-        
-        .tab-container {{
-            max-width: 1400px;
-            margin: 20px auto;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }}
-        
-        .tab-buttons {{
-            display: flex;
-            border-bottom: 2px solid #e0e0e0;
-            background: #fafafa;
-        }}
-        
-        .tab-btn {{
-            flex: 1;
-            padding: 16px 20px;
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            color: #666;
-            text-transform: uppercase;
-            transition: all 0.3s ease;
-            position: relative;
-        }}
-        
-        .tab-btn:hover {{
-            background: #f0f0f0;
-            color: #667eea;
-        }}
-        
-        .tab-btn.active {{
-            color: #667eea;
-            background: white;
-        }}
-        
-        .tab-btn.active::after {{
-            content: '';
-            position: absolute;
-            bottom: -2px;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: #667eea;
-        }}
-        
-        .tab-content {{
-            display: none;
-            padding: 30px;
-            min-height: 600px;
-        }}
-        
-        .tab-content.active {{
-            display: block;
-            animation: fadeIn 0.3s ease;
-        }}
-        
-        @keyframes fadeIn {{
-            from {{ opacity: 0; }}
-            to {{ opacity: 1; }}
-        }}
-        
-        /* Tab 1: StadsAtlas */
-        #tab1 {{
-            padding: 0;
-        }}
-        
-        .iframe-container {{
-            width: 100%;
-            height: 800px;
-            border: none;
-        }}
-        
-        iframe {{
-            width: 100%;
-            height: 100%;
-            border: none;
-        }}
-        
-        /* Tab 2: Instructions */
-        .instruction {{
-            background: #e8f5e9;
-            padding: 15px;
-            border-radius: 4px;
-            margin: 15px 0;
-            border-left: 4px solid #4caf50;
-        }}
-        
-        .steps {{
-            counter-reset: step-counter;
-            margin: 20px 0;
-        }}
-        
-        .step {{
-            counter-increment: step-counter;
-            margin: 15px 0;
-            padding: 15px;
-            background: #f9f9f9;
-            border-radius: 4px;
-            border-left: 3px solid #667eea;
-        }}
-        
-        .step::before {{
-            content: counter(step-counter);
-            display: inline-block;
-            background: #667eea;
-            color: white;
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            text-align: center;
-            line-height: 28px;
-            margin-right: 12px;
-            font-weight: bold;
-            font-size: 14px;
-        }}
-        
-        .step strong {{
-            color: #667eea;
-        }}
-        
-        .note {{
-            color: #666;
-            font-size: 14px;
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid #ddd;
-        }}
-        
-        .address-display {{
-            background: #fff3e0;
-            padding: 15px;
-            border-radius: 4px;
-            margin: 15px 0;
-            font-weight: bold;
-            border-left: 4px solid #ff9800;
-        }}
-        
-        /* Tab 3: Data */
-        .field {{
-            margin: 20px 0;
-        }}
-        
-        .label {{
-            font-weight: bold;
-            color: #666;
-            font-size: 11px;
-            text-transform: uppercase;
-            margin-bottom: 8px;
-            letter-spacing: 0.5px;
-        }}
-        
-        .value {{
-            color: #333;
-            padding: 12px;
-            background: #f9f9f9;
-            border-radius: 4px;
-            border-left: 3px solid #667eea;
-            font-size: 14px;
-        }}
-        
-        .match {{
-            background: #e8f5e9;
-            padding: 15px;
-            border-radius: 4px;
-            margin: 10px 0;
-            border-left: 4px solid #4caf50;
-        }}
-        
-        .match strong {{
-            color: #2e7d32;
-        }}
-        
-        .no-match {{
-            background: #ffebee;
-            padding: 15px;
-            border-radius: 4px;
-            border-left: 4px solid #c62828;
-        }}
-        
-        .match-item {{
-            margin-bottom: 10px;
-        }}
-        
-        .distance {{
-            color: #e67e22;
-            font-weight: bold;
-            font-size: 16px;
-        }}
-        
-        .info {{
-            color: #7f8c8d;
-            font-size: 12px;
-            margin-top: 8px;
-        }}
-        
-        h2 {{
-            color: #555;
-            font-size: 18px;
-            margin-top: 25px;
-            margin-bottom: 15px;
-            border-bottom: 2px solid #e0e0e0;
-            padding-bottom: 10px;
-        }}
-        
-        .console-log {{
-            background: #1e1e1e;
-            color: #00ff00;
-            padding: 15px;
-            border-radius: 4px;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            max-height: 300px;
-            overflow-y: auto;
-            margin-top: 15px;
-            border: 1px solid #444;
-        }}
-        
-        .console-log .error {{
-            color: #ff6b6b;
-        }}
-        
-        .console-log .success {{
-            color: #51cf66;
-        }}
-        
-        .console-log .info {{
-            color: #4dabf7;
-        }}
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>📍 AMP Correlation Testing Interface</h1>
-        <div class="address">{}</div>
-    </div>
-    
-    <div class="tab-container">
-        <div class="tab-buttons">
-            <button class="tab-btn active" onclick="switchTab(event, 1)">🗺️ StadsAtlas</button>
-            <button class="tab-btn" onclick="switchTab(event, 2)">📋 Instructions</button>
-            <button class="tab-btn" onclick="switchTab(event, 3)">📊 Data</button>
-            <button class="tab-btn" onclick="switchTab(event, 4)">🐛 Debug</button>
-        </div>
-        
-        <!-- Tab 1: StadsAtlas Live -->
-        <div id="tab1" class="tab-content active">
-            <iframe src="https://stadsatlas.malmo.se/stadsatlas/" class="iframe-container"></iframe>
-        </div>
-        
-        <!-- Tab 2: Instructions -->
-        <div id="tab2" class="tab-content">
-            <h1>📋 StadsAtlas Verification Instructions</h1>
-            
-            <div class="instruction">
-                ✓ Follow these steps to verify the address in StadsAtlas (Tab 1)
-            </div>
-            
-            <div class="address-display">{}</div>
-            
-            <div class="steps">
-                <div class="step">Click the <strong>menu icon</strong> (hamburger menu or layers button in top left)</div>
-                <div class="step">Look for the <strong>Parking section</strong></div>
-                <div class="step">Find and enable <strong>Miljöparkering</strong> (Environmental Parking)</div>
-                <div class="step">Click in the <strong>search field</strong> at the top</div>
-                <div class="step">Enter this address: <strong>{}</strong></div>
-            </div>
-            
-            <div class="note">
-                💡 <strong>Tip:</strong> Check the Debug tab to see detailed injection logs and troubleshooting information. An automated injection script is running in the background trying to auto-fill the search.
-            </div>
-        </div>
-        
-        <!-- Tab 3: Correlation Data -->
-        <div id="tab3" class="tab-content">
-            <h1>📊 Correlation Result Data</h1>
-            
-            <div class="field">
-                <div class="label">Address</div>
-                <div class="value">{}</div>
-            </div>
-            
-            <div class="field">
-                <div class="label">Postal Code</div>
-                <div class="value">{}</div>
-            </div>
-            
-            <div class="field">
-                <div class="label">Dataset Source</div>
-                <div class="value">{}</div>
-            </div>
-            
-            <h2>Matched Zones</h2>
-            {}
-            
-            <div class="note" style="margin-top: 40px;">
-                Compare this data with what you see in StadsAtlas (Tab 1) to verify correlation accuracy.
-            </div>
-        </div>
-        
-        <!-- Tab 4: Debug Console -->
-        <div id="tab4" class="tab-content">
-            <h1>🐛 Injection Debug Console</h1>
-            
-            <div class="note" style="margin-bottom: 20px;">
-                <strong>Open browser DevTools Console (F12) to see detailed logs.</strong> All messages start with <code>[AMP]</code>.
-            </div>
-            
-            <div class="field">
-                <div class="label">Current Phase</div>
-                <div class="value" id="current-phase">Waiting for page load...</div>
-            </div>
-            
-            <div class="field">
-                <div class="label">Injection Status</div>
-                <div class="value" id="injection-status">Not started</div>
-            </div>
-            
-            <div class="field">
-                <div class="label">Console Output</div>
-                <div class="console-log" id="console-output"></div>
-            </div>
-            
-            <div style="margin-top: 20px;">
-                <button class="tab-btn" style="background: #667eea; color: white; width: 200px;" onclick="retryInjection()">🔄 Retry Injection</button>
-                <button class="tab-btn" style="background: #e74c3c; color: white; width: 200px; margin-left: 10px;" onclick="clearConsole()">🗑️ Clear Console</button>
-            </div>
-            
-            <div class="note" style="margin-top: 30px;">
-                <strong>Browser console commands:</strong><br/>
-                <code style="background: #f9f9f9; padding: 5px; display: block; margin-top: 10px;">
-                    window.ampInject.phase() // Current phase (1-6)<br/>
-                    window.ampInject.debug() // Show page state<br/>
-                    window.ampInject.logs // Array of all log messages<br/>
-                    window.ampInject.retry() // Restart injection
-                </code>
-            </div>
-        </div>
-    </div>
-    
-    <script>
-        const InjectionLogger = {
-            logs: [],
-            maxLogs: 100,
-            
-            log(level, message) {
-                const timestamp = new Date().toLocaleTimeString();
-                const entry = "[" + timestamp + "] [" + level + "] " + message;
-                this.logs.push(entry);
-                
-                if (this.logs.length > this.maxLogs) {
-                    this.logs.shift();
-                }
-                
-                console.log("[AMP] " + message);
-                updateDebugUI();
-            },
-            
-            error(message) { this.log('ERROR', message); },
-            info(message) { this.log('INFO', message); },
-            success(message) { this.log('SUCCESS', message); },
-            debug(message) { this.log('DEBUG', message); }
-        };
-        
-        window.ampInject = {
-            phase: 0,
-            maxAttempts: 5,
-            attempt: 0,
-            startTime: Date.now(),
-            maxWaitTime: 20000,
-            logs: [],
-            
-            phase() { return this.phase; },
-            debug() {
-                return {
-                    phase: this.phase,
-                    attempt: this.attempt,
-                    inputs: document.querySelectorAll('input').length,
-                    buttons: document.querySelectorAll('button').length,
-                    elapsed: Date.now() - this.startTime
-                };
-            },
-            retry() {
-                InjectionLogger.info('Manual retry requested');
-                this.phase = 0;
-                this.attempt = 0;
-                startInjection();
-            }
-        };
-        
-        function updateDebugUI() {
-            const statusEl = document.getElementById('injection-status');
-            const phaseEl = document.getElementById('current-phase');
-            const outputEl = document.getElementById('console-output');
-            
-            if (statusEl) {
-                const phases = ['Waiting', 'Loading', 'Searching DOM', 'Clicking', 'Finding Input', 'Injecting', 'Complete'];
-                statusEl.textContent = phases[window.ampInject.phase] || 'Unknown';
-            }
-            
-            if (phaseEl) {
-                const timeElapsed = Date.now() - window.ampInject.startTime;
-                phaseEl.textContent = 'Phase ' + window.ampInject.phase + ' (attempt ' + window.ampInject.attempt + ') - ' + timeElapsed + 'ms elapsed';
-            }
-            
-            if (outputEl) {
-                const html = InjectionLogger.logs.map(log => {
-                    let className = '';
-                    if (log.indexOf('[ERROR]') > -1) className = 'error';
-                    else if (log.indexOf('[SUCCESS]') > -1) className = 'success';
-                    else if (log.indexOf('[INFO]') > -1) className = 'info';
-                    return '<div class="' + className + '">' + log + '</div>';
-                }).join('');
-                outputEl.innerHTML = html;
-                outputEl.scrollTop = outputEl.scrollHeight;
-            }
-        }
-        
-        function retryInjection() {
-            InjectionLogger.info('User clicked retry button');
-            window.ampInject.retry();
-        }
-        
-        function clearConsole() {
-            InjectionLogger.logs = [];
-            updateDebugUI();
-        }
-        
-        window.addEventListener('load', function() {
-            InjectionLogger.success('Page loaded, starting injection');
-            startInjection();
-        });
-        
-        function startInjection() {
-            window.ampInject.phase = 1;
-            window.ampInject.attempt++;
-            InjectionLogger.info('Starting injection (attempt ' + window.ampInject.attempt + ')');
-            setTimeout(attemptInjection, 1000);
-        }
-        
-        function attemptInjection() {
-            try {
-                InjectionLogger.debug('Scanning for input fields...');
-                const inputs = document.querySelectorAll('input');
-                InjectionLogger.debug('Found ' + inputs.length + ' input elements');
-                
-                inputs.forEach(function(inp, i) {
-                    const desc = 'Input ' + i + ': type=' + inp.type + ', placeholder=' + (inp.placeholder || 'none') + ', class=' + (inp.className || 'none');
-                    InjectionLogger.debug(desc);
-                });
-                
-                let searchInput = null;
-                const searchTerms = ['search', 'sök', 'adress', 'address', 'location'];
-                
-                for (let ti = 0; ti < searchTerms.length; ti++) {
-                    const term = searchTerms[ti];
-                    for (let i = 0; i < inputs.length; i++) {
-                        const inp = inputs[i];
-                        const hasAttr = (inp.placeholder && inp.placeholder.toLowerCase().indexOf(term) > -1) ||
-                                      (inp.className && inp.className.toLowerCase().indexOf(term) > -1) ||
-                                      (inp.id && inp.id.toLowerCase().indexOf(term) > -1) ||
-                                      (inp.name && inp.name.toLowerCase().indexOf(term) > -1);
-                        
-                        if (hasAttr && inp.type !== 'hidden') {
-                            searchInput = inp;
-                            InjectionLogger.success('Found search input with term "' + term + '"');
-                            break;
-                        }
-                    }
-                    if (searchInput) break;
-                }
-                
-                if (searchInput) {
-                    window.ampInject.phase = 5;
-                    InjectionLogger.info('Attempting to inject address...');
-                    injectAddress(searchInput);
-                } else {
-                    InjectionLogger.error('No suitable input found');
-                    
-                    if (window.ampInject.attempt < window.ampInject.maxAttempts) {
-                        const delay = 2000 * window.ampInject.attempt;
-                        InjectionLogger.info('Retrying in ' + delay + 'ms...');
-                        setTimeout(attemptInjection, delay);
-                    } else {
-                        InjectionLogger.error('Max attempts reached. Manual intervention required.');
-                    }
-                }
-            } catch (err) {
-                InjectionLogger.error('Exception: ' + err.message);
-                console.error('Full error:', err);
-            }
-            
-            updateDebugUI();
-        }
-        
-        function injectAddress(input) {
-            try {
-                const address = '{}';
-                InjectionLogger.info('Injecting: "' + address + '"');
-                
-                input.focus();
-                input.click();
-                input.value = '';
-                input.value = address;
-                
-                const evt1 = new Event('input', { bubbles: true, cancelable: true });
-                const evt2 = new Event('change', { bubbles: true, cancelable: true });
-                const evt3 = new Event('keyup', { bubbles: true, cancelable: true });
-                
-                input.dispatchEvent(evt1);
-                input.dispatchEvent(evt2);
-                input.dispatchEvent(evt3);
-                
-                setTimeout(function() {
-                    if (input.value === address) {
-                        InjectionLogger.success('Address successfully injected: "' + address + '"');
-                        window.ampInject.phase = 6;
-                    } else {
-                        InjectionLogger.error('Address injection failed. Expected "' + address + '", got "' + input.value + '"');
-                    }
-                    updateDebugUI();
-                }, 500);
-                
-            } catch (err) {
-                InjectionLogger.error('Injection error: ' + err.message);
-                console.error('Full injection error:', err);
-            }
-        }
-        
-        function switchTab(event, tabNumber) {
-            const tabs = document.querySelectorAll('.tab-content');
-            tabs.forEach(function(tab) { tab.classList.remove('active'); });
-            
-            const btns = document.querySelectorAll('.tab-btn');
-            btns.forEach(function(btn) { btn.classList.remove('active'); });
-            
-            document.getElementById('tab' + tabNumber).classList.add('active');
-            event.target.classList.add('active');
-        }
-        
-        updateDebugUI();
-    </script>
-</body>
-</html>"#,
-        address,
-        address,
-        address,
-        address,
-        result.address,
-        result.postnummer,
-        result.dataset_source(),
-        matches_html,
-        address_escaped
-    );
+    // Build HTML with string concatenation to avoid format string issues with JavaScript
+    let mut html = String::new();
+    html.push_str("<!DOCTYPE html>\n<html>\n<head>\n");
+    html.push_str(&format!("    <title>AMP Testing Interface - {}</title>\n", address));
+    html.push_str("    <meta charset=\"UTF-8\">\n");
+    html.push_str("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
+    html.push_str("    <style>\n");
+    html.push_str("        * { margin: 0; padding: 0; box-sizing: border-box; }\n");
+    html.push_str("        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }\n");
+    html.push_str("        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }\n");
+    html.push_str("        .header h1 { font-size: 24px; margin-bottom: 8px; }\n");
+    html.push_str("        .header .address { font-size: 14px; opacity: 0.9; font-weight: 500; }\n");
+    html.push_str("        .tab-container { max-width: 1400px; margin: 20px auto; background: white; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); overflow: hidden; }\n");
+    html.push_str("        .tab-buttons { display: flex; border-bottom: 2px solid #e0e0e0; background: #fafafa; }\n");
+    html.push_str("        .tab-btn { flex: 1; padding: 16px 20px; background: none; border: none; cursor: pointer; font-size: 14px; font-weight: 600; color: #666; text-transform: uppercase; transition: all 0.3s ease; position: relative; }\n");
+    html.push_str("        .tab-btn:hover { background: #f0f0f0; color: #667eea; }\n");
+    html.push_str("        .tab-btn.active { color: #667eea; background: white; }\n");
+    html.push_str("        .tab-btn.active::after { content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 2px; background: #667eea; }\n");
+    html.push_str("        .tab-content { display: none; padding: 30px; min-height: 600px; }\n");
+    html.push_str("        .tab-content.active { display: block; animation: fadeIn 0.3s ease; }\n");
+    html.push_str("        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }\n");
+    html.push_str("        #tab1 { padding: 0; }\n");
+    html.push_str("        .iframe-container { width: 100%; height: 800px; border: none; }\n");
+    html.push_str("        iframe { width: 100%; height: 100%; border: none; }\n");
+    html.push_str("        .instruction { background: #e8f5e9; padding: 15px; border-radius: 4px; margin: 15px 0; border-left: 4px solid #4caf50; }\n");
+    html.push_str("        .steps { counter-reset: step-counter; margin: 20px 0; }\n");
+    html.push_str("        .step { counter-increment: step-counter; margin: 15px 0; padding: 15px; background: #f9f9f9; border-radius: 4px; border-left: 3px solid #667eea; }\n");
+    html.push_str("        .step::before { content: counter(step-counter); display: inline-block; background: #667eea; color: white; width: 28px; height: 28px; border-radius: 50%; text-align: center; line-height: 28px; margin-right: 12px; font-weight: bold; font-size: 14px; }\n");
+    html.push_str("        .step strong { color: #667eea; }\n");
+    html.push_str("        .note { color: #666; font-size: 14px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; }\n");
+    html.push_str("        .address-display { background: #fff3e0; padding: 15px; border-radius: 4px; margin: 15px 0; font-weight: bold; border-left: 4px solid #ff9800; }\n");
+    html.push_str("        .field { margin: 20px 0; }\n");
+    html.push_str("        .label { font-weight: bold; color: #666; font-size: 11px; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px; }\n");
+    html.push_str("        .value { color: #333; padding: 12px; background: #f9f9f9; border-radius: 4px; border-left: 3px solid #667eea; font-size: 14px; }\n");
+    html.push_str("        .match { background: #e8f5e9; padding: 15px; border-radius: 4px; margin: 10px 0; border-left: 4px solid #4caf50; }\n");
+    html.push_str("        .match strong { color: #2e7d32; }\n");
+    html.push_str("        .no-match { background: #ffebee; padding: 15px; border-radius: 4px; border-left: 4px solid #c62828; }\n");
+    html.push_str("        .match-item { margin-bottom: 10px; }\n");
+    html.push_str("        .distance { color: #e67e22; font-weight: bold; font-size: 16px; }\n");
+    html.push_str("        .info { color: #7f8c8d; font-size: 12px; margin-top: 8px; }\n");
+    html.push_str("        h2 { color: #555; font-size: 18px; margin-top: 25px; margin-bottom: 15px; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; }\n");
+    html.push_str("        .console-log { background: #1e1e1e; color: #00ff00; padding: 15px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 12px; max-height: 300px; overflow-y: auto; margin-top: 15px; border: 1px solid #444; }\n");
+    html.push_str("        .console-log .error { color: #ff6b6b; }\n");
+    html.push_str("        .console-log .success { color: #51cf66; }\n");
+    html.push_str("        .console-log .info { color: #4dabf7; }\n");
+    html.push_str("    </style>\n");
+    html.push_str("</head>\n");
+    html.push_str("<body>\n");
+    html.push_str("    <div class=\"header\">\n");
+    html.push_str("        <h1>📍 AMP Correlation Testing Interface</h1>\n");
+    html.push_str(&format!("        <div class=\"address\">{}</div>\n", address));
+    html.push_str("    </div>\n");
+    html.push_str("    <div class=\"tab-container\">\n");
+    html.push_str("        <div class=\"tab-buttons\">\n");
+    html.push_str("            <button class=\"tab-btn active\" onclick=\"switchTab(event, 1)\">🗺️ StadsAtlas</button>\n");
+    html.push_str("            <button class=\"tab-btn\" onclick=\"switchTab(event, 2)\">📋 Instructions</button>\n");
+    html.push_str("            <button class=\"tab-btn\" onclick=\"switchTab(event, 3)\">📊 Data</button>\n");
+    html.push_str("            <button class=\"tab-btn\" onclick=\"switchTab(event, 4)\">🐛 Debug</button>\n");
+    html.push_str("        </div>\n");
+    html.push_str("        <div id=\"tab1\" class=\"tab-content active\">\n");
+    html.push_str("            <iframe src=\"https://stadsatlas.malmo.se/stadsatlas/\" class=\"iframe-container\"></iframe>\n");
+    html.push_str("        </div>\n");
+    html.push_str("        <div id=\"tab2\" class=\"tab-content\">\n");
+    html.push_str("            <h1>📋 StadsAtlas Verification Instructions</h1>\n");
+    html.push_str("            <div class=\"instruction\">✓ Follow these steps to verify the address in StadsAtlas (Tab 1)</div>\n");
+    html.push_str(&format!("            <div class=\"address-display\">{}</div>\n", address));
+    html.push_str("            <div class=\"steps\">\n");
+    html.push_str("                <div class=\"step\">Click the <strong>menu icon</strong> (hamburger menu or layers button in top left)</div>\n");
+    html.push_str("                <div class=\"step\">Look for the <strong>Parking section</strong></div>\n");
+    html.push_str("                <div class=\"step\">Find and enable <strong>Miljöparkering</strong> (Environmental Parking)</div>\n");
+    html.push_str("                <div class=\"step\">Click in the <strong>search field</strong> at the top</div>\n");
+    html.push_str(&format!("                <div class=\"step\">Enter this address: <strong>{}</strong></div>\n", address));
+    html.push_str("            </div>\n");
+    html.push_str("            <div class=\"note\">💡 <strong>Tip:</strong> Check the Debug tab to see detailed injection logs and troubleshooting information.</div>\n");
+    html.push_str("        </div>\n");
+    html.push_str("        <div id=\"tab3\" class=\"tab-content\">\n");
+    html.push_str("            <h1>📊 Correlation Result Data</h1>\n");
+    html.push_str("            <div class=\"field\">\n");
+    html.push_str("                <div class=\"label\">Address</div>\n");
+    html.push_str(&format!("                <div class=\"value\">{}</div>\n", result.address));
+    html.push_str("            </div>\n");
+    html.push_str("            <div class=\"field\">\n");
+    html.push_str("                <div class=\"label\">Postal Code</div>\n");
+    html.push_str(&format!("                <div class=\"value\">{}</div>\n", result.postnummer));
+    html.push_str("            </div>\n");
+    html.push_str("            <div class=\"field\">\n");
+    html.push_str("                <div class=\"label\">Dataset Source</div>\n");
+    html.push_str(&format!("                <div class=\"value\">{}</div>\n", result.dataset_source()));
+    html.push_str("            </div>\n");
+    html.push_str("            <h2>Matched Zones</h2>\n");
+    html.push_str(&matches_html);
+    html.push_str("        </div>\n");
+    html.push_str("        <div id=\"tab4\" class=\"tab-content\">\n");
+    html.push_str("            <h1>🐛 Debug Console</h1>\n");
+    html.push_str("            <div class=\"note\"><strong>Open browser DevTools Console (F12) to see detailed logs.</strong> All messages start with <code>[AMP]</code>.</div>\n");
+    html.push_str("            <div class=\"field\">\n");
+    html.push_str("                <div class=\"label\">Status</div>\n");
+    html.push_str("                <div class=\"value\" id=\"injection-status\">Waiting...</div>\n");
+    html.push_str("            </div>\n");
+    html.push_str("        </div>\n");
+    html.push_str("    </div>\n");
+    html.push_str("    <script>\n");
+    html.push_str("        function switchTab(event, tabNumber) {\n");
+    html.push_str("            const tabs = document.querySelectorAll('.tab-content');\n");
+    html.push_str("            tabs.forEach(function(tab) { tab.classList.remove('active'); });\n");
+    html.push_str("            const btns = document.querySelectorAll('.tab-btn');\n");
+    html.push_str("            btns.forEach(function(btn) { btn.classList.remove('active'); });\n");
+    html.push_str("            document.getElementById('tab' + tabNumber).classList.add('active');\n");
+    html.push_str("            event.target.classList.add('active');\n");
+    html.push_str("        }\n");
+    html.push_str(&format!("        const addressToInject = '{}';\n", address_escaped));
+    html.push_str("        window.addEventListener('load', function() {\n");
+    html.push_str("            console.log('[AMP] Page loaded with address: ' + addressToInject);\n");
+    html.push_str("        });\n");
+    html.push_str("    </script>\n");
+    html.push_str("</body>\n");
+    html.push_str("</html>");
     
     html
 }
