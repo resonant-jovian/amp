@@ -177,6 +177,7 @@ fn select_algorithms() -> Vec<&'static str> {
     }
 }
 
+type CorDat = Result<Vec<(String, f64, String)>, Box<dyn std::error::Error>>;
 /// Correlate addresses with a dataset using the specified algorithm and distance cutoff
 fn correlate_dataset(
     algorithm: &AlgorithmChoice,
@@ -184,7 +185,7 @@ fn correlate_dataset(
     zones: &[MiljoeDataClean],
     cutoff: f64,
     pb: &ProgressBar,
-) -> Result<Vec<(String, f64, String)>, Box<dyn std::error::Error>> {
+) -> CorDat {
     let counter = Arc::new(AtomicUsize::new(0));
 
     let results: Vec<_> = match algorithm {
@@ -418,7 +419,10 @@ fn run_correlation(
         .iter()
         .filter(|r: &&CorrelationResult| r.miljo_match.is_none() && r.parkering_match.is_some())
         .count();
-    let no_match = merged.iter().filter(|r: &&CorrelationResult| !r.has_match()).count();
+    let no_match = merged
+        .iter()
+        .filter(|r: &&CorrelationResult| !r.has_match())
+        .count();
     let total_matches = both + miljo_only + parkering_only;
 
     println!("\n📊 Results:");
@@ -458,7 +462,10 @@ fn run_correlation(
     } else {
         // Show 10 random matches
         let mut rng = thread_rng();
-        let mut random_results: Vec<_> = merged.iter().filter(|r: &&CorrelationResult| r.has_match()).collect();
+        let mut random_results: Vec<_> = merged
+            .iter()
+            .filter(|r: &&CorrelationResult| r.has_match())
+            .collect();
         random_results.shuffle(&mut rng);
 
         println!("\n🎲 10 Random Matches:");
@@ -473,7 +480,10 @@ fn run_correlation(
         }
 
         // Show addresses with largest distances
-        let mut sorted_by_distance: Vec<_> = merged.iter().filter(|r: &&CorrelationResult| r.has_match()).collect();
+        let mut sorted_by_distance: Vec<_> = merged
+            .iter()
+            .filter(|r: &&CorrelationResult| r.has_match())
+            .collect();
         sorted_by_distance.sort_by(|a: &&CorrelationResult, b: &&CorrelationResult| {
             b.closest_distance()
                 .partial_cmp(&a.closest_distance())
@@ -496,9 +506,9 @@ fn run_correlation(
         }
 
         // Verify threshold
-        let exceeds_threshold = sorted_by_distance
-            .iter()
-            .any(|r: &&CorrelationResult| r.closest_distance().map(|d| d > cutoff).unwrap_or(false));
+        let exceeds_threshold = sorted_by_distance.iter().any(|r: &&CorrelationResult| {
+            r.closest_distance().map(|d| d > cutoff).unwrap_or(false)
+        });
 
         if exceeds_threshold {
             println!(
@@ -559,7 +569,10 @@ fn run_test_mode(
     let merged = merge_results(&addresses, &miljo_results, &parkering_results);
 
     // Filter to only matching addresses
-    let matching_addresses: Vec<_> = merged.iter().filter(|r: &&CorrelationResult| r.has_match()).collect();
+    let matching_addresses: Vec<_> = merged
+        .iter()
+        .filter(|r: &&CorrelationResult| r.has_match())
+        .collect();
 
     if matching_addresses.is_empty() {
         println!("\n❌ No matching addresses found for testing!");
@@ -802,7 +815,11 @@ fn create_correlation_result_page(result: &CorrelationResult) -> String {
     </div>
 </body>
 </html>"#,
-        result.address, result.address, result.postnummer, result.dataset_source(), matches_html
+        result.address,
+        result.address,
+        result.postnummer,
+        result.dataset_source(),
+        matches_html
     )
 }
 
@@ -939,7 +956,8 @@ fn run_benchmark(sample_size: usize, cutoff: f64) -> Result<(), Box<dyn std::err
     Ok(())
 }
 
-type AlgorithmBenchmarkFn = fn(&Benchmarker, &[AdressClean], &ProgressBar, &AtomicUsize, &Arc<AtomicUsize>, f64) -> ();
+type AlgorithmBenchmarkFn =
+    fn(&Benchmarker, &[AdressClean], &ProgressBar, &AtomicUsize, &Arc<AtomicUsize>, f64) -> ();
 
 fn benchmark_selected_with_progress(
     benchmarker: &Benchmarker,
