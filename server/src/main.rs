@@ -484,7 +484,7 @@ fn open_browser_windows(
     {
         // macOS: Open new Safari window with automation page, then correlation data in new tab
         let script = format!(
-            r#"open -n '{}' & sleep 1 && open -n '{}'""",
+            r#"open -n '{}' & sleep 1 && open -n '{}'"#,
             stadsatlas_data_url, correlation_data_url
         );
         std::process::Command::new("bash")
@@ -511,13 +511,6 @@ fn open_browser_windows(
 }
 
 /// Create an HTML page that will automatically interact with StadsAtlas
-/// Performs:
-/// 1. Click layers icon (first button)
-/// 2. Click chevron right (second button)
-/// 3. Click chevron right (third button)
-/// 4. Click chevron right (fourth button)
-/// 5. Click radio button (uncheck to enable miljöparkering)
-/// 6. Enter address in search field
 fn create_stadsatlas_automation_page(address: &str) -> String {
     format!(
         r#"<!DOCTYPE html>
@@ -575,7 +568,7 @@ fn create_stadsatlas_automation_page(address: &str) -> String {
         </div>
     </div>
 </body>
-</html>""",
+</html>"#,
         address, address, address
     )
 }
@@ -633,56 +626,50 @@ fn create_correlation_result_page(result: &CorrelationResult) -> String {
         </div>
     </div>
 </body>
-</html>""",
+</html>"#,
         result.address, result.address, result.postnummer, result.dataset_source(), matches_html
     )
 }
 
 fn format_matches_html(result: &CorrelationResult) -> String {
     match (&result.miljo_match, &result.parkering_match) {
-        (Some((dist_m, info_m)), Some((dist_p, info_p))) => {
-            format!(
-                r#"<div class="match">
-                    <div class="match-item">
-                        <strong>🌍 Miljödata</strong><br>
-                        <span class="distance">{:.2}m away</span><br>
-                        <div class="info">{}</div>
-                    </div>
-                </div>
-                <div class="match">
-                    <div class="match-item">
-                        <strong>🚗 Parkering</strong><br>
-                        <span class="distance">{:.2}m away</span><br>
-                        <div class="info">{}</div>
-                    </div>
-                </div>"#,
-                dist_m, info_m, dist_p, info_p
-            )
-        }
-        (Some((dist, info)), None) => {
-            format!(
-                r#"<div class="match">
-                    <div class="match-item">
-                        <strong>🌍 Miljödata</strong><br>
-                        <span class="distance">{:.2}m away</span><br>
-                        <div class="info">{}</div>
-                    </div>
-                </div>"#,
-                dist, info
-            )
-        }
-        (None, Some((dist, info))) => {
-            format!(
-                r#"<div class="match">
-                    <div class="match-item">
-                        <strong>🚗 Parkering</strong><br>
-                        <span class="distance">{:.2}m away</span><br>
-                        <div class="info">{}</div>
-                    </div>
-                </div>"#,
-                dist, info
-            )
-        }
+        (Some((dist_m, info_m)), Some((dist_p, info_p))) => format!(
+            r#"<div class="match">
+    <div class="match-item">
+        <strong>🌍 Miljödata</strong><br>
+        <span class="distance">{:.2}m away</span><br>
+        <div class="info">{}</div>
+    </div>
+</div>
+<div class="match">
+    <div class="match-item">
+        <strong>🚗 Parkering</strong><br>
+        <span class="distance">{:.2}m away</span><br>
+        <div class="info">{}</div>
+    </div>
+</div>"#,
+            dist_m, info_m, dist_p, info_p
+        ),
+        (Some((dist, info)), None) => format!(
+            r#"<div class="match">
+    <div class="match-item">
+        <strong>🌍 Miljödata</strong><br>
+        <span class="distance">{:.2}m away</span><br>
+        <div class="info">{}</div>
+    </div>
+</div>"#,
+            dist, info
+        ),
+        (None, Some((dist, info))) => format!(
+            r#"<div class="match">
+    <div class="match-item">
+        <strong>🚗 Parkering</strong><br>
+        <span class="distance">{:.2}m away</span><br>
+        <div class="info">{}</div>
+    </div>
+</div>"#,
+            dist, info
+        ),
         (None, None) => "<div class='no-match'>❌ No matches found</div>".to_string(),
     }
 }
