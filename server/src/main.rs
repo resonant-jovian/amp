@@ -914,6 +914,31 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
             border-bottom: 2px solid #e0e0e0;
             padding-bottom: 10px;
         }}
+        
+        .console-log {{
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+            border: 1px solid #444;
+        }}
+        
+        .console-log .error {{
+            color: #ff6b6b;
+        }}
+        
+        .console-log .success {{
+            color: #51cf66;
+        }}
+        
+        .console-log .info {{
+            color: #4dabf7;
+        }}
     </style>
 </head>
 <body>
@@ -924,9 +949,10 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
     
     <div class="tab-container">
         <div class="tab-buttons">
-            <button class="tab-btn active" onclick="switchTab(1)">🗺️ StadsAtlas</button>
-            <button class="tab-btn" onclick="switchTab(2)">📋 Instructions</button>
-            <button class="tab-btn" onclick="switchTab(3)">📊 Data</button>
+            <button class="tab-btn active" onclick="switchTab(event, 1)">🗺️ StadsAtlas</button>
+            <button class="tab-btn" onclick="switchTab(event, 2)">📋 Instructions</button>
+            <button class="tab-btn" onclick="switchTab(event, 3)">📊 Data</button>
+            <button class="tab-btn" onclick="switchTab(event, 4)">🐛 Debug</button>
         </div>
         
         <!-- Tab 1: StadsAtlas Live -->
@@ -946,22 +972,16 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
             
             <div class="steps">
                 <div class="step">
-                    Click the <strong>layers icon</strong> (first icon in top toolbar)
+                    Click the <strong>menu icon</strong> (hamburger menu or layers button in top left)
                 </div>
                 <div class="step">
-                    Click the <strong>chevron right</strong> button (arrow pointing right)
+                    Look for the <strong>Parking section</strong>
                 </div>
                 <div class="step">
-                    Click the <strong>chevron right</strong> button again
+                    Find and enable <strong>Miljöparkering</strong> (Environmental Parking)
                 </div>
                 <div class="step">
-                    Click the <strong>chevron right</strong> button once more
-                </div>
-                <div class="step">
-                    Click the <strong>radio button</strong> (circle) to enable <strong>Miljöparkering</strong>
-                </div>
-                <div class="step">
-                    Click in the <strong>"Sök adresser eller platser..."</strong> search field at the top
+                    Click in the <strong>search field</strong> at the top
                 </div>
                 <div class="step">
                     Enter this address: <strong>{}</strong>
@@ -969,7 +989,7 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
             </div>
             
             <div class="note">
-                💡 <strong>Tip:</strong> Use Tab 3 to see the correlation result data while you verify it in StadsAtlas (Tab 1). An automated injection is running in the background trying to auto-fill the search.
+                💡 <strong>Tip:</strong> Check the Debug tab to see detailed injection logs and troubleshooting information. An automated injection script is running in the background trying to auto-fill the search.
             </div>
         </div>
         
@@ -999,254 +1019,278 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
                 Compare this data with what you see in StadsAtlas (Tab 1) to verify correlation accuracy.
             </div>
         </div>
+        
+        <!-- Tab 4: Debug Console -->
+        <div id="tab4" class="tab-content">
+            <h1>🐛 Injection Debug Console</h1>
+            
+            <div class="note" style="margin-bottom: 20px;">
+                <strong>Use browser DevTools Console (F12) to see full logs.</strong> This is a live display of injection script logs.
+            </div>
+            
+            <div class="field">
+                <div class="label">Current Phase</div>
+                <div class="value" id="current-phase">Waiting for page load...</div>
+            </div>
+            
+            <div class="field">
+                <div class="label">Injection Status</div>
+                <div class="value" id="injection-status">Not started</div>
+            </div>
+            
+            <div class="field">
+                <div class="label">Console Output</div>
+                <div class="console-log" id="console-output"></div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <button class="tab-btn" style="background: #667eea; color: white; width: 200px;" onclick="retryInjection()">🔄 Retry Injection</button>
+                <button class="tab-btn" style="background: #e74c3c; color: white; width: 200px; margin-left: 10px;" onclick="clearConsole()">🗑️ Clear Console</button>
+            </div>
+            
+            <div class="note" style="margin-top: 30px;">
+                <strong>Commands available in browser console:</strong><br>
+                <code style="background: #f9f9f9; padding: 5px; display: block; margin-top: 10px;">
+                    window.ampInject.phase() - Current injection phase (1-5)<br>
+                    window.ampInject.debug() - Show page state<br>
+                    window.ampInject.logs - Array of all log messages<br>
+                    window.ampInject.retry() - Restart injection sequence
+                </code>
+            </div>
+        </div>
     </div>
     
     <script>
         /**
-         * StadsAtlas Injection Script v2
-         * Based on accessibility tree analysis
-         * Strategy: Click menu → Find Miljöparkering → Toggle visibility → Search
+         * COMPREHENSIVE StadsAtlas Injection Script v3
+         * With detailed error logging for troubleshooting
          */
         
-        let injectionPhase = 0;
-        const MAX_WAIT_TIME = 15000; // 15 seconds total
-        const PHASE_TIMEOUT = 3000; // 3 seconds per phase
+        const InjectionLogger = {
+            logs: [],
+            maxLogs: 100,
+            
+            log(level, message) {{
+                const timestamp = new Date().toLocaleTimeString();
+                const entry = `[${{timestamp}}] [${{level}}] ${{message}}`;
+                this.logs.push(entry);
+                
+                // Keep only recent logs
+                if (this.logs.length > this.maxLogs) {{
+                    this.logs.shift();
+                }}
+                
+                // Console output
+                console.log(`[AMP] ${{message}}`);
+                
+                // Update UI
+                updateDebugUI();
+            }},
+            
+            error(message) {{ this.log('ERROR', message); }},
+            info(message) {{ this.log('INFO', message); }},
+            success(message) {{ this.log('SUCCESS', message); }},
+            debug(message) {{ this.log('DEBUG', message); }}
+        };
         
-        // Known button IDs from accessibility tree
-        const BUTTON_IDS = {{
-          MENU: '#cmkv2kcmk000g206jepb76w85',
-          ZOOM_IN: '#cmkv2kcmj0004206jnnm2ygxd',
-          ZOOM_OUT: '#cmkv2kcmj0006206js5fq58t2',
-          HOME: '#cmkv2kcmk000d206je8eyd0w0',
-          GEO: '#cmkv2kcmk001f206jzya5lsbh'
+        window.ampInject = {{
+            phase: 0,
+            maxAttempts: 5,
+            attempt: 0,
+            startTime: Date.now(),
+            maxWaitTime: 20000, // 20 seconds
+            logs: [],
+            
+            phase() {{ return this.phase; }},
+            debug() {{
+                return {{
+                    phase: this.phase,
+                    attempt: this.attempt,
+                    inputs: document.querySelectorAll('input').length,
+                    buttons: document.querySelectorAll('button').length,
+                    elapsed: Date.now() - this.startTime
+                }};
+            }},
+            retry() {{
+                InjectionLogger.info('Manual retry requested');
+                this.phase = 0;
+                this.attempt = 0;
+                startInjection();
+            }}
         }};
+        
+        function updateDebugUI() {{
+            const statusEl = document.getElementById('injection-status');
+            const phaseEl = document.getElementById('current-phase');
+            const outputEl = document.getElementById('console-output');
+            
+            if (statusEl) {{
+                const phases = ['Waiting', 'Loading', 'Searching DOM', 'Clicking', 'Finding Input', 'Injecting'];
+                statusEl.textContent = phases[window.ampInject.phase] || 'Unknown';
+            }}
+            
+            if (phaseEl) {{
+                const timeElapsed = Date.now() - window.ampInject.startTime;
+                phaseEl.textContent = `Phase ${{window.ampInject.phase}} (attempt ${{window.ampInject.attempt}}) - ${{timeElapsed}}ms elapsed`;
+            }}
+            
+            if (outputEl) {{
+                outputEl.innerHTML = InjectionLogger.logs
+                    .map(log => {{
+                        let className = '';
+                        if (log.includes('[ERROR]')) className = 'error';
+                        else if (log.includes('[SUCCESS]')) className = 'success';
+                        else if (log.includes('[INFO]')) className = 'info';
+                        return `<div class="${{className}}">${{log}}</div>`;
+                    }})
+                    .join('');
+                outputEl.scrollTop = outputEl.scrollHeight;
+            }}
+        }}
+        
+        function retryInjection() {{
+            InjectionLogger.info('User clicked retry button');
+            window.ampInject.retry();
+        }}
+        
+        function clearConsole() {{
+            InjectionLogger.logs = [];
+            updateDebugUI();
+        }}
         
         window.addEventListener('load', () => {{
-          console.log('[AMP] Page loaded, starting injection sequence...');
-          startInjectionSequence();
+            InjectionLogger.success('Page loaded, starting injection');
+            startInjection();
         }});
         
-        function startInjectionSequence() {{
-          injectionPhase = 1;
-          console.log('[AMP] Phase 1: Clicking menu button');
-          clickMenuButton();
+        function startInjection() {{
+            window.ampInject.phase = 1;
+            window.ampInject.attempt++;
+            InjectionLogger.info(`Starting injection (attempt ${{window.ampInject.attempt}})`);
+            
+            // Give page time to fully render
+            setTimeout(attemptInjection, 1000);
         }}
         
-        function clickMenuButton() {{
-          setTimeout(() => {{
-            const menuBtn = document.querySelector(BUTTON_IDS.MENU);
-            if (menuBtn) {{
-              console.log('[AMP] ✓ Found menu button, clicking...');
-              menuBtn.click();
-              // Give menu time to open
-              setTimeout(findMiljoparkeringLayer, 500);
-            }} else {{
-              console.log('[AMP] ✗ Menu button not found, retrying...');
-              if (Date.now() - window.injectionStart < MAX_WAIT_TIME) {{
-                setTimeout(clickMenuButton, 500);
-              }}
+        function attemptInjection() {{
+            try {{
+                InjectionLogger.debug('Scanning for input fields...');
+                const inputs = document.querySelectorAll('input');
+                InjectionLogger.debug(`Found ${{inputs.length}} input elements`);
+                
+                // Log all inputs for debugging
+                inputs.forEach((inp, i) => {{
+                    const desc = `Input ${{i}}: type=${{inp.type}}, placeholder=${{inp.placeholder || 'none'}}, class=${{inp.className || 'none'}}`;
+                    InjectionLogger.debug(desc);
+                }});
+                
+                // Try to find search input
+                let searchInput = null;
+                const searchTerms = ['search', 'sök', 'adress', 'address', 'location'];
+                
+                for (const term of searchTerms) {{
+                    for (const inp of inputs) {{
+                        const hasAttr = inp.placeholder?.toLowerCase().includes(term) ||
+                                      inp.className?.toLowerCase().includes(term) ||
+                                      inp.id?.toLowerCase().includes(term) ||
+                                      inp.name?.toLowerCase().includes(term);
+                        
+                        if (hasAttr && inp.type !== 'hidden') {{
+                            searchInput = inp;
+                            InjectionLogger.success(`Found search input with term '${{term}}'`);
+                            break;
+                        }}
+                    }}
+                    if (searchInput) break;
+                }}
+                
+                if (searchInput) {{
+                    window.ampInject.phase = 5;
+                    InjectionLogger.info('Attempting to inject address...');
+                    injectAddress(searchInput);
+                }} else {{
+                    InjectionLogger.error('No suitable input found');
+                    
+                    if (window.ampInject.attempt < window.ampInject.maxAttempts) {{
+                        const delay = 2000 * window.ampInject.attempt;
+                        InjectionLogger.info(`Retrying in ${{delay}}ms...`);
+                        setTimeout(attemptInjection, delay);
+                    }} else {{
+                        InjectionLogger.error('Max attempts reached. Manual intervention required.');
+                    }}
+                }}
+            }} catch (err) {{
+                InjectionLogger.error(`Exception: ${{err.message}}`);
+                console.error('Full error:', err);
             }}
-          }}, 100);
+            
+            updateDebugUI();
         }}
         
-        function findMiljoparkeringLayer() {{
-          console.log('[AMP] Phase 2: Looking for Miljöparkering layer...');
-          injectionPhase = 2;
-          
-          // Get the address to search for
-          const addressElement = document.querySelector('.header .address');
-          const address = addressElement ? addressElement.textContent.trim() : '';
-          
-          if (!address) {{
-            console.log('[AMP] ✗ Could not find address in header');
-            return;
-          }}
-          
-          console.log('[AMP] Target address:', address);
-          
-          // Search for elements containing "miljö" (case insensitive)
-          const allElements = document.querySelectorAll(
-            'button, div[role="button"], li, span, div'
-          );
-          
-          let miljoElement = null;
-          for (const elem of allElements) {{
-            const text = elem.textContent.toLowerCase();
-            if (text.includes('miljö') && text.includes('parkering')) {{
-              miljoElement = elem;
-              console.log('[AMP] ✓ Found Miljöparkering element:', elem.textContent.substring(0, 50));
-              break;
+        function injectAddress(input) {{
+            try {{
+                const address = '{}';
+                InjectionLogger.info(`Injecting: "${{address}}"`);
+                
+                // Focus and clear
+                input.focus();
+                input.click();
+                input.value = '';
+                
+                // Inject value
+                input.value = address;
+                
+                // Trigger all possible events
+                const events = [
+                    new Event('input', {{ bubbles: true, cancelable: true }}),
+                    new Event('change', {{ bubbles: true, cancelable: true }}),
+                    new Event('keyup', {{ bubbles: true, cancelable: true }}),
+                    new KeyboardEvent('keydown', {{ key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }}),
+                    new KeyboardEvent('keypress', {{ key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }})
+                ];
+                
+                events.forEach(evt => {{
+                    try {{
+                        input.dispatchEvent(evt);
+                    }} catch (e) {{
+                        InjectionLogger.debug(`Event ${{evt.type}} dispatch had error: ${{e.message}}`);
+                    }}
+                }});
+                
+                // Check if value was set
+                setTimeout(() => {{
+                    if (input.value === address) {{
+                        InjectionLogger.success(`Address successfully injected: "${{address}}"`);
+                        window.ampInject.phase = 6;
+                    }} else {{
+                        InjectionLogger.error(`Address injection failed. Expected "${{address}}", got "${{input.value}}"`);
+                    }}
+                    updateDebugUI();
+                }}, 500);
+                
+            }} catch (err) {{
+                InjectionLogger.error(`Injection error: ${{err.message}}`);
+                console.error('Full injection error:', err);
             }}
-          }}
-          
-          if (!miljoElement) {{
-            console.log('[AMP] ✗ Miljöparkering element not found');
-            console.log('[AMP] Looking for search input as fallback...');
-            findSearchInput(address);
-            return;
-          }}
-          
-          // Try to click on the element or its parent button
-          const clickable = miljoElement.closest('button') || 
-                            miljoElement.closest('[role="button"]') || 
-                            miljoElement.parentElement;
-          
-          if (clickable && clickable.tagName !== 'BODY') {{
-            console.log('[AMP] ✓ Found clickable parent, clicking...');
-            clickable.click();
-            setTimeout(() => toggleLayerVisibility(address), 500);
-          }} else {{
-            console.log('[AMP] ✗ Could not find clickable element');
-            findSearchInput(address);
-          }}
         }}
         
-        function toggleLayerVisibility(address) {{
-          console.log('[AMP] Phase 3: Toggling layer visibility...');
-          injectionPhase = 3;
-          
-          // Look for visibility toggle button near Miljöparkering
-          const buttons = document.querySelectorAll('button');
-          let toggleBtn = null;
-          
-          for (const btn of buttons) {{
-            if (btn.title?.includes('synlighet') || 
-                btn.title?.includes('visibility') ||
-                btn.getAttribute('aria-label')?.includes('synlighet')) {{
-              // Check if it's near any text containing "miljö"
-              const container = btn.closest('li') || btn.closest('div[class*="item"]');
-              if (container && container.textContent.toLowerCase().includes('miljö')) {{
-                toggleBtn = btn;
-                console.log('[AMP] ✓ Found visibility toggle button');
-                break;
-              }}
-            }}
-          }}
-          
-          if (toggleBtn) {{
-            console.log('[AMP] ✓ Clicking visibility toggle...');
-            toggleBtn.click();
-            setTimeout(() => findSearchInput(address), 300);
-          }} else {{
-            console.log('[AMP] ⚠ Could not find visibility toggle, proceeding to search...');
-            findSearchInput(address);
-          }}
-        }}
-        
-        function findSearchInput(address) {{
-          console.log('[AMP] Phase 4: Looking for search input...');
-          injectionPhase = 4;
-          
-          // Try multiple selectors for search input
-          const searchSelectors = [
-            'input[placeholder*="Sök"]',
-            'input[placeholder*="Search"]',
-            'input[type="search"]',
-            'input[class*="search"]',
-            'input[aria-label*="Sök"]',
-            '.ol-search input',
-            '[class*="search"] input',
-            'input[name*="search"]'
-          ];
-          
-          let searchInput = null;
-          for (const selector of searchSelectors) {{
-            searchInput = document.querySelector(selector);
-            if (searchInput) {{
-              console.log('[AMP] ✓ Found search input with selector:', selector);
-              break;
-            }}
-          }}
-          
-          if (!searchInput) {{
-            console.log('[AMP] ✗ Search input not found in DOM');
-            console.log('[AMP] Available inputs:', document.querySelectorAll('input').length);
-            // List all inputs for debugging
-            document.querySelectorAll('input').forEach((inp, i) => {{
-              console.log(`[AMP]   Input ${{i}}:`, inp.type, inp.placeholder, inp.className);
-            }});
-            return;
-          }}
-          
-          console.log('[AMP] ✓ Injecting address:', address);
-          injectAddress(searchInput, address);
-        }}
-        
-        function injectAddress(input, address) {{
-          console.log('[AMP] Phase 5: Injecting address into search...');
-          injectionPhase = 5;
-          
-          try {{
-            // Focus the input
-            input.focus();
-            input.click();
-            
-            // Clear any existing value
-            input.value = '';
-            
-            // Type the address
-            input.value = address;
-            
-            // Trigger input events
-            const events = [
-              new Event('input', {{ bubbles: true }}),
-              new Event('change', {{ bubbles: true }}),
-              new Event('keydown', {{ key: 'Enter', bubbles: true }}),
-              new KeyboardEvent('keydown', {{
-                key: 'Enter',
-                code: 'Enter',
-                keyCode: 13,
-                bubbles: true
-              }})
-            ];
-            
-            events.forEach(evt => input.dispatchEvent(evt));
-            
-            console.log('[AMP] ✓ Address injected successfully!');
-            console.log('[AMP] Injection sequence complete');
-            
-          }} catch (err) {{
-            console.log('[AMP] ✗ Injection error:', err.message);
-          }}
-        }}
-        
-        // Set start time
-        window.injectionStart = Date.now();
-        
-        // Expose for debugging
-        window.ampInjection = {{
-          phase: () => injectionPhase,
-          retry: startInjectionSequence,
-          debug: () => {{
-            console.log('AMP Debug Info:');
-            console.log('- Menu button:', document.querySelector(BUTTON_IDS.MENU));
-            console.log('- All inputs:', document.querySelectorAll('input').length);
-            console.log('- Layer list items:', document.querySelectorAll('li[class*="item"]').length);
-            console.log('- Button count:', document.querySelectorAll('button').length);
-          }}
-        }};
-        
-        console.log('[AMP] Injection script initialized. Debug: window.ampInjection');
-        
-        // Standard tab switching functionality
-        function switchTab(tabNumber) {{
-            // Hide all tabs
+        // Tab switching
+        function switchTab(event, tabNumber) {{
             const tabs = document.querySelectorAll('.tab-content');
             tabs.forEach(tab => tab.classList.remove('active'));
             
-            // Remove active class from all buttons
             const btns = document.querySelectorAll('.tab-btn');
             btns.forEach(btn => btn.classList.remove('active'));
             
-            // Show selected tab
             document.getElementById('tab' + tabNumber).classList.add('active');
-            
-            // Add active class to button
             event.target.classList.add('active');
         }}
+        
+        // Initialize
+        updateDebugUI();
     </script>
 </body>
-</html>"#,
+</html>""",
         address,
         address,
         address,
@@ -1254,7 +1298,8 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
         result.address,
         result.postnummer,
         result.dataset_source(),
-        matches_html
+        matches_html,
+        address
     )
 }
 
