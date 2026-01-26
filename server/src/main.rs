@@ -712,24 +712,26 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
     );
     html.push_str("    <style>\n");
     html.push_str("        * { margin: 0; padding: 0; box-sizing: border-box; }\n");
-    html.push_str("        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }\n");
-    html.push_str("        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }\n");
+    html.push_str("        html, body { height: 100%; width: 100%; }\n");
+    html.push_str("        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; display: flex; flex-direction: column; }\n");
+    html.push_str("        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1); flex-shrink: 0; }\n");
     html.push_str("        .header h1 { font-size: 24px; margin-bottom: 8px; }\n");
     html.push_str(
         "        .header .address { font-size: 14px; opacity: 0.9; font-weight: 500; }\n",
     );
-    html.push_str("        .tab-container { max-width: 1400px; margin: 20px auto; background: white; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); overflow: hidden; }\n");
-    html.push_str("        .tab-buttons { display: flex; border-bottom: 2px solid #e0e0e0; background: #fafafa; }\n");
+    html.push_str("        .tab-container { flex: 1; display: flex; flex-direction: column; max-width: 1400px; width: 100%; margin: 20px auto; background: white; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); overflow: hidden; }\n");
+    html.push_str("        .tab-buttons { display: flex; border-bottom: 2px solid #e0e0e0; background: #fafafa; flex-shrink: 0; }\n");
     html.push_str("        .tab-btn { flex: 1; padding: 16px 20px; background: none; border: none; cursor: pointer; font-size: 14px; font-weight: 600; color: #666; text-transform: uppercase; transition: all 0.3s ease; position: relative; }\n");
     html.push_str("        .tab-btn:hover { background: #f0f0f0; color: #667eea; }\n");
     html.push_str("        .tab-btn.active { color: #667eea; background: white; }\n");
     html.push_str("        .tab-btn.active::after { content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 2px; background: #667eea; }\n");
-    html.push_str("        .tab-content { display: none; padding: 30px; min-height: 600px; }\n");
+    html.push_str("        .tab-content { display: none; flex: 1; overflow-y: auto; padding: 30px; }\n");
     html.push_str("        .tab-content.active { display: block; animation: fadeIn 0.3s ease; }\n");
     html.push_str("        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }\n");
-    html.push_str("        #tab1 { padding: 0; }\n");
-    html.push_str("        .iframe-container { width: 100%; height: 800px; border: none; }\n");
-    html.push_str("        iframe { width: 100%; height: 100%; border: none; }\n");
+    html.push_str("        #tab1 { padding: 0; display: flex; flex-direction: column; }\n");
+    html.push_str("        .iframe-wrapper { display: flex; flex-direction: column; flex: 1; height: 100%; }\n");
+    html.push_str("        .iframe-container { flex: 1; display: flex; flex-direction: column; min-height: 600px; }\n");
+    html.push_str("        iframe { width: 100%; height: 100%; border: none; flex: 1; }\n");
     html.push_str("        .instruction { background: #e8f5e9; padding: 15px; border-radius: 4px; margin: 15px 0; border-left: 4px solid #4caf50; }\n");
     html.push_str("        .steps { counter-reset: step-counter; margin: 20px 0; }\n");
     html.push_str("        .step { counter-increment: step-counter; margin: 15px 0; padding: 15px; background: #f9f9f9; border-radius: 4px; border-left: 3px solid #667eea; }\n");
@@ -756,7 +758,9 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
     html.push_str("        .log-timestamp { color: #888; margin-right: 8px; }\n");
     html.push_str("        .control-button { background: #667eea; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin: 10px 10px 10px 0; }\n");
     html.push_str("        .control-button:hover { background: #764ba2; }\n");
-    html.push_str("        .control-panel { background: #f5f5f5; padding: 15px; border-radius: 4px; margin-bottom: 15px; }\n");
+    html.push_str("        .control-panel { background: #f5f5f5; padding: 15px; border-radius: 4px; margin-bottom: 15px; flex-shrink: 0; }\n");
+    html.push_str("        .control-button.retry { background: #ff9800; }\n");
+    html.push_str("        .control-button.retry:hover { background: #e68900; }\n");
     html.push_str("    </style>\n");
     html.push_str("</head>\n");
     html.push_str("<body>\n");
@@ -781,9 +785,14 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
     html.push_str("        <div id=\"tab1\" class=\"tab-content active\">\n");
     html.push_str("            <div class=\"control-panel\">\n");
     html.push_str("                <button class=\"control-button\" onclick=\"injectAddress()\">🔍 Inject Address</button>\n");
-    html.push_str("                <span id=\"status-indicator\" style=\"color: #666; font-size: 14px;\">Ready to inject</span>\n");
+    html.push_str("                <button class=\"control-button retry\" onclick=\"retryInjection()\">🔄 Retry</button>\n");
+    html.push_str("                <span id=\"status-indicator\" style=\"color: #666; font-size: 14px; margin-left: 20px;\">Ready to inject</span>\n");
     html.push_str("            </div>\n");
-    html.push_str("            <iframe id=\"stadsatlas-iframe\" src=\"https://stadsatlas.malmo.se/stadsatlas/\" class=\"iframe-container\"></iframe>\n");
+    html.push_str("            <div class=\"iframe-wrapper\">\n");
+    html.push_str("                <div class=\"iframe-container\">\n");
+    html.push_str("                    <iframe id=\"stadsatlas-iframe\" src=\"https://stadsatlas.malmo.se/stadsatlas/\" sandbox=\"allow-same-origin allow-scripts allow-forms allow-popups\" title=\"StadsAtlas Map\"></iframe>\n");
+    html.push_str("                </div>\n");
+    html.push_str("            </div>\n");
     html.push_str("        </div>\n");
     html.push_str("        <div id=\"tab2\" class=\"tab-content\">\n");
     html.push_str("            <h1>📋 StadsAtlas Verification Instructions</h1>\n");
@@ -794,11 +803,13 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
     ));
     html.push_str("            <div class=\"steps\">\n");
     html.push_str("                <div class=\"step\"><strong>Click the \"Inject Address\" button</strong> at the top of the StadsAtlas tab. This will send your address to the map using secure cross-origin messaging.</div>\n");
-    html.push_str("                <div class=\"step\">The address will be automatically searched in StadsAtlas. Look for it to appear in the center of the map view.</div>\n");
-    html.push_str("                <div class=\"step\">Check the <strong>Layers panel</strong> (usually on the left) and enable <strong>Miljöparkering</strong> (Environmental Parking) if not visible.</div>\n");
+    html.push_str("                <div class=\"step\">The address will be automatically searched in StadsAtlas. Look for it to appear in the center of the map view. The map may take 2-3 seconds to complete the search.</div>\n");
+    html.push_str("                <div class=\"step\">Check the <strong>Layers panel</strong> (on the right side) and look for <strong>Miljöparkering</strong> or <strong>Parkering</strong> layers.</div>\n");
+    html.push_str("                <div class=\"step\">If layers are not visible, click the \"Inject Address\" button again or use the \"Retry\" button to resend the search.</div>\n");
     html.push_str("                <div class=\"step\">Verify the parking zone information displayed on the map matches the expected correlation data shown in the Data tab.</div>\n");
     html.push_str("            </div>\n");
     html.push_str("            <div class=\"note\">💡 <strong>How it works:</strong> We use the postMessage API to securely communicate with StadsAtlas across the browser's cross-origin boundary. This is more reliable than direct DOM manipulation and respects security standards.</div>\n");
+    html.push_str("            <div class=\"note\">⚠️ <strong>Note:</strong> StadsAtlas uses the Origo mapping framework. Some browser console warnings about deprecated cookies (NSC_ESNS) and missing MS-specific pseudo-elements are harmless and can be ignored.</div>\n");
     html.push_str("        </div>\n");
     html.push_str("        <div id=\"tab3\" class=\"tab-content\">\n");
     html.push_str("            <h1>📊 Correlation Result Data</h1>\n");
@@ -839,6 +850,10 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
     html.push_str("                <div class=\"label\">iframe Readiness</div>\n");
     html.push_str("                <div class=\"value\" id=\"iframe-status\">Loading...</div>\n");
     html.push_str("            </div>\n");
+    html.push_str("            <div class=\"field\">\n");
+    html.push_str("                <div class=\"label\">Injection Attempts</div>\n");
+    html.push_str("                <div class=\"value\" id=\"attempt-count\">0</div>\n");
+    html.push_str("            </div>\n");
     html.push_str(
         "            <div class=\"label\" style=\"margin-top: 20px;\">Message Logs</div>\n",
     );
@@ -847,6 +862,7 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
     html.push_str("    </div>\n");
     html.push_str("    <script>\n");
     html.push_str("        const logs = [];\n");
+    html.push_str("        let injectionAttempts = 0;\n");
     html.push_str(&("        const addressToInject = '".to_owned() + &address_escaped + "';\n"));
     html.push_str("        const iframeElement = document.getElementById('stadsatlas-iframe');\n");
     html.push('\n');
@@ -888,10 +904,19 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
     html.push_str("        }\n");
     html.push('\n');
     html.push_str("        function injectAddress() {\n");
-    html.push_str("            logMessage('INJECT', 'Sending postMessage to iframe with address: ' + addressToInject, 'info');\n");
-    html.push_str("            updateStatus('⏳ Sending address to StadsAtlas...');\n");
+    html.push_str("            injectionAttempts++;\n");
+    html.push_str("            updateStatus('Injection attempts: ' + injectionAttempts, 'attempt-count');\n");
+    html.push_str("            logMessage('INJECT', 'Attempt #' + injectionAttempts + ': Sending postMessage to iframe with address: ' + addressToInject, 'info');\n");
+    html.push_str("            updateStatus('⏳ Sending address to StadsAtlas (attempt #' + injectionAttempts + ')...');\n");
     html.push('\n');
-    html.push_str("            // Send postMessage to the iframe\n");
+    html.push_str("            // Ensure iframe is ready\n");
+    html.push_str("            if (!iframeElement.contentWindow) {\n");
+    html.push_str("                logMessage('INJECT', 'ERROR: iframe contentWindow not accessible', 'error');\n");
+    html.push_str("                updateStatus('❌ iframe not ready. Please wait and try again.');\n");
+    html.push_str("                return;\n");
+    html.push_str("            }\n");
+    html.push('\n');
+    html.push_str("            // Send postMessage to the iframe with multiple attempts\n");
     html.push_str("            // StadsAtlas uses Origo which listens for custom messages\n");
     html.push_str("            iframeElement.contentWindow.postMessage({\n");
     html.push_str("                type: 'SEARCH',\n");
@@ -902,7 +927,15 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
     html.push_str(
         "            logMessage('INJECT', 'postMessage sent successfully', 'success');\n",
     );
-    html.push_str("            updateStatus('✅ Address sent. Check StadsAtlas map above.');\n");
+    html.push_str("            updateStatus('✅ Address sent. Check StadsAtlas map tab. Map may take 2-3 seconds to respond.');\n");
+    html.push_str("        }\n");
+    html.push('\n');
+    html.push_str("        function retryInjection() {\n");
+    html.push_str("            logMessage('RETRY', 'User clicked retry button', 'warning');\n");
+    html.push_str("            // Wait a moment then send again\n");
+    html.push_str("            setTimeout(function() {\n");
+    html.push_str("                injectAddress();\n");
+    html.push_str("            }, 500);\n");
     html.push_str("        }\n");
     html.push('\n');
     html.push_str("        // Listen for messages from the iframe\n");
@@ -913,7 +946,7 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
     html.push_str("                return;\n");
     html.push_str("            }\n");
     html.push('\n');
-    html.push_str("            logMessage('RESPONSE', 'Received message from StadsAtlas: ' + JSON.stringify(event.data), 'success');\n");
+    html.push_str("            logMessage('RESPONSE', 'Received message from StadsAtlas: ' + JSON.stringify(event.data).substring(0, 100), 'success');\n");
     html.push_str("            updateStatus('📨 Response received from StadsAtlas');\n");
     html.push_str("        });\n");
     html.push('\n');
@@ -922,7 +955,7 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
     html.push_str(
         "            logMessage('INIT', 'StadsAtlas iframe loaded and ready', 'success');\n",
     );
-    html.push_str("            updateStatus('✅ iframe ready. Click \"Inject Address\" button to send.', 'iframe-status');\n");
+    html.push_str("            updateStatus('✅ iframe ready. Click \"Inject Address\" to search.', 'iframe-status');\n");
     html.push_str("        });\n");
     html.push('\n');
     html.push_str("        iframeElement.addEventListener('error', function() {\n");
