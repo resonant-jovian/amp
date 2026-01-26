@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AMP Testing Interface - {ADDRESS}</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="stadsatlas_interface.css">
+</head>
+<body>
+    <div class="header">
+        <h1>📍 AMP Correlation Testing Interface</h1>
+        <div class="address">{ADDRESS}</div>
+    </div>
+    <div class="tab-container">
+        <div class="tab-buttons">
+            <button class="tab-btn active" onclick="switchTab(event, 1)">🔍 Search</button>
+            <button class="tab-btn" onclick="switchTab(event, 2)">📋 Instructions</button>
+            <button class="tab-btn" onclick="switchTab(event, 3)">📊 Data</button>
+            <button class="tab-btn" onclick="switchTab(event, 4)">🐛 Debug</button>
+        </div>
+        <div id="tab1" class="tab-content active">
+            <div class="control-panel">
+                <button class="control-button" onclick="searchAddress()">🔍 Search Address & Open Map</button>
+                <span id="status-indicator" style="color: #666; font-size: 14px; margin-left: 20px;">Ready</span>
+            </div>
+            <div style="padding: 20px; background: #f9f9f9; border-radius: 4px; margin-top: 20px;">
+                <h3>🔍 Address Search with StadsAtlas Integration</h3>
+                <p style="color: #666; margin-top: 10px; line-height: 1.6;">
+                    Click the button above to search for this address using Malmö's geo API.
+                    When found, the map will load nested in this interface showing the location
+                    centered at the exact coordinates with:
+                </p>
+                <ul style="color: #666; margin-top: 10px; margin-left: 20px; line-height: 1.8;">
+                    <li>🔴 <strong>Pin/Marker</strong> at the exact address location</li>
+                    <li>🌿 <strong>Miljöparkering layer</strong> automatically activated</li>
+                    <li>🔍 <strong>Zoom level 18</strong> for close-up view</li>
+                </ul>
+            </div>
+        </div>
+        <div id="tab2" class="tab-content">
+            <h1>📋 Address Verification Instructions</h1>
+            <div class="instruction">✓ Follow these steps to verify the address</div>
+            <div class="address-display">{ADDRESS}</div>
+            <div class="steps">
+                <div class="step"><strong>Click "Search Address & Open Map"</strong> on the Search tab. This will call Malmö's geo API and display the map in this interface centered on the found coordinates.</div>
+                <div class="step">The map will load nested in this window, centered at the exact address coordinates with a pin marker.</div>
+                <div class="step">Once the map loads, verify that the location is correct by checking nearby street names and landmarks.</div>
+                <div class="step">The <strong>Miljöparkering layer</strong> will be automatically activated. You can toggle other layers using the Layers panel on the right side of the map.</div>
+                <div class="step">Verify the parking zone information displayed on the map matches the correlation data shown in the Data tab of this window.</div>
+            </div>
+            <div class="note">💡 <strong>How it works:</strong> The API returns coordinates in WKT POINT format (POINT(X Y)) which we parse and pass directly to StadsAtlas. The map displays the pin at those coordinates and activates the miljödata layer automatically.</div>
+        </div>
+        <div id="tab3" class="tab-content">
+            <h1>📊 Correlation Result Data</h1>
+            <div class="field">
+                <div class="label">Address</div>
+                <div class="value">{RESULT_ADDRESS}</div>
+            </div>
+            <div class="field">
+                <div class="label">Postal Code</div>
+                <div class="value">{RESULT_POSTNUMMER}</div>
+            </div>
+            <div class="field">
+                <div class="label">Dataset Source</div>
+                <div class="value">{RESULT_SOURCE}</div>
+            </div>
+            <h2>Matched Zones</h2>
+            <div id="matches-container">{RESULT_MATCHES}</div>
+        </div>
+        <div id="tab4" class="tab-content">
+            <h1>🐛 Debug Console - Address Search Logs</h1>
+            <div class="note"><strong>Status:</strong> All address searches are logged below. Also check browser DevTools Console (F12) for extended logs marked with <code>[AMP]</code>.</div>
+            <div class="field">
+                <div class="label">Search Status</div>
+                <div class="value" id="search-status">Ready to search...</div>
+            </div>
+            <div class="label" style="margin-top: 20px;">Message Logs</div>
+            <div class="console-log" id="message-logs"></div>
+        </div>
+    </div>
+    <div id="map-container" class="map-container" style="display:none;">
+        <button class="close-map-btn" onclick="closeMap()">✕ Close Map</button>
+        <iframe id="stadsatlas-iframe" class="stadsatlas-iframe" src="" frameborder="0"></iframe>
+    </div>
+    <script src="stadsatlas_interface.js"></script>
+</body>
+</html>
