@@ -357,8 +357,7 @@ fn run_correlation(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Load data with progress
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
-    pb.set_message("Loading data...");
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);    pb.set_message("Loading data...");
 
     let (addresses, miljodata, parkering): (
         Vec<AdressClean>,
@@ -390,8 +389,7 @@ fn run_correlation(
     let pb = ProgressBar::new(addresses.len() as u64);
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}% {msg}")?
-            .progress_chars("█▓▒░ "),
+            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}% {msg}")?            .progress_chars("█▓▒░ "),
     );
 
     // Correlate with miljödata
@@ -535,8 +533,7 @@ fn run_test_mode(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Load data with progress
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
-    pb.set_message("Loading data for testing...");
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);    pb.set_message("Loading data for testing...");
 
     let (addresses, miljodata, parkering): (
         Vec<AdressClean>,
@@ -560,8 +557,7 @@ fn run_test_mode(
     let pb = ProgressBar::new(addresses.len() as u64);
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}%")?
-            .progress_chars("█▓▒░ "),
+            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}%")?            .progress_chars("█▓▒░ "),
     );
 
     let miljo_results = correlate_dataset(&algorithm, &addresses, &miljodata, cutoff, &pb)?;
@@ -669,6 +665,7 @@ fn get_browser_executable() -> String {
 /// Tab 1: StadsAtlas Live Iframe
 /// Tab 2: Instructions
 /// Tab 3: Correlation Data
+/// Includes integrated injection script v2 for StadsAtlas address injection
 fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> String {
     let matches_html = format_matches_html(result);
 
@@ -972,7 +969,7 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
             </div>
             
             <div class="note">
-                💡 <strong>Tip:</strong> Use Tab 3 to see the correlation result data while you verify it in StadsAtlas (Tab 1).
+                💡 <strong>Tip:</strong> Use Tab 3 to see the correlation result data while you verify it in StadsAtlas (Tab 1). An automated injection is running in the background trying to auto-fill the search.
             </div>
         </div>
         
@@ -1005,6 +1002,233 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
     </div>
     
     <script>
+        /**
+         * StadsAtlas Injection Script v2
+         * Based on accessibility tree analysis
+         * Strategy: Click menu → Find Miljöparkering → Toggle visibility → Search
+         */
+        
+        let injectionPhase = 0;
+        const MAX_WAIT_TIME = 15000; // 15 seconds total
+        const PHASE_TIMEOUT = 3000; // 3 seconds per phase
+        
+        // Known button IDs from accessibility tree
+        const BUTTON_IDS = {{
+          MENU: '#cmkv2kcmk000g206jepb76w85',
+          ZOOM_IN: '#cmkv2kcmj0004206jnnm2ygxd',
+          ZOOM_OUT: '#cmkv2kcmj0006206js5fq58t2',
+          HOME: '#cmkv2kcmk000d206je8eyd0w0',
+          GEO: '#cmkv2kcmk001f206jzya5lsbh'
+        }};
+        
+        window.addEventListener('load', () => {{
+          console.log('[AMP] Page loaded, starting injection sequence...');
+          startInjectionSequence();
+        }});
+        
+        function startInjectionSequence() {{
+          injectionPhase = 1;
+          console.log('[AMP] Phase 1: Clicking menu button');
+          clickMenuButton();
+        }}
+        
+        function clickMenuButton() {{
+          setTimeout(() => {{
+            const menuBtn = document.querySelector(BUTTON_IDS.MENU);
+            if (menuBtn) {{
+              console.log('[AMP] ✓ Found menu button, clicking...');
+              menuBtn.click();
+              // Give menu time to open
+              setTimeout(findMiljoparkeringLayer, 500);
+            }} else {{
+              console.log('[AMP] ✗ Menu button not found, retrying...');
+              if (Date.now() - window.injectionStart < MAX_WAIT_TIME) {{
+                setTimeout(clickMenuButton, 500);
+              }}
+            }}
+          }}, 100);
+        }}
+        
+        function findMiljoparkeringLayer() {{
+          console.log('[AMP] Phase 2: Looking for Miljöparkering layer...');
+          injectionPhase = 2;
+          
+          // Get the address to search for
+          const addressElement = document.querySelector('.header .address');
+          const address = addressElement ? addressElement.textContent.trim() : '';
+          
+          if (!address) {{
+            console.log('[AMP] ✗ Could not find address in header');
+            return;
+          }}
+          
+          console.log('[AMP] Target address:', address);
+          
+          // Search for elements containing "miljö" (case insensitive)
+          const allElements = document.querySelectorAll(
+            'button, div[role="button"], li, span, div'
+          );
+          
+          let miljoElement = null;
+          for (const elem of allElements) {{
+            const text = elem.textContent.toLowerCase();
+            if (text.includes('miljö') && text.includes('parkering')) {{
+              miljoElement = elem;
+              console.log('[AMP] ✓ Found Miljöparkering element:', elem.textContent.substring(0, 50));
+              break;
+            }}
+          }}
+          
+          if (!miljoElement) {{
+            console.log('[AMP] ✗ Miljöparkering element not found');
+            console.log('[AMP] Looking for search input as fallback...');
+            findSearchInput(address);
+            return;
+          }}
+          
+          // Try to click on the element or its parent button
+          const clickable = miljoElement.closest('button') || 
+                            miljoElement.closest('[role="button"]') || 
+                            miljoElement.parentElement;
+          
+          if (clickable && clickable.tagName !== 'BODY') {{
+            console.log('[AMP] ✓ Found clickable parent, clicking...');
+            clickable.click();
+            setTimeout(() => toggleLayerVisibility(address), 500);
+          }} else {{
+            console.log('[AMP] ✗ Could not find clickable element');
+            findSearchInput(address);
+          }}
+        }}
+        
+        function toggleLayerVisibility(address) {{
+          console.log('[AMP] Phase 3: Toggling layer visibility...');
+          injectionPhase = 3;
+          
+          // Look for visibility toggle button near Miljöparkering
+          const buttons = document.querySelectorAll('button');
+          let toggleBtn = null;
+          
+          for (const btn of buttons) {{
+            if (btn.title?.includes('synlighet') || 
+                btn.title?.includes('visibility') ||
+                btn.getAttribute('aria-label')?.includes('synlighet')) {{
+              // Check if it's near any text containing "miljö"
+              const container = btn.closest('li') || btn.closest('div[class*="item"]');
+              if (container && container.textContent.toLowerCase().includes('miljö')) {{
+                toggleBtn = btn;
+                console.log('[AMP] ✓ Found visibility toggle button');
+                break;
+              }}
+            }}
+          }}
+          
+          if (toggleBtn) {{
+            console.log('[AMP] ✓ Clicking visibility toggle...');
+            toggleBtn.click();
+            setTimeout(() => findSearchInput(address), 300);
+          }} else {{
+            console.log('[AMP] ⚠ Could not find visibility toggle, proceeding to search...');
+            findSearchInput(address);
+          }}
+        }}
+        
+        function findSearchInput(address) {{
+          console.log('[AMP] Phase 4: Looking for search input...');
+          injectionPhase = 4;
+          
+          // Try multiple selectors for search input
+          const searchSelectors = [
+            'input[placeholder*="Sök"]',
+            'input[placeholder*="Search"]',
+            'input[type="search"]',
+            'input[class*="search"]',
+            'input[aria-label*="Sök"]',
+            '.ol-search input',
+            '[class*="search"] input',
+            'input[name*="search"]'
+          ];
+          
+          let searchInput = null;
+          for (const selector of searchSelectors) {{
+            searchInput = document.querySelector(selector);
+            if (searchInput) {{
+              console.log('[AMP] ✓ Found search input with selector:', selector);
+              break;
+            }}
+          }}
+          
+          if (!searchInput) {{
+            console.log('[AMP] ✗ Search input not found in DOM');
+            console.log('[AMP] Available inputs:', document.querySelectorAll('input').length);
+            // List all inputs for debugging
+            document.querySelectorAll('input').forEach((inp, i) => {{
+              console.log(`[AMP]   Input ${{i}}:`, inp.type, inp.placeholder, inp.className);
+            }});
+            return;
+          }}
+          
+          console.log('[AMP] ✓ Injecting address:', address);
+          injectAddress(searchInput, address);
+        }}
+        
+        function injectAddress(input, address) {{
+          console.log('[AMP] Phase 5: Injecting address into search...');
+          injectionPhase = 5;
+          
+          try {{
+            // Focus the input
+            input.focus();
+            input.click();
+            
+            // Clear any existing value
+            input.value = '';
+            
+            // Type the address
+            input.value = address;
+            
+            // Trigger input events
+            const events = [
+              new Event('input', {{ bubbles: true }}),
+              new Event('change', {{ bubbles: true }}),
+              new Event('keydown', {{ key: 'Enter', bubbles: true }}),
+              new KeyboardEvent('keydown', {{
+                key: 'Enter',
+                code: 'Enter',
+                keyCode: 13,
+                bubbles: true
+              }})
+            ];
+            
+            events.forEach(evt => input.dispatchEvent(evt));
+            
+            console.log('[AMP] ✓ Address injected successfully!');
+            console.log('[AMP] Injection sequence complete');
+            
+          }} catch (err) {{
+            console.log('[AMP] ✗ Injection error:', err.message);
+          }}
+        }}
+        
+        // Set start time
+        window.injectionStart = Date.now();
+        
+        // Expose for debugging
+        window.ampInjection = {{
+          phase: () => injectionPhase,
+          retry: startInjectionSequence,
+          debug: () => {{
+            console.log('AMP Debug Info:');
+            console.log('- Menu button:', document.querySelector(BUTTON_IDS.MENU));
+            console.log('- All inputs:', document.querySelectorAll('input').length);
+            console.log('- Layer list items:', document.querySelectorAll('li[class*="item"]').length);
+            console.log('- Button count:', document.querySelectorAll('button').length);
+          }}
+        }};
+        
+        console.log('[AMP] Injection script initialized. Debug: window.ampInjection');
+        
+        // Standard tab switching functionality
         function switchTab(tabNumber) {{
             // Hide all tabs
             const tabs = document.querySelectorAll('.tab-content');
@@ -1104,29 +1328,29 @@ fn open_browser_window(
 
     // Try to open window using different methods depending on OS
     #[cfg(target_os = "windows")]
-    {
+    {{
         std::process::Command::new("cmd")
             .args(&["/C", &format!("start chrome \"{}\"", file_url)])
             .output()
             .ok();
-    }
+    }}
 
     #[cfg(target_os = "macos")]
-    {
+    {{
         std::process::Command::new("bash")
             .args(&["-c", &format!("open '{}'", file_url)])
             .output()
             .ok();
-    }
+    }}
 
     #[cfg(target_os = "linux")]
-    {
+    {{
         let browser = get_browser_executable();
         std::process::Command::new(&browser)
             .arg(&file_url)
             .spawn()
             .ok();
-    }
+    }}
 
     Ok(())
 }
@@ -1134,8 +1358,7 @@ fn open_browser_window(
 fn run_benchmark(sample_size: usize, cutoff: f64) -> Result<(), Box<dyn std::error::Error>> {
     // Load data
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
-    pb.set_message("Loading data for benchmarking...");
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);    pb.set_message("Loading data for benchmarking...");
 
     let (addresses, zones) = amp_core::api::api_miljo_only()?;
 
@@ -1398,8 +1621,7 @@ async fn check_updates(checksum_file: &str) -> Result<(), Box<dyn std::error::Er
     );
 
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
-    pb.set_message("Fetching remote data...");
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);    pb.set_message("Fetching remote data...");
 
     new_checksums.update_from_remote().await?;
     pb.finish_with_message("✓ Data fetched");
