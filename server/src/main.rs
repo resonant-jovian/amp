@@ -1018,11 +1018,14 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
     </script>
 </body>
 </html>"#,
-        address, address, address, address,
-        result.address,
-        result.postnummer,
-        result.dataset_source(),
-        matches_html
+        address,        // {} 1 - title
+        address,        // {} 2 - header address
+        address,        // {} 3 - instructions address display  
+        address,        // {} 4 - instructions step 7 address
+        result.address,           // {} 5 - tab 3 address
+        result.postnummer,        // {} 6 - tab 3 postal code
+        result.dataset_source(),  // {} 7 - tab 3 dataset source
+        matches_html              // {} 8 - tab 3 matched zones
     )
 }
 
