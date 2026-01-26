@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AMP - Address Environment Correlation</title>
+    <style>
+        :root {
+            --color-primary: #218089;
+            --color-bg: #f5f5f5;
+            --color-surface: #ffffff;
+            --color-text: #1f2121;
+            --color-border: #ddd;
+            --color-error: #c0152f;
+            --color-success: #218089;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            color: var(--color-primary);
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            background: var(--color-surface);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .search-box input {
+            flex: 1;
+            padding: 10px 15px;
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .search-box button {
+            padding: 10px 20px;
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .search-box button:hover {
+            opacity: 0.9;
+        }
+
+        .tabs-container {
+            background: var(--color-surface);
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .tabs-header {
+            display: flex;
+            border-bottom: 1px solid var(--color-border);
+            background: #f9f9f9;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 15px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .tab-button.active {
+            color: var(--color-primary);
+            border-bottom-color: var(--color-primary);
+            background: #f0f7f8;
+        }
+
+        .tab-button:hover {
+            background: #f5f5f5;
+        }
+
+        .tabs-content {
+            padding: 20px;
+            min-height: 400px;
+        }
+
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        .tab-pane iframe {
+            width: 100%;
+            height: 600px;
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+        }
+
+        .instructions {
+            font-family: Arial, sans-serif;
+            color: #333;
+        }
+
+        .instructions h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: var(--color-primary);
+        }
+
+        .instruction {
+            background: #e8f5e9;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            border-left: 4px solid #4caf50;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+            margin-bottom: 15px;
+            line-height: 1.8;
+        }
+
+        .instructions li {
+            margin-bottom: 15px;
+        }
+
+        .steps {
+            counter-reset: step-counter;
+            margin: 20px 0;
+        }
+
+        .step {
+            counter-increment: step-counter;
+            margin: 15px 0;
+            padding: 10px 10px 10px 40px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            position: relative;
+        }
+
+        .step::before {
+            content: counter(step-counter);
+            display: inline-block;
+            background: #2196F3;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 24px;
+            margin-right: 10px;
+            font-weight: bold;
+            position: absolute;
+            left: 10px;
+        }
+
+        .note {
+            color: #666;
+            font-size: 14px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+
+        .address-display {
+            background: #fff3e0;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+            font-weight: bold;
+        }
+
+        .status-message {
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .status-message.visible {
+            display: block;
+        }
+
+        .status-message.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #4caf50;
+        }
+
+        .status-message.error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ef5350;
+        }
+
+        .automation-status {
+            margin-top: 15px;
+            padding: 12px;
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #856404;
+        }
+
+        .automation-status.success {
+            background: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+
+        .automation-status.error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+
+        .correlation-result {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .correlation-result h3 {
+            margin-bottom: 10px;
+            color: var(--color-primary);
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-label {
+            font-weight: 500;
+            color: #666;
+        }
+
+        .result-value {
+            color: var(--color-primary);
+            font-weight: 600;
+        }
+
+        .match-box {
+            background: #e8f5e9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            border-left: 4px solid #4caf50;
+        }
+
+        .match-box.none {
+            background: #fff3cd;
+            border-left-color: #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚗 AMP - Address Environment Correlation</h1>
+            <p class="subtitle">Find parking restrictions and environmental data for any address in Malmö</p>
+        </header>
+
+        <div class="search-box">
+            <input 
+                type="text" 
+                id="addressInput" 
+                placeholder="Enter an address in Malmö (e.g., Storgatan 1)" 
+                value=""
+            >
+            <button onclick="searchAddress()">Search</button>
+        </div>
+
+        <div id="statusMessage" class="status-message"></div>
+
+        <div class="tabs-container">
+            <div class="tabs-header">
+                <button class="tab-button active" onclick="switchTab(0)">📍 Tab 1: Live Map</button>
+                <button class="tab-button" onclick="switchTab(1)">📋 Tab 2: Instructions</button>
+                <button class="tab-button" onclick="switchTab(2)">📊 Tab 3: Correlation Data</button>
+            </div>
+
+            <div class="tabs-content">
+                <!-- Tab 1: Live StadsAtlas with Automation -->
+                <div id="tab-0" class="tab-pane active">
+                    <div id="automationStatus" class="automation-status" style="display: none;"></div>
+                    <iframe id="stadsatlasFrame" src="https://stadsatlas.malmo.se/stadsatlas/" title="StadsAtlas Malmö"></iframe>
+                </div>
+
+                <!-- Tab 2: Instructions from deprecated code -->
+                <div id="tab-1" class="tab-pane">
+                    <div class="instructions" id="instructionsContent"></div>
+                </div>
+
+                <!-- Tab 3: Correlation Data -->
+                <div id="tab-2" class="tab-pane">
+                    <div id="correlationData">
+                        <p style="color: #999; text-align: center; padding: 40px 20px;">
+                            Enter an address and click "Search" to see correlation data
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentAddress = '';
+        let currentTabIndex = 0;
+
+        // Load instructions from deprecated HTML on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            const instructionsContent = document.getElementById('instructionsContent');
+            instructionsContent.innerHTML = getDeprecatedInstructionsHTML('');
+        });
+
+        function getDeprecatedInstructionsHTML(address) {
+            return `
+                <h1>🗺️ StadsAtlas Auto-Lookup</h1>
+                ${address ? `<div class="address-display">${address}</div>` : ''}
+                
+                <div class="instruction">
+                    📌 This page will help you verify the correlation data in StadsAtlas.
+                </div>
+
+                <div class="steps">
+                    <div class="step">
+                        Click the <strong>layers icon</strong> (first icon in top toolbar)
+                    </div>
+                    <div class="step">
+                        Click the <strong>chevron right</strong> button (arrow pointing right)
+                    </div>
+                    <div class="step">
+                        Click the <strong>chevron right</strong> button again
+                    </div>
+                    <div class="step">
+                        Click the <strong>chevron right</strong> button once more
+                    </div>
+                    <div class="step">
+                        Click the <strong>radio button</strong> (circle) to enable <strong>Miljöparkering</strong>
+                    </div>
+                    <div class="step">
+                        Click in the <strong>"Sök adresser eller platser..."</strong> search field at the top
+                    </div>
+                    <div class="step">
+                        Enter this address: ${address ? `<strong>${address}</strong>` : '<em>the address you want to search for</em>'}
+                    </div>
+                </div>
+
+                <div class="note">
+                    💡 <strong>Tip:</strong> Use Tab 3 to see the correlation result data while you verify it in StadsAtlas (Tab 1).
+                </div>
+            `;
+        }
+
+        function switchTab(index) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-pane').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(`tab-${index}`).classList.add('active');
+            document.querySelectorAll('.tab-button')[index].classList.add('active');
+            currentTabIndex = index;
+        }
+
+        function showStatus(message, type = 'success') {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = `status-message visible ${type}`;
+            setTimeout(() => {
+                statusEl.classList.remove('visible');
+            }, 5000);
+        }
+
+        function showAutomationStatus(message, type = 'info') {
+            const statusEl = document.getElementById('automationStatus');
+            statusEl.textContent = message;
+            statusEl.className = `automation-status ${type}`;
+            statusEl.style.display = 'block';
+        }
+
+        async function searchAddress() {
+            const input = document.getElementById('addressInput');
+            const address = input.value.trim();
+
+            if (!address) {
+                showStatus('Please enter an address', 'error');
+                return;
+            }
+
+            currentAddress = address;
+            showStatus(`Searching for "${address}"...`, 'success');
+            showAutomationStatus('⏳ Attempting to automate StadsAtlas...', 'info');
+
+            // Update instructions with current address
+            document.getElementById('instructionsContent').innerHTML = getDeprecatedInstructionsHTML(address);
+
+            // Attempt to fetch correlation data
+            try {
+                // This would call your API endpoint
+                // const response = await fetch(`/api/correlate?address=${encodeURIComponent(address)}`);
+                // const data = await response.json();
+                // displayCorrelationData(data);
+
+                // For now, show placeholder
+                displayCorrelationData({
+                    address: address,
+                    postnummer: '20000',
+                    miljo_match: { distance: 12.5, zone: 'Miljöparkering Zone A' },
+                    parkering_match: { distance: 5.2, zone: 'Premium Parking Zone' },
+                    dataset_source: 'Both Datasets'
+                });
+            } catch (error) {
+                showStatus('Error fetching data: ' + error.message, 'error');
+                displayCorrelationData(null);
+            }
+
+            // Attempt to automate StadsAtlas
+            automateStadsAtlas(address);
+        }
+
+        function displayCorrelationData(data) {
+            const container = document.getElementById('correlationData');
+
+            if (!data) {
+                container.innerHTML = `
+                    <div class="correlation-result" style="border-color: var(--color-error);">
+                        <h3>Error</h3>
+                        <p>Could not retrieve correlation data for this address.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `
+                <div class="correlation-result">
+                    <h3>Address: ${data.address}</h3>
+                    <div class="result-item">
+                        <span class="result-label">Postal Code:</span>
+                        <span class="result-value">${data.postnummer || 'N/A'}</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Dataset:</span>
+                        <span class="result-value">${data.dataset_source || 'N/A'}</span>
+                    </div>
+            `;
+
+            if (data.miljo_match) {
+                html += `
+                    <div class="match-box" style="margin-top: 15px;">
+                        <h4 style="color: var(--color-success); margin-bottom: 10px;">✅ Miljödata Match</h4>
+                        <div class="result-item">
+                            <span class="result-label">Zone:</span>
+                            <span class="result-value">${data.miljo_match.zone || 'N/A'}</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Distance:</span>
+                            <span class="result-value">${data.miljo_match.distance?.toFixed(2) || 'N/A'} m</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="match-box none" style="margin-top: 15px;">
+                        <h4 style="color: #856404;">⭕ No Miljödata Match</h4>
+                        <p style="margin: 0; font-size: 13px;">This address is not in a miljöparkering zone.</p>
+                    </div>
+                `;
+            }
+
+            if (data.parkering_match) {
+                html += `
+                    <div class="match-box" style="border-left-color: #1976d2;">
+                        <h4 style="color: #1976d2; margin-bottom: 10px;">🅿️ Parkering Match</h4>
+                        <div class="result-item">
+                            <span class="result-label">Zone:</span>
+                            <span class="result-value">${data.parkering_match.zone || 'N/A'}</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Distance:</span>
+                            <span class="result-value">${data.parkering_match.distance?.toFixed(2) || 'N/A'} m</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="match-box none">
+                        <h4 style="color: #856404;">⭕ No Parkering Match</h4>
+                        <p style="margin: 0; font-size: 13px;">This address is not in a premium parking zone.</p>
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function automateStadsAtlas(address) {
+            const frame = document.getElementById('stadsatlasFrame');
+
+            // Wait for iframe to load
+            frame.onload = () => {
+                try {
+                    // Attempt to inject JavaScript into the iframe
+                    const frameDoc = frame.contentDocument || frame.contentWindow.document;
+
+                    // Create automation script
+                    const script = frameDoc.createElement('script');
+                    script.textContent = `
+                        (async function() {
+                            try {
+                                // Wait for page to fully load
+                                await new Promise(resolve => {
+                                    if (document.readyState === 'complete') resolve();
+                                    window.addEventListener('load', resolve);
+                                    setTimeout(resolve, 3000);
+                                });
+
+                                // Step 1: Find and click layers icon
+                                let layersIcon = document.querySelector('[title*="Lager"], [aria-label*="lager"], .o-layers, [class*="layer"]');
+                                if (!layersIcon) {
+                                    // Try finding by button text or class patterns
+                                    const buttons = document.querySelectorAll('button');
+                                    for (let btn of buttons) {
+                                        if (btn.textContent.includes('Lager') || btn.getAttribute('aria-label')?.includes('lager')) {
+                                            layersIcon = btn;
+                                            break;
+                                        }
+                                    }
+                                }
+                                if (layersIcon) {
+                                    layersIcon.click();
+                                    await new Promise(r => setTimeout(r, 600));
+                                }
+
+                                // Step 2: Click chevrons to expand (3 times)
+                                const chevrons = document.querySelectorAll('[class*="chevron"], [class*="expand"], .o-expand, button[aria-expanded="false"]');
+                                if (chevrons.length > 0) {
+                                    for (let i = 0; i < Math.min(3, chevrons.length); i++) {
+                                        chevrons[i].click();
+                                        await new Promise(r => setTimeout(r, 400));
+                                    }
+                                }
+
+                                // Step 3: Find and click Miljöparkering radio button
+                                const allInputs = document.querySelectorAll('input[type="radio"], input[type="checkbox"]');
+                                let found = false;
+                                for (let input of allInputs) {
+                                    const label = input.closest('label')?.textContent || input.getAttribute('aria-label') || '';
+                                    if (label.includes('Miljö') && label.includes('parkering')) {
+                                        input.click();
+                                        found = true;
+                                        await new Promise(r => setTimeout(r, 400));
+                                        break;
+                                    }
+                                }
+
+                                // Step 4: Focus and fill search field
+                                const searchInputs = document.querySelectorAll('input[type="text"]');
+                                let searchField = null;
+                                for (let input of searchInputs) {
+                                    const placeholder = input.getAttribute('placeholder') || '';
+                                    const id = input.getAttribute('id') || '';
+                                    if (placeholder.includes('adress') || placeholder.includes('Sök') || id.includes('search')) {
+                                        searchField = input;
+                                        break;
+                                    }
+                                }
+                                
+                                if (!searchField && searchInputs.length > 0) {
+                                    searchField = searchInputs[0];
+                                }
+                                
+                                if (searchField) {
+                                    searchField.focus();
+                                    searchField.value = '${address}';
+                                    searchField.dispatchEvent(new Event('input', { bubbles: true }));
+                                    searchField.dispatchEvent(new Event('change', { bubbles: true }));
+                                    await new Promise(r => setTimeout(r, 300));
+
+                                    // Step 5: Trigger search (Enter key)
+                                    const enterEvent = new KeyboardEvent('keypress', {
+                                        key: 'Enter',
+                                        code: 'Enter',
+                                        keyCode: 13,
+                                        which: 13,
+                                        bubbles: true,
+                                        cancelable: true
+                                    });
+                                    searchField.dispatchEvent(enterEvent);
+                                    searchField.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+                                }
+
+                                // Send success message to parent
+                                window.parent.postMessage({ type: 'automation-success', address: '${address}' }, '*');
+                            } catch (error) {
+                                window.parent.postMessage({ type: 'automation-error', error: error.message }, '*');
+                            }
+                        })();
+                    `;
+                    frameDoc.body.appendChild(script);
+                } catch (error) {
+                    // Cross-origin restriction - use fallback
+                    showAutomationStatus(
+                        '⚠️ Automation fallback: Please follow the instructions in Tab 2 to manually activate Miljöparkering and search for the address.',
+                        'error'
+                    );
+                }
+            };
+
+            // Force reload to trigger onload
+            frame.src = frame.src;
+        }
+
+        // Listen for messages from iframe
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'automation-success') {
+                showAutomationStatus(
+                    `✅ StadsAtlas automation successful! Searching for "${event.data.address}" and enabling Miljöparkering layer.`,
+                    'success'
+                );
+            } else if (event.data.type === 'automation-error') {
+                showAutomationStatus(
+                    `⚠️ Automation fallback: ${event.data.error}. Please use Tab 2 instructions instead.`,
+                    'error'
+                );
+            }
+        });
+
+        // Allow Enter key to search
+        document.getElementById('addressInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                searchAddress();
+            }
+        });
+    </script>
+</body>
+</html>
