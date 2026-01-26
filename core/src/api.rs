@@ -111,19 +111,20 @@ impl DataLoader {
                 });
 
                 if let Some(start) = start_time
-                    && let Some(after_dash) = parts.get(1) {
-                        // Get the first number after the dash (the end time)
-                        let end_time = after_dash
-                            .chars()
-                            .take_while(|c| c.is_ascii_digit())
-                            .collect::<String>()
-                            .parse::<u32>()
-                            .ok();
+                    && let Some(after_dash) = parts.get(1)
+                {
+                    // Get the first number after the dash (the end time)
+                    let end_time = after_dash
+                        .chars()
+                        .take_while(|c| c.is_ascii_digit())
+                        .collect::<String>()
+                        .parse::<u32>()
+                        .ok();
 
-                        if let Some(end) = end_time {
-                            return format!("{:02}:00–{:02}:00", start, end);
-                        }
+                    if let Some(end) = end_time {
+                        return format!("{:02}:00–{:02}:00", start, end);
                     }
+                }
             }
         }
 
