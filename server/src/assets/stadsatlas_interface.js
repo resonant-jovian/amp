@@ -35,10 +35,10 @@ function handleApiError(error) {
 function searchAddress() {
     const searchBox = document.querySelector('input[placeholder*="Sök address"]') || 
                       document.querySelector('input[type="text"]');
-    const address = searchBox ? searchBox.value : 'Master Henriksgatan 2';
+    const address = searchBox ? searchBox.value.trim() : '';
     
-    if (!address || address.trim().length === 0) {
-        handleApiError('Address field is empty');
+    if (!address || address.length === 0) {
+        handleApiError('Please enter an address to search');
         return;
     }
     
@@ -181,6 +181,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchBtn = document.querySelector('.control-button');
     if (searchBtn) {
         searchBtn.onclick = searchAddress;
+    }
+    
+    // Also allow Enter key to search
+    const searchBox = document.querySelector('input[placeholder*="Sök address"]') || 
+                      document.querySelector('input[type="text"]');
+    if (searchBox) {
+        searchBox.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchAddress();
+            }
+        });
     }
     
     // Ensure iframe container has proper dimensions
