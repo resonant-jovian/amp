@@ -725,7 +725,9 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
     html.push_str("        .tab-btn:hover { background: #f0f0f0; color: #667eea; }\n");
     html.push_str("        .tab-btn.active { color: #667eea; background: white; }\n");
     html.push_str("        .tab-btn.active::after { content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 2px; background: #667eea; }\n");
-    html.push_str("        .tab-content { display: none; flex: 1; overflow-y: auto; padding: 30px; }\n");
+    html.push_str(
+        "        .tab-content { display: none; flex: 1; overflow-y: auto; padding: 30px; }\n",
+    );
     html.push_str("        .tab-content.active { display: block; animation: fadeIn 0.3s ease; }\n");
     html.push_str("        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }\n");
     html.push_str("        #tab1 { padding: 0; display: flex; flex-direction: column; }\n");
@@ -905,14 +907,18 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
     html.push('\n');
     html.push_str("        function injectAddress() {\n");
     html.push_str("            injectionAttempts++;\n");
-    html.push_str("            updateStatus('Injection attempts: ' + injectionAttempts, 'attempt-count');\n");
+    html.push_str(
+        "            updateStatus('Injection attempts: ' + injectionAttempts, 'attempt-count');\n",
+    );
     html.push_str("            logMessage('INJECT', 'Attempt #' + injectionAttempts + ': Sending postMessage to iframe with address: ' + addressToInject, 'info');\n");
     html.push_str("            updateStatus('⏳ Sending address to StadsAtlas (attempt #' + injectionAttempts + ')...');\n");
     html.push('\n');
     html.push_str("            // Ensure iframe is ready\n");
     html.push_str("            if (!iframeElement.contentWindow) {\n");
     html.push_str("                logMessage('INJECT', 'ERROR: iframe contentWindow not accessible', 'error');\n");
-    html.push_str("                updateStatus('❌ iframe not ready. Please wait and try again.');\n");
+    html.push_str(
+        "                updateStatus('❌ iframe not ready. Please wait and try again.');\n",
+    );
     html.push_str("                return;\n");
     html.push_str("            }\n");
     html.push('\n');
