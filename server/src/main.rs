@@ -375,8 +375,7 @@ fn run_correlation(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Load data with progress
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
-    pb.set_message("Loading data...");
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);    pb.set_message("Loading data...");
 
     let (addresses, miljodata, parkering): (
         Vec<AdressClean>,
@@ -408,8 +407,7 @@ fn run_correlation(
     let pb = ProgressBar::new(addresses.len() as u64);
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}% {msg}")?
-            .progress_chars("█▓▒░ "),
+            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}% {msg}")?            .progress_chars("█▓▒░ "),
     );
 
     // Correlate with miljödata
@@ -553,8 +551,7 @@ fn run_test_mode(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Load data with progress
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
-    pb.set_message("Loading data for testing...");
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);    pb.set_message("Loading data for testing...");
 
     let (addresses, miljodata, parkering): (
         Vec<AdressClean>,
@@ -578,8 +575,7 @@ fn run_test_mode(
     let pb = ProgressBar::new(addresses.len() as u64);
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}%")?
-            .progress_chars("█▓▒░ "),
+            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}%")?            .progress_chars("█▓▒░ "),
     );
 
     let miljo_results = correlate_dataset(&algorithm, &addresses, &miljodata, cutoff, &pb)?;
@@ -708,13 +704,15 @@ fn format_matches_html(result: &CorrelationResult) -> String {
     }
 }
 
-/// Create HTML page by loading from assets and substituting placeholders
+/// Create HTML page by loading template and inlining CSS/JS
 fn create_tabbed_interface_page(
     address: &str,
     result: &CorrelationResult,
 ) -> Result<String, Box<dyn std::error::Error>> {
     // Load base HTML template
     let mut html = load_asset_file("stadsatlas_interface.html")?;
+    let css = load_asset_file("stadsatlas_interface.css")?;
+    let js = load_asset_file("stadsatlas_interface.js")?;
 
     let matches_html = format_matches_html(result);
     let address_escaped = address.replace('"', "&quot;");
@@ -725,6 +723,16 @@ fn create_tabbed_interface_page(
     html = html.replace("{RESULT_POSTNUMMER}", &result.postnummer);
     html = html.replace("{RESULT_SOURCE}", &result.dataset_source());
     html = html.replace("{RESULT_MATCHES}", &matches_html);
+
+    // Inline CSS and JS
+    html = html.replace(
+        "<link rel=\"stylesheet\" href=\"stadsatlas_interface.css\">",
+        &format!("<style>\n{}\n</style>", css),
+    );
+    html = html.replace(
+        "<script src=\"stadsatlas_interface.js\"></script>",
+        &format!("<script>\n{}\n</script>", js),
+    );
 
     Ok(html)
 }
@@ -780,8 +788,7 @@ fn open_browser_window(
 fn run_benchmark(sample_size: usize, cutoff: f64) -> Result<(), Box<dyn std::error::Error>> {
     // Load data
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
-    pb.set_message("Loading data for benchmarking...");
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);    pb.set_message("Loading data for benchmarking...");
 
     let (addresses, zones) = amp_core::api::api_miljo_only()?;
 
@@ -1044,8 +1051,7 @@ async fn check_updates(checksum_file: &str) -> Result<(), Box<dyn std::error::Er
     );
 
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
-    pb.set_message("Fetching remote data...");
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);    pb.set_message("Fetching remote data...");
 
     new_checksums.update_from_remote().await?;
     pb.finish_with_message("✓ Data fetched");
