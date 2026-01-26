@@ -784,17 +784,23 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
     html.push_str("            </div>\n");
     html.push_str("            <div style=\"padding: 20px; background: #f9f9f9; border-radius: 4px; margin-top: 20px;\">\n");
     html.push_str("                <h3>🔍 Address Search</h3>\n");
-    html.push_str("                <p style=\"color: #666; margin-top: 10px; line-height: 1.6;\">\n");
+    html.push_str(
+        "                <p style=\"color: #666; margin-top: 10px; line-height: 1.6;\">\n",
+    );
     html.push_str("                    Click the button above to search for this address using Malmö's geo API.\n");
     html.push_str("                    When found, a new tab will open with StadsAtlas showing the location\n");
-    html.push_str("                    centered at the exact coordinates. You can then verify the parking\n");
+    html.push_str(
+        "                    centered at the exact coordinates. You can then verify the parking\n",
+    );
     html.push_str("                    zones and other location details on the map.\n");
     html.push_str("                </p>\n");
     html.push_str("            </div>\n");
     html.push_str("        </div>\n");
     html.push_str("        <div id=\"tab2\" class=\"tab-content\">\n");
     html.push_str("            <h1>📋 Address Verification Instructions</h1>\n");
-    html.push_str("            <div class=\"instruction\">✓ Follow these steps to verify the address</div>\n");
+    html.push_str(
+        "            <div class=\"instruction\">✓ Follow these steps to verify the address</div>\n",
+    );
     html.push_str(&format!(
         "            <div class=\"address-display\">{}</div>\n",
         address
@@ -918,7 +924,9 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
     html.push_str("                logMessage('PARSE', 'Result keys: ' + Object.keys(result).join(', '), 'info');\n");
     html.push_str("                \n");
     html.push_str("                // Parse Malmö API response with WKT GEOM format\n");
-    html.push_str("                const name = result.NAMN || result.name || result.adress || 'Unknown';\n");
+    html.push_str(
+        "                const name = result.NAMN || result.name || result.adress || 'Unknown';\n",
+    );
     html.push_str("                let x, y;\n");
     html.push_str("                \n");
     html.push_str("                // Extract from WKT POINT format: POINT(X Y)\n");
