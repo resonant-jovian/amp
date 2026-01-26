@@ -80,18 +80,23 @@ function searchAddress() {
             logToConsole('PARSE', `Result keys: ${Object.keys(result).join(', ')}`);
             logToConsole('PARSE', `First result: ${JSON.stringify(result).substring(0, 100)}...`);
             
-            // Parse WKT format: POINT(X Y)
+            // Parse WKT format: POINT (X Y) or POINT(X Y)
             const geom = result.GEOM || '';
             logToConsole('PARSE', `GEOM field value: ${geom}`);
             
-            const match = geom.match(/POINT\((\S+)\s+(\S+)\)/);
+            // Updated regex to handle both "POINT (X Y)" and "POINT(X Y)" formats
+            const match = geom.match(/POINT\s*\(([^\s]+)\s+([^\)]+)\)/);
             
             if (!match) {
-                throw new Error(`Could not parse WKT from GEOM: "${geom}"`);
+                throw new Error(`Could not parse WKT from GEOM: "${geom}" - Expected format: POINT(X Y)`);
             }
             
             const x = parseFloat(match[1]);
             const y = parseFloat(match[2]);
+            
+            if (isNaN(x) || isNaN(y)) {
+                throw new Error(`Parsed values are not numbers: x=${match[1]}, y=${match[2]}`);
+            }
             
             logToConsole('PARSE', `Extracted WKT: x=${x}, y=${y}`);
             logToConsole('RESULT', `Found: ${result.NAMN} at (${x}, ${y})`);
