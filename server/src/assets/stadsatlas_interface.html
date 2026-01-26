@@ -96,13 +96,14 @@
             <div class="instruction">✓ Follow these steps to verify the address</div>
             <div class="address-display">{ADDRESS}</div>
             <div class="steps">
-                <div class="step"><strong>Click "Search Address & Load Map"</strong> at the top. This will call Malmö's geo API and display the map above, centered on the found coordinates.</div>
-                <div class="step">The map will load in the container above, centered at the exact address coordinates with a pin marker.</div>
-                <div class="step">Once the map loads, verify that the location is correct by checking nearby street names and landmarks.</div>
-                <div class="step">The <strong>Miljöparkering layer</strong> should be automatically activated. You can toggle other layers using the Layers panel on the right side of the map.</div>
-                <div class="step">Verify the parking zone information displayed on the map matches the correlation data shown in the Data tab.</div>
+                <div class="step"><strong>Copy the address</strong> from the <strong>Data tab</strong> (the "Address" field shows the correlation result).</div>
+                <div class="step"><strong>Paste the address</strong> into the search box at the top and click <strong>"Search Address & Load Map"</strong> or press Enter.</div>
+                <div class="step">The Malmö geo API will find the coordinates and display the map above, centered on the location with a blue pin marker.</div>
+                <div class="step">Once the map loads, verify that the location is correct by checking nearby street names and landmarks on the map.</div>
+                <div class="step">The <strong>Miljöparkering layer</strong> should be automatically activated. You can toggle other layers using the Layers panel (hamburger menu) on the right side of the map.</div>
+                <div class="step">Verify the parking zone information displayed on the map matches the correlation data shown in the <strong>Data tab</strong> under "Matched Zones".</div>
             </div>
-            <div class="note">💡 <strong>How it works:</strong> The API returns coordinates in WKT POINT format (POINT(X Y)) which we parse and pass directly to StadsAtlas. The map displays the pin at those coordinates and attempts to activate the miljödata layer.</div>
+            <div class="note">💡 <strong>How it works:</strong> The search calls Malmö's geo API which returns coordinates in WKT POINT format. These coordinates are sent directly to StadsAtlas to display the map with a pin marker. The miljödata layer shows environmental zones and parking restrictions.</div>
         </div>
         
         <div id="tab2" class="tab-content active">
