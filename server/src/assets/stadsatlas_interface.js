@@ -22,13 +22,25 @@ function logToConsole(prefix, message) {
 
 function handleApiError(error) {
     logToConsole('ERROR', `API Error: ${error}`);
-    document.getElementById('search-status').textContent = `❌ Error: ${error}`;
+    const statusEl = document.getElementById('search-status');
+    if (statusEl) {
+        statusEl.textContent = `❌ Error: ${error}`;
+    }
+    const statusIndicator = document.getElementById('status-indicator');
+    if (statusIndicator) {
+        statusIndicator.textContent = `❌ Error: ${error}`;
+    }
 }
 
 function searchAddress() {
     const searchBox = document.querySelector('input[placeholder*="Sök address"]') || 
                       document.querySelector('input[type="text"]');
     const address = searchBox ? searchBox.value : 'Master Henriksgatan 2';
+    
+    if (!address || address.trim().length === 0) {
+        handleApiError('Address field is empty');
+        return;
+    }
     
     logToConsole('SEARCH', `Starting address search for: ${address}`);
     
@@ -41,25 +53,41 @@ function searchAddress() {
     
     fetch(fullUrl)
         .then(response => {
+            logToConsole('API', `Response status: ${response.status}`);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             return response.json();
         })
         .then(data => {
-            if (!data || data.length === 0) {
-                throw new Error('No results found');
+            logToConsole('API', `Raw response data received`);
+            
+            if (!data) {
+                throw new Error('Response is null or undefined');
+            }
+            
+            if (!Array.isArray(data)) {
+                logToConsole('API', `Response type: ${typeof data}`);
+                logToConsole('API', `Response keys: ${Object.keys(data).join(', ')}`);
+                throw new Error('Response is not an array');
+            }
+            
+            if (data.length === 0) {
+                throw new Error(`No results found for "${address}" - Try a different address or check spelling`);
             }
             
             logToConsole('API', `Response received with ${data.length} results`);
             
             const result = data[0];
             logToConsole('PARSE', `Result keys: ${Object.keys(result).join(', ')}`);
+            logToConsole('PARSE', `First result: ${JSON.stringify(result).substring(0, 100)}...`);
             
             // Parse WKT format: POINT(X Y)
             const geom = result.GEOM || '';
+            logToConsole('PARSE', `GEOM field value: ${geom}`);
+            
             const match = geom.match(/POINT\((\S+)\s+(\S+)\)/);
             
             if (!match) {
-                throw new Error('Could not parse coordinates from WKT');
+                throw new Error(`Could not parse WKT from GEOM: "${geom}"`);
             }
             
             const x = parseFloat(match[1]);
@@ -168,6 +196,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (mapContainer.offsetHeight === 0) {
             logToConsole('DEBUG', 'WARNING: Map container height is 0! Applying emergency fix.');
             mapContainer.style.height = '500px';
+        }
+        
+        // Ensure minimum width is met
+        if (mapContainer.offsetWidth === 0) {
+            logToConsole('DEBUG', 'WARNING: Map container width is 0! Applying emergency fix.');
+            mapContainer.style.width = '100%';
         }
     }
     
