@@ -112,12 +112,6 @@ function loadMapWithAddress(address, x, y) {
     logToConsole('MAP', 'Building StadsAtlas URL with miljöparkering layer...');
     logToConsole('MAP', 'Trying multiple layer parameter formats');
     
-    // Build URL with multiple layer parameter attempts
-    const baseUrl = 'https://stadsatlas.malmo.se/stadsatlas/';
-    const mapUrl = `${baseUrl}#center=${x},${y}&zoom=18&pin=${x},${y}&layers=miljoparkering_l&layerIds=miljoparkering_l&visibleLayers=miljoparkering_l`;
-    
-    logToConsole('MAP', `URL: ${mapUrl.substring(0, 100)}...`);
-    
     // Load map in iframe
     const iframeContainer = document.getElementById('map-container');
     const mapPlaceholder = iframeContainer.querySelector('.map-placeholder');
@@ -128,9 +122,26 @@ function loadMapWithAddress(address, x, y) {
         return;
     }
     
-    // Show iframe, hide placeholder
+    // IMPORTANT: Hide placeholder FIRST before setting iframe src
+    // This ensures Origo has proper space to render
+    logToConsole('MAP', 'Hiding placeholder and preparing container for map rendering');
     mapPlaceholder.style.display = 'none';
     iframe.style.display = 'block';
+    
+    // Build URL with multiple layer parameter attempts
+    const baseUrl = 'https://stadsatlas.malmo.se/stadsatlas/';
+    const mapUrl = `${baseUrl}#center=${x},${y}&zoom=18&pin=${x},${y}&layers=miljoparkering_l&layerIds=miljoparkering_l&visibleLayers=miljoparkering_l`;
+    
+    logToConsole('MAP', `URL: ${mapUrl.substring(0, 100)}...`);
+    
+    // Force container dimensions for Origo
+    iframeContainer.style.width = '100%';
+    iframeContainer.style.height = '100%';
+    iframe.style.width = '100%';
+    iframe.style.height = '100%';
+    logToConsole('MAP', `Container dimensions forced: ${iframeContainer.offsetWidth}x${iframeContainer.offsetHeight}`);
+    
+    // Set the iframe source AFTER ensuring container is visible and sized
     iframe.src = mapUrl;
     
     logToConsole('MAP', 'Map loaded in persistent container at top');
@@ -141,6 +152,10 @@ function loadMapWithAddress(address, x, y) {
     iframe.onload = function() {
         logToConsole('MAP', 'Iframe loaded successfully');
         logToConsole('LAYER', 'Note: Layer activation via URL may require manual confirmation in StadsAtlas UI');
+        
+        // Double-check dimensions after iframe load
+        logToConsole('DEBUG', `Final container dimensions: ${iframeContainer.offsetWidth}x${iframeContainer.offsetHeight}`);
+        logToConsole('DEBUG', `Final iframe dimensions: ${iframe.offsetWidth}x${iframe.offsetHeight}`);
     };
 }
 
