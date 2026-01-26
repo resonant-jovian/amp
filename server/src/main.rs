@@ -357,7 +357,7 @@ fn run_correlation(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Load data with progress
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);;
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
     pb.set_message("Loading data...");
 
     let (addresses, miljodata, parkering): (
@@ -535,7 +535,7 @@ fn run_test_mode(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Load data with progress
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);;
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
     pb.set_message("Loading data for testing...");
 
     let (addresses, miljodata, parkering): (
@@ -929,7 +929,9 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
     html.push_str("                logMessage('PARSE', 'Result keys: ' + Object.keys(result).join(', '), 'info');\n");
     html.push_str("                \n");
     html.push_str("                // Parse Malmö API response with WKT GEOM format\n");
-    html.push_str("                const name = result.NAMN || result.name || result.adress || 'Unknown';\n");
+    html.push_str(
+        "                const name = result.NAMN || result.name || result.adress || 'Unknown';\n",
+    );
     html.push_str("                let x, y;\n");
     html.push_str("                \n");
     html.push_str("                // Extract from WKT POINT format: POINT(X Y)\n");
@@ -1053,7 +1055,7 @@ fn open_browser_window(
 fn run_benchmark(sample_size: usize, cutoff: f64) -> Result<(), Box<dyn std::error::Error>> {
     // Load data
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);;
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
     pb.set_message("Loading data for benchmarking...");
 
     let (addresses, zones) = amp_core::api::api_miljo_only()?;
@@ -1317,7 +1319,7 @@ async fn check_updates(checksum_file: &str) -> Result<(), Box<dyn std::error::Er
     );
 
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);;
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
     pb.set_message("Fetching remote data...");
 
     new_checksums.update_from_remote().await?;
