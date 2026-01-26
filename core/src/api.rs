@@ -121,26 +121,32 @@ impl DataLoader {
             .map(|s| s.to_string())
             .unwrap_or_else(|| {
                 // For avgifter, try to extract time from taxa field
-                if is_avgifter {
-                    if let Some(taxa_str) = props.get("taxa").and_then(|v| v.as_str()) {
-                        // Try to extract time range like "8–22" or "8–20"
-                        if let Some(start) = taxa_str.find('–') {
-                            if start > 0 && start + 1 < taxa_str.len() {
-                                // Extract the portion around the time
-                                let before = &taxa_str[..start];
-                                let after = &taxa_str[start + 1..];
-                                
-                                // Find the digit before the dash
-                                let start_time = before.chars().rev().take_while(|c| c.is_ascii_digit()).collect::<String>();
-                                let start_time = start_time.chars().rev().collect::<String>();
-                                
-                                // Find the digit after the dash
-                                let end_time = after.chars().take_while(|c| c.is_ascii_digit()).collect::<String>();
-                                
-                                if !start_time.is_empty() && !end_time.is_empty() {
-                                    return format!("{}:00–{}:00", start_time, end_time);
-                                }
-                            }
+                if is_avgifter && let Some(taxa_str) = props.get("taxa").and_then(|v| v.as_str()) {
+                    // Try to extract time range like "8–22" or "8–20"
+                    if let Some(start) = taxa_str.find('–')
+                        && start > 0
+                        && start + 1 < taxa_str.len()
+                    {
+                        // Extract the portion around the time
+                        let before = &taxa_str[..start];
+                        let after = &taxa_str[start + 1..];
+
+                        // Find the digit before the dash
+                        let start_time = before
+                            .chars()
+                            .rev()
+                            .take_while(|c| c.is_ascii_digit())
+                            .collect::<String>();
+                        let start_time = start_time.chars().rev().collect::<String>();
+
+                        // Find the digit after the dash
+                        let end_time = after
+                            .chars()
+                            .take_while(|c| c.is_ascii_digit())
+                            .collect::<String>();
+
+                        if !start_time.is_empty() && !end_time.is_empty() {
+                            return format!("{}:00–{}:00", start_time, end_time);
                         }
                     }
                 }
