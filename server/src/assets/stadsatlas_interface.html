@@ -8,30 +8,45 @@
     <style>
         /* CRITICAL: Force explicit dimensions for Origo/OpenLayers rendering */
         /* These inline styles override any conflicting CSS and ensure map container has size */
-        html, body {
+        * {
+            margin: 0 !important;
+            padding: 0 !important;
+            box-sizing: border-box !important;
+        }
+        html {
+            height: 100% !important;
+            width: 100% !important;
+        }
+        body {
             height: 100% !important;
             width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
-        }
-        body {
             display: flex !important;
             flex-direction: column !important;
         }
         .map-section {
             height: 550px !important;
             min-height: 550px !important;
+            width: 100% !important;
+            max-width: 100% !important;
             flex-shrink: 0 !important;
             display: flex !important;
             flex-direction: column !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }
         .map-container {
             height: 100% !important;
             width: 100% !important;
+            max-width: 100% !important;
+            position: relative !important;
             flex: 1 !important;
             min-height: 0 !important;
             display: flex !important;
             flex-direction: column !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }
         .control-panel {
             flex-shrink: 0 !important;
@@ -39,6 +54,14 @@
         .stadsatlas-iframe {
             width: 100% !important;
             height: 100% !important;
+            border: none !important;
+        }
+        .tab-container {
+            flex: 1 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            width: 100% !important;
+            max-width: 100% !important;
         }
     </style>
 </head>
