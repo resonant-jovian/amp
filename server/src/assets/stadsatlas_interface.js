@@ -5,6 +5,7 @@
 
 const BASE_URL = 'https://geo.malmo.se/api/search';
 let shouldAutoLoad = true; // Flag to auto-load on page load
+let hasAutoLoaded = false; // Track if auto-load has already happened
 
 function logToConsole(prefix, message) {
     const timestamp = new Date().toLocaleTimeString();
@@ -176,6 +177,8 @@ function switchTab(event, tabNum) {
     if (event && event.target) {
         event.target.classList.add('active');
     }
+    
+    logToConsole('TAB', `Switched to tab ${tabNum}`);
 }
 
 // Initialize on page load
@@ -220,15 +223,22 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Set Data tab as active by default
+    // Set Data tab as active by default (but DON'T trigger searches yet)
     const dataTab = document.querySelector('[onclick*="switchTab(event, 2)"]');
     if (dataTab) {
-        dataTab.click();
+        // Manually set active state without triggering click
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        const tabContent = document.getElementById('tab2');
+        if (tabContent) tabContent.classList.add('active');
+        if (dataTab) dataTab.classList.add('active');
+        logToConsole('TAB', 'Data tab activated on page load');
     }
     
-    // Auto-load map with correlation address on page load
+    // Auto-load map with correlation address on page load (ONLY ONCE)
     logToConsole('INIT', 'Checking for auto-load on page load...');
-    if (shouldAutoLoad && searchInput && searchInput.value && searchInput.value.trim() !== '' && searchInput.value !== '{ADDRESS}') {
+    if (shouldAutoLoad && !hasAutoLoaded && searchInput && searchInput.value && searchInput.value.trim() !== '' && searchInput.value !== '{ADDRESS}') {
+        hasAutoLoaded = true; // Prevent double auto-load
         logToConsole('INIT', `Auto-loading map for: ${searchInput.value}`);
         // Small delay to ensure everything is initialized
         setTimeout(searchAddress, 300);
