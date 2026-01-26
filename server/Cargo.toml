@@ -12,6 +12,7 @@ clap.workspace = true
 rayon.workspace = true
 indicatif.workspace = true
 rand = "0.8"
+urlencoding = "2.1"
 
 [[bin]]
 name = "amp-server"
