@@ -149,7 +149,7 @@ impl DataLoader {
         } else {
             // For miljöparkeringar, try copyvalue/value/
             props
-                .get("copyvalue")
+                .get("copy_value")
                 .or_else(|| props.get("value"))
                 .and_then(|v| v.as_str())
                 .unwrap_or("Okänd")
