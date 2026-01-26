@@ -837,9 +837,7 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
     html.push_str("            </div>\n");
     html.push_str("            <div class=\"field\">\n");
     html.push_str("                <div class=\"label\">iframe Readiness</div>\n");
-    html.push_str(
-        "                <div class=\"value\" id=\"iframe-status\">Loading...</div>\n",
-    );
+    html.push_str("                <div class=\"value\" id=\"iframe-status\">Loading...</div>\n");
     html.push_str("            </div>\n");
     html.push_str(
         "            <div class=\"label\" style=\"margin-top: 20px;\">Message Logs</div>\n",
@@ -901,7 +899,9 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
     html.push_str("                source: 'amp-testing'\n");
     html.push_str("            }, 'https://stadsatlas.malmo.se');\n");
     html.push('\n');
-    html.push_str("            logMessage('INJECT', 'postMessage sent successfully', 'success');\n");
+    html.push_str(
+        "            logMessage('INJECT', 'postMessage sent successfully', 'success');\n",
+    );
     html.push_str("            updateStatus('✅ Address sent. Check StadsAtlas map above.');\n");
     html.push_str("        }\n");
     html.push('\n');
@@ -919,12 +919,16 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
     html.push('\n');
     html.push_str("        // Track iframe loading state\n");
     html.push_str("        iframeElement.addEventListener('load', function() {\n");
-    html.push_str("            logMessage('INIT', 'StadsAtlas iframe loaded and ready', 'success');\n");
+    html.push_str(
+        "            logMessage('INIT', 'StadsAtlas iframe loaded and ready', 'success');\n",
+    );
     html.push_str("            updateStatus('✅ iframe ready. Click \"Inject Address\" button to send.', 'iframe-status');\n");
     html.push_str("        });\n");
     html.push('\n');
     html.push_str("        iframeElement.addEventListener('error', function() {\n");
-    html.push_str("            logMessage('ERROR', 'Failed to load StadsAtlas iframe', 'error');\n");
+    html.push_str(
+        "            logMessage('ERROR', 'Failed to load StadsAtlas iframe', 'error');\n",
+    );
     html.push_str("            updateStatus('❌ iframe failed to load', 'iframe-status');\n");
     html.push_str("        });\n");
     html.push('\n');
