@@ -936,7 +936,9 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
     html.push_str("                logMessage('PARSE', 'Extracted: ' + name + ' (' + x + ', ' + y + ')', 'info');\n");
     html.push_str("                \n");
     html.push_str("                if (!x || !y) {\n");
-    html.push_str("                    logMessage('ERROR', 'Missing coordinates in response', 'error');\n");
+    html.push_str(
+        "                    logMessage('ERROR', 'Missing coordinates in response', 'error');\n",
+    );
     html.push_str("                    updateStatus('❌ Coordinates not found');\n");
     html.push_str("                    return;\n");
     html.push_str("                }\n");
