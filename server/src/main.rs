@@ -166,7 +166,7 @@ fn select_algorithms() -> Vec<&'static str> {
 fn run_correlation(algorithm: AlgorithmChoice) -> Result<(), Box<dyn std::error::Error>> {
     // Load data with progress
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);;
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
     pb.set_message("Loading data...");
 
     let (addresses, miljodata, parkering): (
@@ -199,8 +199,7 @@ fn run_correlation(algorithm: AlgorithmChoice) -> Result<(), Box<dyn std::error:
     let pb = ProgressBar::new(addresses.len() as u64);
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}% {msg}")
-            .unwrap()
+            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}% {msg}")?
             .progress_chars("█▓▒░ "),
     );
 
@@ -479,7 +478,7 @@ fn run_test_mode(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Load data with progress
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);;
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
     pb.set_message("Loading data for testing...");
 
     let (addresses, miljodata, parkering): (
@@ -503,8 +502,7 @@ fn run_test_mode(
     let pb = ProgressBar::new(addresses.len() as u64);
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}%")
-            .unwrap()
+            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}%")?
             .progress_chars("█▓▒░ "),
     );
 
@@ -515,10 +513,7 @@ fn run_test_mode(
     let merged = merge_results(&addresses, &miljo_results, &parkering_results);
 
     // Filter to only matching addresses
-    let matching_addresses: Vec<_> = merged
-        .iter()
-        .filter(|r| r.has_match())
-        .collect();
+    let matching_addresses: Vec<_> = merged.iter().filter(|r| r.has_match()).collect();
 
     if matching_addresses.is_empty() {
         println!("\n❌ No matching addresses found for testing!");
@@ -613,11 +608,16 @@ fn get_browser_executable() -> String {
 fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> String {
     let address_escaped = address.replace('"', "&quot;");
 
-    let mut html = String::from(r#"<!DOCTYPE html>
+    let mut html = String::from(
+        r#"<!DOCTYPE html>
 <html>
 <head>
-"#);
-    html.push_str(&format!("    <title>AMP Testing Interface - {}</title>\n", address));
+"#,
+    );
+    html.push_str(&format!(
+        "    <title>AMP Testing Interface - {}</title>\n",
+        address
+    ));
     html.push_str(r#"    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
@@ -652,7 +652,10 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
     <div class="header">
         <h1>📍 AMP Correlation Testing Interface</h1>
 "#);
-    html.push_str(&format!("        <div class=\"address\">{}</div>\n", address));
+    html.push_str(&format!(
+        "        <div class=\"address\">{}</div>\n",
+        address
+    ));
     html.push_str(r#"    </div>
     <div class="tab-container">
         <div class="tab-buttons">
@@ -677,14 +680,26 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
             <p>Click "Search Address" button to navigate map to this address:</p>
 "#);
     html.push_str(&format!("            <div style=\"background: #fff3e0; padding: 15px; margin: 15px 0; border-radius: 4px; font-weight: bold;\">{}</div>\n", address));
-    html.push_str(r#"        </div>
+    html.push_str(
+        r#"        </div>
         <div id="tab3" class="tab-content">
             <h1>📊 Correlation Result Data</h1>
-"#);
-    html.push_str(&format!("            <div><strong>Address:</strong> {}</div>\n", result.address));
-    html.push_str(&format!("            <div><strong>Postal Code:</strong> {}</div>\n", result.postnummer));
-    html.push_str(&format!("            <div><strong>Dataset Source:</strong> {}</div>\n", result.dataset_source()));
-    html.push_str(r#"        </div>
+"#,
+    );
+    html.push_str(&format!(
+        "            <div><strong>Address:</strong> {}</div>\n",
+        result.address
+    ));
+    html.push_str(&format!(
+        "            <div><strong>Postal Code:</strong> {}</div>\n",
+        result.postnummer
+    ));
+    html.push_str(&format!(
+        "            <div><strong>Dataset Source:</strong> {}</div>\n",
+        result.dataset_source()
+    ));
+    html.push_str(
+        r#"        </div>
         <div id="tab4" class="tab-content">
             <h1>🐛 Debug Console</h1>
             <div id="message-logs" class="console-log"></div>
@@ -692,8 +707,12 @@ fn create_tabbed_interface_page(address: &str, result: &CorrelationResult) -> St
     </div>
     <script>
         const logs = [];
-"#);
-    html.push_str(&format!("        const addressToSearch = '{}';\n", address_escaped));
+"#,
+    );
+    html.push_str(&format!(
+        "        const addressToSearch = '{}';\n",
+        address_escaped
+    ));
     html.push_str(r#"        const iframeElement = document.getElementById('stadsatlas-iframe');
 
         function logMessage(category, message, type = 'info') {
@@ -796,7 +815,7 @@ fn open_browser_window(
     let address = &result.address;
     let tabbed_page = create_tabbed_interface_page(address, result);
 
-    let temp_dir = std::env::temp_dir();
+    let temp_dir = env::temp_dir();
     let filename = format!("amp_test_{}.html", window_idx);
     let temp_file = temp_dir.join(&filename);
 
@@ -835,7 +854,7 @@ fn open_browser_window(
 fn run_benchmark(sample_size: usize) -> Result<(), Box<dyn std::error::Error>> {
     // Load data
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);;
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
     pb.set_message("Loading data for benchmarking...");
 
     let (addresses, zones) = amp_core::api::api_miljo_only()?;
@@ -1060,7 +1079,7 @@ async fn check_updates(checksum_file: &str) -> Result<(), Box<dyn std::error::Er
     );
 
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);;
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
     pb.set_message("Fetching remote data...");
 
     new_checksums.update_from_remote().await?;
