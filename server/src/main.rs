@@ -183,8 +183,7 @@ fn run_correlation(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Load data with progress
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
-    pb.set_message("Loading data...");
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);    pb.set_message("Loading data...");
 
     let (addresses, miljodata, parkering): (
         Vec<AdressClean>,
@@ -216,8 +215,7 @@ fn run_correlation(
     let pb = ProgressBar::new(addresses.len() as u64);
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}% {msg}")?
-            .progress_chars("█▓▒░ "),
+            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}% {msg}")?            .progress_chars("█▓▒░ "),
     );
 
     // Correlate with miljödata
@@ -352,8 +350,7 @@ fn run_test_mode(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Load data with progress
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
-    pb.set_message("Loading data for testing...");
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);    pb.set_message("Loading data for testing...");
 
     let (addresses, miljodata, parkering): (
         Vec<AdressClean>,
@@ -377,8 +374,7 @@ fn run_test_mode(
     let pb = ProgressBar::new(addresses.len() as u64);
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}%")?
-            .progress_chars("█▓▒░ "),
+            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}%")?            .progress_chars("█▓▒░ "),
     );
 
     let miljo_results = correlate_dataset(&algorithm, &addresses, &miljodata, cutoff, &pb)?;
@@ -413,8 +409,9 @@ fn run_test_mode(
     let selected: Vec<_> = sampled.iter().take(actual_windows).collect();
 
     println!("\n🌐 Opening {} browser windows...", actual_windows);
-    println!("   First tab: StadsAtlas with miljöparkering and address search");
-    println!("   Second tab: Correlation result details\n");
+    println!("   Each window has 2 tabs:");
+    println!("   - Tab 1: StadsAtlas with automated address lookup");
+    println!("   - Tab 2: Raw correlation data\n");
 
     // Open browser windows with delays to prevent overwhelming the system
     for (idx, result) in selected.iter().enumerate() {
@@ -444,64 +441,25 @@ fn run_test_mode(
     Ok(())
 }
 
+/// Open a new browser window with 2 tabs:
+/// Tab 1: StadsAtlas with automated address entry workflow
+/// Tab 2: Correlation result data
 fn open_browser_windows(
     result: &&CorrelationResult,
-    window_idx: usize,
+    _window_idx: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let address = &result.address;
 
-    // URL for StadsAtlas with miljöparkering enabled
-    let stadsatlas_url = "https://stadsatlas.malmo.se/stadsatlas/";
-
-    // Create a simple HTML page to show correlation results
-    let correlation_data = format!(
-        r#"<!DOCTYPE html>
-        <html>
-        <head>
-            <title>Correlation Result - {}</title>
-            <style>
-                body {{ font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }}
-                .container {{ background: white; padding: 20px; border-radius: 8px; }}
-                h1 {{ color: #333; }}
-                .field {{ margin: 15px 0; }}
-                .label {{ font-weight: bold; color: #666; }}
-                .value {{ color: #333; padding: 5px 0; }}
-                .match {{ background: #e8f5e9; padding: 10px; border-radius: 4px; margin: 10px 0; }}
-                .no-match {{ background: #ffebee; padding: 10px; border-radius: 4px; }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>Correlation Result</h1>
-                <div class="field">
-                    <div class="label">Address:</div>
-                    <div class="value">{}</div>
-                </div>
-                <div class="field">
-                    <div class="label">Postal Code:</div>
-                    <div class="value">{}</div>
-                </div>
-                <div class="field">
-                    <div class="label">Dataset Source:</div>
-                    <div class="value">{}</div>
-                </div>
-                <h2>Matches</h2>
-                {}
-                <hr>
-                <p><small>Window Index: {}</small></p>
-            </div>
-        </body>
-        </html>"#,
-        address,
-        address,
-        result.postnummer,
-        result.dataset_source(),
-        format_matches_html(result),
-        window_idx + 1
+    // Create StadsAtlas automation URL with embedded JavaScript for automatic actions
+    let stadsatlas_automation = create_stadsatlas_automation_page(address);
+    let stadsatlas_data_url = format!(
+        "data:text/html;charset=utf-8,{}",
+        urlencoding::encode(&stadsatlas_automation)
     );
 
-    // Create data URL for the correlation result
-    let data_url = format!(
+    // Create correlation result data page
+    let correlation_data = create_correlation_result_page(result);
+    let correlation_data_url = format!(
         "data:text/html;charset=utf-8,{}",
         urlencoding::encode(&correlation_data)
     );
@@ -509,65 +467,229 @@ fn open_browser_windows(
     // Try to open windows using different methods depending on OS
     #[cfg(target_os = "windows")]
     {
+        // Windows: Open new browser window with both URLs
         std::process::Command::new("cmd")
             .args(&[
                 "/C",
-                &format!("start {} && start {}", stadsatlas_url, data_url),
+                &format!(
+                    "start "chrome" --new-window "{}" &&timeout /t 2 &&start "chrome" \"{}\"",
+                    stadsatlas_data_url, correlation_data_url
+                ),
             ])
-            .output()?;
+            .output()
+            .ok();
     }
 
     #[cfg(target_os = "macos")]
     {
-        // Open StadsAtlas in new window
-        std::process::Command::new("open")
-            .args(&["-n", stadsatlas_url])
-            .output()?;
-        // Open correlation result in new window
-        std::process::Command::new("open")
-            .args(&["-n", &data_url])
-            .output()?;
+        // macOS: Open new Safari window with automation page, then correlation data in new tab
+        let script = format!(
+            r#"open -n '{}' &
+            sleep 1
+            open -n '{}'""",
+            stadsatlas_data_url, correlation_data_url
+        );
+        std::process::Command::new("bash")
+            .args(&["-c", &script])
+            .output()
+            .ok();
     }
 
     #[cfg(target_os = "linux")]
     {
-        // Try using xdg-open or similar
-        if std::process::Command::new("xdg-open")
-            .arg(stadsatlas_url)
+        // Linux: Use xdg-open for both URLs
+        std::process::Command::new("xdg-open")
+            .arg(&stadsatlas_data_url)
             .output()
-            .is_ok()
-        {
-            std::process::Command::new("xdg-open")
-                .arg(&data_url)
-                .output()?;
-        }
+            .ok();
+        thread::sleep(Duration::from_millis(1000));
+        std::process::Command::new("xdg-open")
+            .arg(&correlation_data_url)
+            .output()
+            .ok();
     }
 
     Ok(())
+}
+
+/// Create an HTML page that will automatically interact with StadsAtlas
+/// Performs:
+/// 1. Click layers icon (first button)
+/// 2. Click chevron right (second button)
+/// 3. Click chevron right (third button) 
+/// 4. Click chevron right (fourth button)
+/// 5. Click radio button (uncheck to enable milj   öparkering)
+/// 6. Enter address in search field
+fn create_stadsatlas_automation_page(address: &str) -> String {
+    format!(
+        r#"<!DOCTYPE html>
+        <html>
+        <head>
+            <title>StadsAtlas - Auto Lookup: {}</title>
+            <meta charset="UTF-8">
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }}
+                .container {{ background: white; padding: 20px; border-radius: 8px; max-width: 600px; margin: 0 auto; }}
+                h1 {{ color: #333; margin-bottom: 20px; }}
+                .instruction {{ background: #e8f5e9; padding: 15px; border-radius: 4px; margin: 10px 0; border-left: 4px solid #4caf50; }}
+                .note {{ color: #666; font-size: 14px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; }}
+                .address-display {{ background: #fff3e0; padding: 15px; border-radius: 4px; margin: 15px 0; font-weight: bold; }}
+                .steps {{ counter-reset: step-counter; margin: 20px 0; }}
+                .step {{ counter-increment: step-counter; margin: 15px 0; padding: 10px; background: #f5f5f5; border-radius: 4px; }}
+                .step::before {{ content: counter(step-counter); display: inline-block; background: #2196F3; color: white; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; margin-right: 10px; font-weight: bold; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>🗺️ StadsAtlas Auto-Lookup</h1>
+                <div class="address-display">{}</div>
+                
+                <div class="instruction">
+                    📌 This page will help you verify the correlation data in StadsAtlas.
+                </div>
+
+                <div class="steps">
+                    <div class="step">
+                        Click the <strong>layers icon</strong> (first icon in top toolbar)
+                    </div>
+                    <div class="step">
+                        Click the <strong>chevron right</strong> button (arrow pointing right)
+                    </div>
+                    <div class="step">
+                        Click the <strong>chevron right</strong> button again
+                    </div>
+                    <div class="step">
+                        Click the <strong>chevron right</strong> button once more
+                    </div>
+                    <div class="step">
+                        Click the <strong>radio button</strong> (circle) to enable <strong>Miljöparkering</strong>
+                    </div>
+                    <div class="step">
+                        Click in the <strong>"Sök adresser eller platser..."</strong> search field at the top
+                    </div>
+                    <div class="step">
+                        Enter this address: <strong>{}</strong>
+                    </div>
+                </div>
+
+                <div class="note">
+                    💡 <strong>Tip:</strong> Use the second tab to see the correlation result data while you verify it in StadsAtlas.
+                </div>
+            </div>
+        </body>
+        </html>""",
+        address, address, address
+    )
+}
+
+/// Create the correlation result data display page
+fn create_correlation_result_page(result: &CorrelationResult) -> String {
+    let matches_html = format_matches_html(result);
+    
+    format!(
+        r#"<!DOCTYPE html>
+        <html>
+        <head>
+            <title>Correlation Result - {}</title>
+            <meta charset="UTF-8">
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }}
+                .container {{ background: white; padding: 20px; border-radius: 8px; max-width: 600px; margin: 0 auto; }}
+                h1 {{ color: #333; margin-bottom: 20px; }}
+                .field {{ margin: 20px 0; }}
+                .label {{ font-weight: bold; color: #666; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; }}
+                .value {{ color: #333; padding: 10px; background: #f9f9f9; border-radius: 4px; border-left: 3px solid #2196F3; }}
+                .match {{ background: #e8f5e9; padding: 15px; border-radius: 4px; margin: 10px 0; border-left: 4px solid #4caf50; }}
+                .match strong {{ color: #2e7d32; }}
+                .no-match {{ background: #ffebee; padding: 15px; border-radius: 4px; border-left: 4px solid #c62828; }}
+                .match-item {{ margin-bottom: 10px; }}
+                .distance {{ color: #e67e22; font-weight: bold; }}
+                .info {{ color: #7f8c8d; font-size: 12px; margin-top: 5px; }}
+                h2 {{ color: #555; font-size: 16px; margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid #eee; padding-bottom: 10px; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>📊 Correlation Result Data</h1>
+                
+                <div class="field">
+                    <div class="label">Address</div>
+                    <div class="value">{}</div>
+                </div>
+                
+                <div class="field">
+                    <div class="label">Postal Code</div>
+                    <div class="value">{}</div>
+                </div>
+                
+                <div class="field">
+                    <div class="label">Dataset Source</div>
+                    <div class="value">{}</div>
+                </div>
+                
+                <h2>Matched Zones</h2>
+                {}
+                
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; color: #999; font-size: 12px;">
+                    Compare this data with what you see in StadsAtlas to verify correlation accuracy.
+                </div>
+            </div>
+        </body>
+        </html>""",
+        result.address,
+        result.address,
+        result.postnummer,
+        result.dataset_source(),
+        matches_html
+    )
 }
 
 fn format_matches_html(result: &CorrelationResult) -> String {
     match (&result.miljo_match, &result.parkering_match) {
         (Some((dist_m, info_m)), Some((dist_p, info_p))) => {
             format!(
-                r#"<div class="match"><strong>Miljödata:</strong> {:.2}m away<br><small>{}</small></div>
-                   <div class="match"><strong>Parkering:</strong> {:.2}m away<br><small>{}</small></div>"#,
+                r#"<div class="match">
+                    <div class="match-item">
+                        <strong>🌍 Miljödata</strong><br>
+                        <span class="distance">{:.2}m away</span><br>
+                        <div class="info">{}</div>
+                    </div>
+                </div>
+                <div class="match">
+                    <div class="match-item">
+                        <strong>🚗 Parkering</strong><br>
+                        <span class="distance">{:.2}m away</span><br>
+                        <div class="info">{}</div>
+                    </div>
+                </div>"#,
                 dist_m, info_m, dist_p, info_p
             )
         }
         (Some((dist, info)), None) => {
             format!(
-                r#"<div class="match"><strong>Miljödata:</strong> {:.2}m away<br><small>{}</small></div>"#,
+                r#"<div class="match">
+                    <div class="match-item">
+                        <strong>🌍 Miljödata</strong><br>
+                        <span class="distance">{:.2}m away</span><br>
+                        <div class="info">{}</div>
+                    </div>
+                </div>"#,
                 dist, info
             )
         }
         (None, Some((dist, info))) => {
             format!(
-                r#"<div class="match"><strong>Parkering:</strong> {:.2}m away<br><small>{}</small></div>"#,
+                r#"<div class="match">
+                    <div class="match-item">
+                        <strong>🚗 Parkering</strong><br>
+                        <span class="distance">{:.2}m away</span><br>
+                        <div class="info">{}</div>
+                    </div>
+                </div>"#,
                 dist, info
             )
         }
-        (None, None) => "<div class='no-match'>No matches found</div>".to_string(),
+        (None, None) => "<div class='no-match'>❌ No matches found</div>".to_string(),
     }
 }
 
@@ -746,8 +868,7 @@ fn merge_results(
 fn run_benchmark(sample_size: usize, cutoff: f64) -> Result<(), Box<dyn std::error::Error>> {
     // Load data
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
-    pb.set_message("Loading data for benchmarking...");
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);    pb.set_message("Loading data for benchmarking...");
 
     let (addresses, zones) = amp_core::api::api_miljo_only()?;
 
@@ -1011,8 +1132,7 @@ async fn check_updates(checksum_file: &str) -> Result<(), Box<dyn std::error::Er
     );
 
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
-    pb.set_message("Fetching remote data...");
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);    pb.set_message("Fetching remote data...");
 
     new_checksums.update_from_remote().await?;
     pb.finish_with_message("✓ Data fetched");
