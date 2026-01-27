@@ -188,40 +188,6 @@
         .log-timestamp {
             color: #858585 !important;
         }
-        .instruction-box {
-            background: #e3f2fd !important;
-            border-left: 4px solid #2196f3 !important;
-            padding: 12px !important;
-            margin-bottom: 15px !important;
-            border-radius: 4px !important;
-        }
-        .instruction-box ol {
-            margin: 10px 0 10px 20px !important;
-        }
-        .instruction-box li {
-            margin-bottom: 8px !important;
-        }
-        .instruction-box strong {
-            color: #1976d2 !important;
-        }
-        .warning-box {
-            background: #fff3cd !important;
-            border-left: 4px solid #ff9800 !important;
-            padding: 12px !important;
-            margin-bottom: 15px !important;
-            border-radius: 4px !important;
-        }
-        .step-section {
-            background: #f5f5f5 !important;
-            padding: 12px !important;
-            margin: 15px 0 !important;
-            border-radius: 4px !important;
-            border-left: 3px solid #ff9800 !important;
-        }
-        .step-section h3 {
-            margin-top: 0 !important;
-            color: #ff6f00 !important;
-        }
     </style>
 </head>
 <body>
@@ -246,86 +212,11 @@
     <!-- Tab Container - Below the map -->
     <div class="tab-container">
         <div class="tab-buttons">
-            <button class="tab-btn" onclick="switchTab(event, 1)">📋 Instructions</button>
-            <button class="tab-btn active" onclick="switchTab(event, 2)">📊 Data</button>
-            <button class="tab-btn" onclick="switchTab(event, 3)">🐛 Debug</button>
+            <button class="tab-btn active" onclick="switchTab(event, 1)">📊 Data</button>
+            <button class="tab-btn" onclick="switchTab(event, 2)">🐛 Debug</button>
         </div>
         
-        <div id="tab1" class="tab-content">
-            <h1>📋 How to Enable Layers in StadsAtlas</h1>
-            
-            <div class="warning-box">
-                <strong>⚠️ Important:</strong> StadsAtlas does not support automatic layer loading via URL. You must manually enable layers in the map UI.
-            </div>
-            
-            <h2>🎯 Step 1: Load the Map</h2>
-            <div class="instruction-box">
-                <ol>
-                    <li>The address from the correlation result is already filled in the search box at the top</li>
-                    <li>Click the <strong>"🔍 Load Map"</strong> button</li>
-                    <li>The Malmö geo API will find the coordinates and center the map on that location</li>
-                    <li>Wait for the map to load (you'll see the tiles loading)</li>
-                    <li>A blue pin marker will appear at the exact coordinates</li>
-                </ol>
-            </div>
-            
-            <h2>🗺️ Step 2: Enable BAKGRUND (Background/Tiled Layer)</h2>
-            <div class="step-section">
-                <h3>Finding the Layers Control</h3>
-                <ol style="margin: 10px 0 10px 20px;">
-                    <li>Look for the <strong>LAYERS icon</strong> in the top-right corner of the map</li>
-                    <li>It looks like <strong>stacked cards/rectangles</strong> (📑)</li>
-                    <li>Click it to open the layers panel</li>
-                </ol>
-            </div>
-            
-            <div class="step-section">
-                <h3>Enabling the Background Layer</h3>
-                <ol style="margin: 10px 0 10px 20px;">
-                    <li>In the layers panel, find the layer named <strong>BAKGRUND</strong> or <strong>Background</strong></li>
-                    <li>Look for a <strong>checkbox</strong> next to it</li>
-                    <li><strong>CHECK the checkbox</strong> to enable it</li>
-                    <li>The map should now show the tiled background layer</li>
-                </ol>
-            </div>
-            
-            <h2>🏢 Step 3: Enable MILJÖPARKERING (Environment/Parking Layer)</h2>
-            <div class="step-section">
-                <h3>Finding the Miljödata Layers</h3>
-                <ol style="margin: 10px 0 10px 20px;">
-                    <li>In the layers panel, look for expandable sections (usually with <strong>arrow icons ▶</strong>)</li>
-                    <li>Find a section labeled <strong>MILJÖDATA</strong>, <strong>MILJÖPARKERING</strong>, or similar</li>
-                    <li>Click the <strong>arrow to expand</strong> it if needed</li>
-                    <li>Find the <strong>MILJÖPARKERING</strong> or <strong>Miljöparkering</strong> layer</li>
-                    <li><strong>CHECK the checkbox</strong> to enable it</li>
-                    <li>You should now see parking zones overlaid on the map</li>
-                </ol>
-            </div>
-            
-            <h2>✅ Step 4: Verify the Data</h2>
-            <div class="instruction-box">
-                <ol>
-                    <li>Once layers are visible, compare the map view with the correlation data</li>
-                    <li>Go to the <strong>Data tab</strong> (below) to see detailed zone information</li>
-                    <li>The <strong>"Matched Zones"</strong> section shows what zones were found by the correlation algorithm</li>
-                    <li>Cross-reference these zones on the map to verify accuracy</li>
-                </ol>
-            </div>
-            
-            <h2>🐛 Troubleshooting</h2>
-            <div class="step-section">
-                <h3>If layers still don't appear:</h3>
-                <ul style="margin: 10px 0 10px 20px;">
-                    <li>❌ Close and <strong>reopen the layers panel</strong></li>
-                    <li>❌ <strong>Zoom in/out</strong> to force layer re-render</li>
-                    <li>❌ <strong>Refresh the page</strong> (F5)</li>
-                    <li>❌ Check the <strong>Debug tab</strong> for error messages</li>
-                    <li>❌ Open <strong>Firefox DevTools (F12)</strong> and check the Console for errors</li>
-                </ul>
-            </div>
-        </div>
-        
-        <div id="tab2" class="tab-content active">
+        <div id="tab1" class="tab-content active">
             <h1>📊 Correlation Result Data</h1>
             <div class="field">
                 <div class="label">📍 Address</div>
@@ -343,7 +234,7 @@
             <div id="matches-container">{RESULT_MATCHES}</div>
         </div>
         
-        <div id="tab3" class="tab-content">
+        <div id="tab2" class="tab-content">
             <h1>🐛 Debug Console</h1>
             <div style="background: #fff3cd; padding: 10px; border-left: 3px solid #ff9800; border-radius: 4px; margin-bottom: 15px;">
                 <strong>Status:</strong> All search and map loading logs appear below. Check browser DevTools Console (F12) for extended logs marked with <code>[AMP]</code>.
