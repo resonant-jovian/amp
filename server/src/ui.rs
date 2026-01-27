@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::{
-    layout::{Constraint, Direction, Layout},
+    layout::{Alignment, Constraint, Direction, Layout},
     prelude::*,
     widgets::{Block, Borders, Gauge, Paragraph, Tabs},
 };
@@ -105,7 +105,7 @@ impl Default for AppState {
             is_running: false,
             progress: 0.0,
             correlation_results: Vec::new(),
-            last_action: "Launch amp-server and use the TUI to run everything".to_string(),
+            last_action: "Ready. [1-5] to navigate".to_string(),
         }
     }
 }
@@ -194,7 +194,6 @@ impl App {
                 self.state.view = View::Updates;
             }
             KeyCode::Char('a') => {
-                // Cycle algorithm
                 let idx = AlgorithmChoice::ALL
                     .iter()
                     .position(|a| *a == self.state.selected_algorithm)
@@ -202,18 +201,18 @@ impl App {
                 let next = (idx + 1) % AlgorithmChoice::ALL.len();
                 self.state.selected_algorithm = AlgorithmChoice::ALL[next];
                 self.state.last_action = format!(
-                    "Algorithm changed to {}",
+                    "Algorithm: {}",
                     self.state.selected_algorithm.label()
                 );
             }
             KeyCode::Char('+') => {
                 self.state.cutoff += 5.0;
-                self.state.last_action = format!("Cutoff set to {:.1}m", self.state.cutoff);
+                self.state.last_action = format!("Cutoff: {:.1}m", self.state.cutoff);
             }
             KeyCode::Char('-') => {
                 if self.state.cutoff > 5.0 {
                     self.state.cutoff -= 5.0;
-                    self.state.last_action = format!("Cutoff set to {:.1}m", self.state.cutoff);
+                    self.state.last_action = format!("Cutoff: {:.1}m", self.state.cutoff);
                 }
             }
             KeyCode::Enter => match self.state.view {
@@ -247,9 +246,9 @@ impl App {
         let main_layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(3),
-                Constraint::Min(5),
-                Constraint::Length(3),
+                Constraint::Length(2),
+                Constraint::Min(10),
+                Constraint::Length(2),
             ])
             .split(size);
 
@@ -259,18 +258,14 @@ impl App {
     }
 
     fn draw_header(&self, frame: &mut ratatui::Frame, area: Rect) {
-        let tabs: Vec<Span> = View::ALL
-            .iter()
-            .map(|v| Span::styled(v.title(), Style::default().fg(Color::Cyan)))
-            .collect();
+        let tabs: Vec<&str> = View::ALL.iter().map(|v| v.title()).collect();
 
-        let block = Block::default().borders(Borders::ALL).title(" AMP TUI ");
-        let tabs = Tabs::new(tabs)
-            .block(block)
-            .highlight_style(Style::default().fg(Color::Yellow))
+        let tabs_widget = Tabs::new(tabs)
+            .block(Block::default().borders(Borders::BOTTOM))
+            .highlight_style(Style::default().fg(Color::Yellow).bold())
             .select(self.state.selected_tab);
 
-        frame.render_widget(tabs, area);
+        frame.render_widget(tabs_widget, area);
     }
 
     fn draw_body(&self, frame: &mut ratatui::Frame, area: Rect) {
@@ -289,12 +284,12 @@ impl App {
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
             .split(area);
 
-        let help = Paragraph::new(
-            "[←/→] Tabs  [1-5] Jump  [a] Algorithm  [+/-] Cutoff  [Enter] Run  [q] Quit",
-        );
+        let help = Paragraph::new("[←/→] Tab  [1-5] Jump  [a] Algo  [+/-] Cut  [↵] Run  [q] Quit")
+            .style(Style::default().fg(Color::Gray));
         frame.render_widget(help, layout[0]);
 
         let status = Paragraph::new(self.state.last_action.clone())
+            .style(Style::default().fg(Color::Cyan))
             .block(Block::default().borders(Borders::LEFT));
         frame.render_widget(status, layout[1]);
     }
@@ -302,91 +297,92 @@ impl App {
     fn draw_dashboard(&self, frame: &mut ratatui::Frame, area: Rect) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Length(7), Constraint::Min(3)])
+            .constraints([Constraint::Length(8), Constraint::Min(3)])
             .split(area);
 
         let art = Paragraph::new(
-            "   ___    __  __  ____\n  / _ |  / / / / / __/\n / __ | / /_/ / _\\ \\\n/_/ |_| \\____/ /___/\n\nAddress → Miljözone → Parking"
+            "   ___    __  __  ____\n  / _ |  / / / / / __/\n / __ | / /_/ / _\\ \\\
+/_/ |_| \\____/ /___/\n\nAddress → Miljözone → Parking"
         )
-        .block(Block::default().borders(Borders::ALL).title(" amp-server "));
+        .block(Block::default().borders(Borders::ALL).title(" amp-server "))
+        .alignment(Alignment::Center);
         frame.render_widget(art, chunks[0]);
 
         let info = Paragraph::new(
-            "Welcome to the AMP TUI.\n\nUse the tabs to correlate addresses, run browser-assisted tests, benchmark algorithms, and check for Malmö data updates – all from a single interactive interface.",
+            "Select a tab to correlate addresses, run browser tests, benchmark algorithms, or check for Malmö data updates."
         )
-        .block(Block::default().borders(Borders::ALL).title(" Overview "));
+        .block(Block::default().borders(Borders::ALL).title(" Getting Started "))
+        .wrap(ratatui::text::Wrap { trim: true });
         frame.render_widget(info, chunks[1]);
     }
 
     fn draw_correlate(&self, frame: &mut ratatui::Frame, area: Rect) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(5),
-                Constraint::Length(3),
-                Constraint::Min(5),
-            ])
+            .constraints([Constraint::Length(3), Constraint::Length(2), Constraint::Min(5)])
             .split(area);
 
         let config = Paragraph::new(format!(
-            "Algorithm : {}\nCutoff    : {:.1}m\nAction    : Press Enter to run correlation",
+            "Algorithm: {} | Cutoff: {:.1}m | Press [Enter] to start",
             self.state.selected_algorithm.label(),
             self.state.cutoff,
         ))
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(" Correlation Config "),
-        );
+        .block(Block::default().borders(Borders::ALL).title(" Configuration "));
         frame.render_widget(config, chunks[0]);
 
         let gauge = Gauge::default()
-            .block(Block::default().borders(Borders::ALL).title(" Progress "))
-            .gauge_style(Style::default().fg(Color::LightCyan))
+            .block(Block::default().borders(Borders::ALL))
+            .gauge_style(Style::default().fg(Color::Cyan))
             .percent((self.state.progress * 100.0) as u16)
-            .label(format!("{:.1}%", self.state.progress * 100.0));
+            .label(format!("{:.0}%", self.state.progress * 100.0));
         frame.render_widget(gauge, chunks[1]);
 
-        let results_block = Block::default()
-            .borders(Borders::ALL)
-            .title(" Results (summary) ");
-        frame.render_widget(results_block, chunks[2]);
+        let results_text = if self.state.correlation_results.is_empty() {
+            "No results yet".to_string()
+        } else {
+            format!("Found {} correlations", self.state.correlation_results.len())
+        };
+
+        let results = Paragraph::new(results_text)
+            .block(Block::default().borders(Borders::ALL).title(" Results "));
+        frame.render_widget(results, chunks[2]);
     }
 
     fn draw_test(&self, frame: &mut ratatui::Frame, area: Rect) {
         let p = Paragraph::new(format!(
-            "Algorithm : {}\nCutoff    : {:.1}m\nAction    : Press Enter to run browser-based visual testing. This will open multiple browser windows just like the old `test` command.",
+            "Algorithm: {}\nCutoff: {:.1}m\n\nPress [Enter] to launch browser-based testing (opens browser windows).",
             self.state.selected_algorithm.label(),
             self.state.cutoff,
         ))
-        .block(Block::default().borders(Borders::ALL).title(" Test Mode "));
+        .block(Block::default().borders(Borders::ALL).title(" Browser Test Mode "))
+        .wrap(ratatui::text::Wrap { trim: true });
         frame.render_widget(p, area);
     }
 
     fn draw_benchmark(&self, frame: &mut ratatui::Frame, area: Rect) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Length(4), Constraint::Min(5)])
+            .constraints([Constraint::Length(3), Constraint::Min(5)])
             .split(area);
 
         let config = Paragraph::new(format!(
-            "Cutoff    : {:.1}m\nAction    : Press Enter to benchmark all algorithms using a sample subset.",
+            "Cutoff: {:.1}m | Press [Enter] to benchmark all 6 algorithms",
             self.state.cutoff,
         ))
-        .block(Block::default().borders(Borders::ALL).title(" Benchmark Config "));
+        .block(Block::default().borders(Borders::ALL).title(" Benchmark "));
         frame.render_widget(config, chunks[0]);
 
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .title(" Benchmark Results ");
+        let block = Paragraph::new("Results will appear in console output")
+            .block(Block::default().borders(Borders::ALL).title(" Results "));
         frame.render_widget(block, chunks[1]);
     }
 
     fn draw_updates(&self, frame: &mut ratatui::Frame, area: Rect) {
         let p = Paragraph::new(
-            "Press Enter to check Malmö open data portal for updates.\nResults will be printed in the underlying terminal log, mirroring the previous CLI behaviour.",
+            "Press [Enter] to check Malmö open data portal for updates to addresses, environmental zones, and parking regulations."
         )
-        .block(Block::default().borders(Borders::ALL).title(" Data Updates "));
+        .block(Block::default().borders(Borders::ALL).title(" Data Updates "))
+        .wrap(ratatui::text::Wrap { trim: true });
         frame.render_widget(p, area);
     }
 
@@ -428,7 +424,7 @@ impl App {
             self.merge_results(&addresses, &miljo_results, &parkering_results);
         self.state.is_running = false;
         self.state.progress = 1.0;
-        self.state.last_action = "Correlation complete".to_string();
+        self.state.last_action = format!("Correlation complete: {} matches", self.state.correlation_results.len());
 
         Ok(())
     }
