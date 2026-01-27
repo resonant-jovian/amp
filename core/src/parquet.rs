@@ -1,7 +1,7 @@
 use crate::structs::*;
 use anyhow;
 use arrow::{
-    array::{Float64Array, Float64Builder, StringArray, StringBuilder},
+    array::{Float64Array, Float64Builder, StringArray, StringBuilder, UInt8Array, UInt8Builder},
     datatypes::{DataType, Field, Schema},
     record_batch::RecordBatch,
 };
@@ -11,6 +11,17 @@ use parquet::{
     file::properties::{EnabledStatistics, WriterProperties},
 };
 use std::{collections::BTreeMap, fs::File, sync::Arc};
+
+/// Parking restriction info extracted from parquet data
+#[derive(Clone, Debug)]
+pub struct ParkingRestriction {
+    pub gata: String,
+    pub gatunummer: String,
+    pub postnummer: u16,
+    pub dag: u8,          // Day of month (1-31)
+    pub tid: String,      // Time interval "HHMM-HHMM"
+    pub info: String,     // Restriction info
+}
 
 /// Read correlation results from parquet file
 pub fn read_correlation_parquet() -> anyhow::Result<Vec<CorrelationResult>> {
@@ -200,6 +211,201 @@ pub fn write_correlation_parquet(data: Vec<CorrelationResult>) -> anyhow::Result
                 Arc::new(miljo_info_builder.finish()),
                 Arc::new(parkering_dist_builder.finish()),
                 Arc::new(parkering_info_builder.finish()),
+            ],
+        )
+        .map_err(|e| anyhow::anyhow!("Failed to create record batch: {}", e))?;
+
+        writer
+            .write(&batch)
+            .map_err(|e| anyhow::anyhow!("Failed to write batch: {}", e))?;
+    }
+
+    writer
+        .close()
+        .map_err(|e| anyhow::anyhow!("Failed to close writer: {}", e))?;
+
+    Ok(())
+}
+
+// ============================================================================
+// ANDROID LOCAL STORAGE - Unified Parquet Format
+// ============================================================================
+
+/// Schema for Android local address storage (parquet format)
+pub fn android_local_schema() -> Arc<Schema> {
+    Arc::new(Schema::new(vec![
+        Field::new("gata", DataType::Utf8, false),
+        Field::new("gatunummer", DataType::Utf8, false),
+        Field::new("postnummer", DataType::UInt16, false),
+        Field::new("adress", DataType::Utf8, false),
+        Field::new("dag", DataType::UInt8, false),
+        Field::new("tid", DataType::Utf8, false),
+        Field::new("info", DataType::Utf8, false),
+        Field::new("distance", DataType::Float64, false),
+    ]))
+}
+
+/// Read Android local addresses from parquet file
+pub fn read_android_local_addresses(path: &str) -> anyhow::Result<Vec<ParkingRestriction>> {
+    let file = File::open(path)
+        .map_err(|e| anyhow::anyhow!("Failed to open {}: {}", path, e))?;
+
+    let builder = ParquetRecordBatchReaderBuilder::try_new(file)
+        .map_err(|e| anyhow::anyhow!("Failed to create Parquet reader builder: {}", e))?;
+
+    let mut reader = builder
+        .build()
+        .map_err(|e| anyhow::anyhow!("Failed to build Parquet record batch reader: {}", e))?;
+
+    let mut result = Vec::new();
+
+    while let Some(batch) = reader.next().transpose()? {
+        let batch: RecordBatch = batch;
+
+        let gata = batch
+            .column(batch.schema().index_of("gata")?)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .ok_or_else(|| anyhow::anyhow!("gata column missing or wrong type"))?
+            .iter();
+
+        let gatunummer = batch
+            .column(batch.schema().index_of("gatunummer")?)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .ok_or_else(|| anyhow::anyhow!("gatunummer column missing or wrong type"))?
+            .iter();
+
+        let postnummer = batch
+            .column(batch.schema().index_of("postnummer")?)
+            .as_any()
+            .downcast_ref::<arrow::array::UInt16Array>()
+            .ok_or_else(|| anyhow::anyhow!("postnummer column missing or wrong type"))?
+            .iter();
+
+        let dag = batch
+            .column(batch.schema().index_of("dag")?)
+            .as_any()
+            .downcast_ref::<UInt8Array>()
+            .ok_or_else(|| anyhow::anyhow!("dag column missing or wrong type"))?
+            .iter();
+
+        let tid = batch
+            .column(batch.schema().index_of("tid")?)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .ok_or_else(|| anyhow::anyhow!("tid column missing or wrong type"))?
+            .iter();
+
+        let info = batch
+            .column(batch.schema().index_of("info")?)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .ok_or_else(|| anyhow::anyhow!("info column missing or wrong type"))?
+            .iter();
+
+        for i in 0..batch.num_rows() {
+            let entry = ParkingRestriction {
+                gata: gata
+                    .clone()
+                    .nth(i)
+                    .flatten()
+                    .map(|s| s.to_string())
+                    .unwrap_or_default(),
+                gatunummer: gatunummer
+                    .clone()
+                    .nth(i)
+                    .flatten()
+                    .map(|s| s.to_string())
+                    .unwrap_or_default(),
+                postnummer: postnummer
+                    .clone()
+                    .nth(i)
+                    .flatten()
+                    .unwrap_or(0),
+                dag: dag.clone().nth(i).flatten().unwrap_or(0),
+                tid: tid
+                    .clone()
+                    .nth(i)
+                    .flatten()
+                    .map(|s| s.to_string())
+                    .unwrap_or_default(),
+                info: info
+                    .clone()
+                    .nth(i)
+                    .flatten()
+                    .map(|s| s.to_string())
+                    .unwrap_or_default(),
+            };
+            result.push(entry);
+        }
+    }
+
+    Ok(result)
+}
+
+/// Write Android local addresses to parquet file
+pub fn write_android_local_addresses(
+    path: &str,
+    addresses: Vec<ParkingRestriction>,
+) -> anyhow::Result<()> {
+    if addresses.is_empty() {
+        return Err(anyhow::anyhow!("Empty address list"));
+    }
+
+    let schema = android_local_schema();
+
+    // Group by postal code for row groups
+    let mut grouped: BTreeMap<u16, Vec<ParkingRestriction>> = BTreeMap::new();
+    for addr in addresses {
+        grouped
+            .entry(addr.postnummer)
+            .or_default()
+            .push(addr);
+    }
+
+    let file = File::create(path)
+        .map_err(|e| anyhow::anyhow!("Failed to create file {}: {}", path, e))?;
+
+    let props = WriterProperties::builder()
+        .set_statistics_enabled(EnabledStatistics::None)
+        .build();
+
+    let mut writer = ArrowWriter::try_new(file, schema.clone(), Some(props))
+        .map_err(|e| anyhow::anyhow!("Failed to create ArrowWriter: {}", e))?;
+
+    for (_, rows) in grouped {
+        let mut gata_builder = StringBuilder::new();
+        let mut gatunummer_builder = StringBuilder::new();
+        let mut postnummer_builder = UInt16Builder::new();
+        let mut adress_builder = StringBuilder::new();
+        let mut dag_builder = UInt8Builder::new();
+        let mut tid_builder = StringBuilder::new();
+        let mut info_builder = StringBuilder::new();
+        let mut distance_builder = Float64Builder::new();
+
+        for addr in rows {
+            gata_builder.append_value(&addr.gata);
+            gatunummer_builder.append_value(&addr.gatunummer);
+            postnummer_builder.append_value(addr.postnummer);
+            adress_builder.append_value(format!("{} {}", &addr.gata, &addr.gatunummer));
+            dag_builder.append_value(addr.dag);
+            tid_builder.append_value(&addr.tid);
+            info_builder.append_value(&addr.info);
+            distance_builder.append_value(0.0); // Will be populated by matching logic
+        }
+
+        let batch = RecordBatch::try_new(
+            schema.clone(),
+            vec![
+                Arc::new(gata_builder.finish()),
+                Arc::new(gatunummer_builder.finish()),
+                Arc::new(postnummer_builder.finish()),
+                Arc::new(adress_builder.finish()),
+                Arc::new(dag_builder.finish()),
+                Arc::new(tid_builder.finish()),
+                Arc::new(info_builder.finish()),
+                Arc::new(distance_builder.finish()),
             ],
         )
         .map_err(|e| anyhow::anyhow!("Failed to create record batch: {}", e))?;
