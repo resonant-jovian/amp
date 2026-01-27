@@ -188,11 +188,58 @@
         .log-timestamp {
             color: #858585 !important;
         }
+        .data-review-panel {
+            margin-top: 20px !important;
+            padding-top: 15px !important;
+            border-top: 1px solid #ddd !important;
+        }
+        .data-review-steps {
+            margin-bottom: 10px !important;
+            font-size: 14px !important;
+        }
+        .data-review-step {
+            margin-bottom: 6px !important;
+        }
+        .data-review-actions {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 8px !important;
+            align-items: center !important;
+            margin-top: 8px !important;
+        }
+        .data-review-button {
+            padding: 6px 10px !important;
+            font-size: 13px !important;
+            border-radius: 4px !important;
+            border: 1px solid #ccc !important;
+            background: #f9fafb !important;
+            cursor: pointer !important;
+        }
+        .data-review-button.primary {
+            background: #fee2e2 !important;
+            border-color: #ef4444 !important;
+            color: #991b1b !important;
+        }
+        .data-review-button.secondary {
+            background: #ffedd5 !important;
+            border-color: #f97316 !important;
+            color: #92400e !important;
+        }
+        .data-review-button.undo {
+            background: #e5e7eb !important;
+            border-color: #9ca3af !important;
+            color: #374151 !important;
+        }
+        .data-review-note {
+            font-size: 12px !important;
+            color: #6b7280 !important;
+            margin-top: 4px !important;
+        }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>📝 AMP Correlation Testing Interface</h1>
+        <h1> f AMP Correlation Testing Interface</h1>
         <div class="address">Address: <strong>{ADDRESS}</strong></div>
     </div>
     
@@ -200,7 +247,7 @@
     <div class="map-section">
         <div class="control-panel">
             <input type="text" id="address-input" class="search-input" placeholder="Enter address to search..." value="{ADDRESS}">
-            <button class="control-button" onclick="searchAddress()">🔍 Load Map</button>
+            <button class="control-button" onclick="searchAddress()"> Load Map</button>
             <span id="status-indicator" class="status-text">Ready</span>
         </div>
         <!-- IMPORTANT: iframe ONLY, no placeholder div -->
@@ -212,30 +259,69 @@
     <!-- Tab Container - Below the map -->
     <div class="tab-container">
         <div class="tab-buttons">
-            <button class="tab-btn active" onclick="switchTab(event, 1)">📊 Data</button>
-            <button class="tab-btn" onclick="switchTab(event, 2)">🐛 Debug</button>
+            <button class="tab-btn active" onclick="switchTab(event, 1)"> Data</button>
+            <button class="tab-btn" onclick="switchTab(event, 2)"> Debug</button>
         </div>
         
         <div id="tab1" class="tab-content active">
-            <h1>📊 Correlation Result Data</h1>
+            <h1> Correlation Result Data</h1>
             <div class="field">
-                <div class="label">📍 Address</div>
+                <div class="label"> Address</div>
                 <div class="value">{RESULT_ADDRESS}</div>
             </div>
             <div class="field">
-                <div class="label">🏤 Postal Code</div>
+                <div class="label"> Postal Code</div>
                 <div class="value">{RESULT_POSTNUMMER}</div>
             </div>
             <div class="field">
-                <div class="label">📂 Dataset Source</div>
+                <div class="label"> Dataset Source</div>
                 <div class="value">{RESULT_SOURCE}</div>
             </div>
-            <h2>🏘️ Matched Zones</h2>
+            <h2> Matched Zones</h2>
             <div id="matches-container">{RESULT_MATCHES}</div>
+
+            <div class="data-review-panel">
+                <h2> Data Review Checklist</h2>
+                <div class="data-review-steps">
+                    <div class="data-review-step"><strong>Step 1:</strong> Click on the line closest to the pin in the map.</div>
+                    <div class="data-review-step">Is the data in this tab matching the data for that line in Stadsatlas?</div>
+                    <div class="data-review-step" style="margin-left: 12px;">
+                         If <strong>YES</strong> &rarr; Continue to step 2.
+                    </div>
+                    <div class="data-review-step" style="margin-left: 12px;">
+                         If <strong>NO</strong> &rarr; Press <em>"Not matching data"</em>.
+                    </div>
+
+                    <div class="data-review-step"><strong>Step 2:</strong> Do you think the information shown in this data tab is relevant for the address?</div>
+                    <div class="data-review-step" style="margin-left: 12px;">
+                         If <strong>YES</strong> &rarr; Go to step 3.
+                    </div>
+                    <div class="data-review-step" style="margin-left: 12px;">
+                         If <strong>NO</strong> &rarr; Press <em>"Invalid / Should not be valid"</em>.
+                    </div>
+
+                    <div class="data-review-step"><strong>Step 3:</strong> Close this browser tab and continue to the next one.</div>
+                </div>
+
+                <div class="data-review-actions">
+                    <button class="data-review-button primary" onclick="handleDataReviewAction('notMatching')">Not matching data</button>
+                    <button class="data-review-button undo" onclick="undoDataReviewAction('notMatching')">Undo</button>
+
+                    <button class="data-review-button secondary" onclick="handleDataReviewAction('invalid')">Invalid / Should not be valid</button>
+                    <button class="data-review-button undo" onclick="undoDataReviewAction('invalid')">Undo</button>
+                </div>
+                <div class="data-review-note">
+                     Notes:
+                    <ul>
+                        <li> The buttons store the current address and its linked data in a local JSON file per category.</li>
+                        <li> Undo will only revert the latest addition for that category and only if this tab added it.</li>
+                    </ul>
+                </div>
+            </div>
         </div>
         
         <div id="tab2" class="tab-content">
-            <h1>🐛 Debug Console</h1>
+            <h1> Debug Console</h1>
             <div style="background: #fff3cd; padding: 10px; border-left: 3px solid #ff9800; border-radius: 4px; margin-bottom: 15px;">
                 <strong>Status:</strong> All search and map loading logs appear below. Check browser DevTools Console (F12) for extended logs marked with <code>[AMP]</code>.
             </div>
