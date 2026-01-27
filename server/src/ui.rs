@@ -167,20 +167,21 @@ impl App {
                 .unwrap_or_else(|| Duration::from_secs(0));
 
             if crossterm::event::poll(timeout)?
-                && let Event::Key(key) = crossterm::event::read()? {
-                    // Always exit on Ctrl+C
-                    if key
-                        .modifiers
-                        .contains(crossterm::event::KeyModifiers::CONTROL)
-                        && matches!(key.code, KeyCode::Char('c') | KeyCode::Char('C'))
-                    {
-                        break;
-                    }
-
-                    if self.on_key(key)? {
-                        break;
-                    }
+                && let Event::Key(key) = crossterm::event::read()?
+            {
+                // Always exit on Ctrl+C
+                if key
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL)
+                    && matches!(key.code, KeyCode::Char('c') | KeyCode::Char('C'))
+                {
+                    break;
                 }
+
+                if self.on_key(key)? {
+                    break;
+                }
+            }
 
             if last_tick.elapsed() >= tick_rate {
                 last_tick = Instant::now();
@@ -582,10 +583,11 @@ impl App {
                 let algo = DistanceBasedAlgo;
                 for addr in addresses {
                     if let Some((idx, dist)) = algo.correlate(addr, zones)
-                        && dist <= cutoff {
-                            let info = zones.get(idx).map(|z| z.info.clone()).unwrap_or_default();
-                            results.push((addr.adress.clone(), dist, info));
-                        }
+                        && dist <= cutoff
+                    {
+                        let info = zones.get(idx).map(|z| z.info.clone()).unwrap_or_default();
+                        results.push((addr.adress.clone(), dist, info));
+                    }
                     *counter += 1;
                     self.state.correlate_state.progress = *counter as f64 / (total as f64 * 2.0);
                 }
@@ -594,10 +596,11 @@ impl App {
                 let algo = RaycastingAlgo;
                 for addr in addresses {
                     if let Some((idx, dist)) = algo.correlate(addr, zones)
-                        && dist <= cutoff {
-                            let info = zones.get(idx).map(|z| z.info.clone()).unwrap_or_default();
-                            results.push((addr.adress.clone(), dist, info));
-                        }
+                        && dist <= cutoff
+                    {
+                        let info = zones.get(idx).map(|z| z.info.clone()).unwrap_or_default();
+                        results.push((addr.adress.clone(), dist, info));
+                    }
                     *counter += 1;
                     self.state.correlate_state.progress = *counter as f64 / (total as f64 * 2.0);
                 }
@@ -606,10 +609,11 @@ impl App {
                 let algo = OverlappingChunksAlgo::new(zones);
                 for addr in addresses {
                     if let Some((idx, dist)) = algo.correlate(addr, zones)
-                        && dist <= cutoff {
-                            let info = zones.get(idx).map(|z| z.info.clone()).unwrap_or_default();
-                            results.push((addr.adress.clone(), dist, info));
-                        }
+                        && dist <= cutoff
+                    {
+                        let info = zones.get(idx).map(|z| z.info.clone()).unwrap_or_default();
+                        results.push((addr.adress.clone(), dist, info));
+                    }
                     *counter += 1;
                     self.state.correlate_state.progress = *counter as f64 / (total as f64 * 2.0);
                 }
@@ -618,10 +622,11 @@ impl App {
                 let algo = RTreeSpatialAlgo::new(zones);
                 for addr in addresses {
                     if let Some((idx, dist)) = algo.correlate(addr, zones)
-                        && dist <= cutoff {
-                            let info = zones.get(idx).map(|z| z.info.clone()).unwrap_or_default();
-                            results.push((addr.adress.clone(), dist, info));
-                        }
+                        && dist <= cutoff
+                    {
+                        let info = zones.get(idx).map(|z| z.info.clone()).unwrap_or_default();
+                        results.push((addr.adress.clone(), dist, info));
+                    }
                     *counter += 1;
                     self.state.correlate_state.progress = *counter as f64 / (total as f64 * 2.0);
                 }
@@ -630,10 +635,11 @@ impl App {
                 let algo = KDTreeSpatialAlgo::new(zones);
                 for addr in addresses {
                     if let Some((idx, dist)) = algo.correlate(addr, zones)
-                        && dist <= cutoff {
-                            let info = zones.get(idx).map(|z| z.info.clone()).unwrap_or_default();
-                            results.push((addr.adress.clone(), dist, info));
-                        }
+                        && dist <= cutoff
+                    {
+                        let info = zones.get(idx).map(|z| z.info.clone()).unwrap_or_default();
+                        results.push((addr.adress.clone(), dist, info));
+                    }
                     *counter += 1;
                     self.state.correlate_state.progress = *counter as f64 / (total as f64 * 2.0);
                 }
@@ -642,10 +648,11 @@ impl App {
                 let algo = GridNearestAlgo::new(zones);
                 for addr in addresses {
                     if let Some((idx, dist)) = algo.correlate(addr, zones)
-                        && dist <= cutoff {
-                            let info = zones.get(idx).map(|z| z.info.clone()).unwrap_or_default();
-                            results.push((addr.adress.clone(), dist, info));
-                        }
+                        && dist <= cutoff
+                    {
+                        let info = zones.get(idx).map(|z| z.info.clone()).unwrap_or_default();
+                        results.push((addr.adress.clone(), dist, info));
+                    }
                     *counter += 1;
                     self.state.correlate_state.progress = *counter as f64 / (total as f64 * 2.0);
                 }
