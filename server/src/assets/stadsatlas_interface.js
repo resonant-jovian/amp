@@ -121,6 +121,182 @@ function loadMapWithAddress(address, x, y) {
     
     logToConsole('MAP', `✓ iframe element found`);
     
+    // ✅ CORS FIX: Embed config directly instead of fetching
+    const stadsatlasConfig = {
+        "controls": [
+            {
+                "name": "home",
+                "options": {
+                    "zoomOnStart": true
+                }
+            },
+            {
+                "name": "mapmenu",
+                "options": {
+                    "isActive": false
+                }
+            },
+            {
+                "name": "sharemap"
+            },
+            {
+                "name": "print"
+            },
+            {
+                "name": "search",
+                "options": {
+                    "url": "https://geo.malmo.se/api/search",
+                    "searchAttribute": "NAMN",
+                    "titleAttribute": "TYPE",
+                    "contentAttribute": "NAMN",
+                    "geometryAttribute": "GEOM",
+                    "hintText": "Sök adress eller platser...",
+                    "minLength": 2,
+                    "groupSuggestions": true,
+                    "maxZoomLevel": "8"
+                }
+            }
+        ],
+        "pageSettings": {
+            "footer": {
+                "img": "img/png/malmo-logo.png",
+                "url": "https://malmo.se"
+            },
+            "mapGrid": {
+                "visible": false
+            }
+        },
+        "projectionCode": "EPSG:3008",
+        "projectionExtent": [
+            -72234.21,
+            6098290.04,
+            573714.68,
+            7702218.01
+        ],
+        "proj4Defs": [
+            {
+                "code": "EPSG:3008",
+                "projection": "+proj=tmerc +lat_0=0 +lon_0=13.5 +k=1 +x_0=150000 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs",
+                "alias": "SWEREF 99 1330"
+            },
+            {
+                "code": "EPSG:3006",
+                "projection": "+proj=utm +zone=33 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs",
+                "alias": "SWEREF 99 TM"
+            },
+            {
+                "code": "EPSG:4326",
+                "projection": "+proj=longlat +datum=WGS84 +no_defs",
+                "alias": "WGS 84"
+            }
+        ],
+        "extent": [
+            34364.701176279224,
+            6105850.2404539045,
+            180404.6059212964,
+            6198940.128187204
+        ],
+        "center": [
+            120844,
+            6161226
+        ],
+        "zoom": 3,
+        "constrainResolution": true,
+        "resolutions": [
+            66.6751333502667,
+            33.86673440013547,
+            25.400050800101603,
+            16.933367200067735,
+            12.700025400050801,
+            8.466683600033868,
+            4.233341800016934,
+            2.116670900008467,
+            1.0583354500042335,
+            0.5291677250021167,
+            0.26458386250105836
+        ],
+        "featureinfoOptions": {
+            "infowindow": "overlay",
+            "pinning": false,
+            "hitTolerance": 10
+        },
+        "source": {
+            "Bakgrundskarta_nedtonad_3008_text": {
+                "url": "https://gis.malmo.se/arcgis/rest/services/baskartor/Bakgrundskarta_nedtonad_3008_text/MapServer/tile/{z}/{y}/{x}",
+                "tileGrid": {
+                    "resolutions": [
+                        66.6751333502667,
+                        33.86673440013547,
+                        25.400050800101603,
+                        16.933367200067735,
+                        12.700025400050801,
+                        8.466683600033868,
+                        4.233341800016934,
+                        2.116670900008467,
+                        1.0583354500042335,
+                        0.5291677250021167,
+                        0.26458386250105836,
+                        0.13229193125052918,
+                        0.06614596562526459,
+                        0.026458386250105836
+                    ],
+                    "origin": [
+                        -399.9999999999999,
+                        9006799.254740989
+                    ],
+                    "extent": [
+                        -1678505.1838360203,
+                        4665380,
+                        2431912.7361639794,
+                        8775797.92
+                    ]
+                }
+            },
+            "geoserver-malmows-wms-atlasp1": {
+                "url": "https://stadsatlas.malmo.se/geoserver/malmows/wms"
+            }
+        },
+        "groups": [
+            {
+                "name": "background",
+                "title": "Bakgrundskartor",
+                "groups": []
+            }
+        ],
+        "layers": [
+            {
+                "name": "Bakgrundskarta_nedtonad_3008_text",
+                "title": "Bakgrundskarta nedtonad",
+                "group": "background",
+                "source": "Bakgrundskarta_nedtonad_3008_text",
+                "type": "XYZ",
+                "style": "karta-nedtonad",
+                "attribution": "© CC0 Malmö stad",
+                "queryable": false,
+                "visible": true
+            },
+            {
+                "name": "miljoparkeringl",
+                "title": "Miljöparkering",
+                "group": "background",
+                "source": "geoserver-malmows-wms-atlasp1",
+                "type": "WMS",
+                "visible": true
+            }
+        ],
+        "styles": {
+            "karta-nedtonad": [
+                [
+                    {
+                        "image": {
+                            "src": "img/png/gra.png"
+                        }
+                    }
+                ]
+            ]
+        }
+    };
+    
     // Create the Origo map HTML as a data URI
     const origoMapHTML = `<!DOCTYPE html>
 <html>
@@ -171,52 +347,69 @@ function loadMapWithAddress(address, x, y) {
         
         console.log('🗺️ Origo Map Init - Center:', [x, y], 'Zoom:', zoom);
         
-        // Initialize Origo with StadsAtlas config
-        fetch('https://stadsatlas.malmo.se/stadsatlas/index.json')
-            .then(response => response.json())
-            .then(config => {
-                console.log('📡 Loaded StadsAtlas config');
+        const stadsatlasConfig = ${JSON.stringify(stadsatlasConfig)};
+        
+        // Initialize Origo with embedded config (no CORS issues!)
+        try {
+            console.log('📡 Using embedded StadsAtlas config (CORS bypass)');
+            
+            // Create map
+            window.map = o.create({
+                target: 'map',
+                ...stadsatlasConfig,
+                center: [x, y],
+                zoom: zoom,
+                resolutions: stadsatlasConfig.resolutions
+            });
+            
+            // After a delay, enable layers using Origo's API
+            setTimeout(() => {
+                console.log('✏️ Setting up layers via Origo API...');
                 
-                // Create map
-                window.map = o.create({
-                    target: 'map',
-                    ...config,
-                    center: [x, y],
-                    zoom: zoom,
-                    resolutions: config.resolutions
+                // Method 1: Toggle layers by name using Origo's toggleLayer API
+                try {
+                    // Turn on Bakgrund layers
+                    window.map.toggleLayer('Bakgrundskarta_nedtonad_3008_text');
+                    console.log('✅ Toggled Bakgrundskarta_nedtonad_3008_text');
+                } catch (e) {
+                    console.log('🙈 Bakgrund toggle failed:', e.message);
+                }
+                
+                try {
+                    // Turn on miljöparkering layer
+                    window.map.toggleLayer('miljoparkeringl');
+                    console.log('✅ Toggled miljoparkeringl');
+                } catch (e) {
+                    console.log('🙈 Miljöparkering toggle failed:', e.message);
+                }
+                
+                // Method 2: Try to access layers array and enable by visibility
+                const layers = window.map.getLayers().getArray();
+                console.log(\`📊 Total layers: \${layers.length}\`);
+                
+                layers.forEach((layer, idx) => {
+                    const name = layer.get('name') || '';
+                    
+                    // Enable bakgrund
+                    if (name.toLowerCase().includes('bakgrund')) {
+                        layer.setVisible(true);
+                        console.log(\`✅ Enabled layer[\${idx}]: \${name}\`);
+                    }
+                    
+                    // Enable miljöparkering
+                    if (name === 'miljoparkeringl') {
+                        layer.setVisible(true);
+                        console.log(\`✅ Enabled layer[\${idx}]: \${name}\`);
+                    }
                 });
                 
-                // After a delay, enable layers using Origo's API
-                setTimeout(() => {
-                    console.log('📏 Setting up layers via Origo API...');
-                    
-                    const layers = window.map.getLayers().getArray();
-                    console.log(\`📊 Total layers: \${layers.length}\`);
-                    
-                    layers.forEach((layer, idx) => {
-                        const name = layer.get('name') || '';
-                        
-                        // Enable bakgrund
-                        if (name.toLowerCase().includes('bakgrund')) {
-                            layer.setVisible(true);
-                            console.log(\`✅ Enabled layer[\${idx}]: \${name}\`);
-                        }
-                        
-                        // Enable miljöparkering
-                        if (name === 'miljoparkeringl') {
-                            layer.setVisible(true);
-                            console.log(\`✅ Enabled layer[\${idx}]: \${name}\`);
-                        }
-                    });
-                    
-                    // Add pin to map
-                    addPinMarker(x, y);
-                    
-                }, 1000);  // Wait 1 second for map to fully initialize
-            })
-            .catch(error => {
-                console.error('❌ Failed to load StadsAtlas config:', error);
-            });
+                // Add pin to map
+                addPinMarker(x, y);
+                
+            }, 1000);  // Wait 1 second for map to fully initialize
+        } catch (error) {
+            console.error('❌ Failed to initialize map:', error);
+        }
         
         // Function to add a pin marker
         function addPinMarker(x, y) {
