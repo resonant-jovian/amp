@@ -4,6 +4,7 @@
 // ===================================================================
 
 const BASE_URL = 'https://geo.malmo.se/api/search';
+const ORIGO_MAP_URL = 'https://raw.githubusercontent.com/resonant-jovian/amp/feature/testing/server/src/assets/origo_map.html';
 let shouldAutoLoad = true; // Flag to auto-load on page load
 let hasAutoLoaded = false; // Track if auto-load has already happened
 
@@ -121,12 +122,12 @@ function loadMapWithAddress(address, x, y) {
     
     logToConsole('MAP', `✓ iframe element found`);
     
-    // Load our custom origo_map.html with coordinates
+    // Load our custom origo_map.html from GitHub with coordinates
     // This file will handle layer activation automatically
-    const mapUrl = `origo_map.html#center=${x},${y}&zoom=18`;
+    const mapUrl = `${ORIGO_MAP_URL}#center=${x},${y}&zoom=18`;
     
     logToConsole('MAP', `URL: ${mapUrl}`);
-    logToConsole('MAP', `Setting iframe src to custom Origo map...`);
+    logToConsole('MAP', `Setting iframe src to custom Origo map from GitHub...`);
     
     iframe.src = mapUrl;
     
