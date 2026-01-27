@@ -1,10 +1,14 @@
 <!DOCTYPE html>
-<html>
+<html lang="sv">
 <head>
-    <title>AMP Correlation Map - Origo Embed</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="https://stadsatlas.malmo.se/stadsatlas/css/style.css">
+    <title>AMP Origo Map</title>
+    
+    <!-- Origo CSS -->
+    <link rel="stylesheet" href="https://raw.githubusercontent.com/origo-map/origo/master/css/style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@7.5.0/ol.css">
+    
     <style>
         * {
             margin: 0;
@@ -12,324 +16,325 @@
             box-sizing: border-box;
         }
         html, body {
-            height: 100%;
             width: 100%;
+            height: 100%;
             overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         }
         #map {
             width: 100%;
             height: 100%;
+            background: #f5f5f5;
+        }
+        #map canvas {
+            display: block;
+        }
+        .map-info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: white;
+            padding: 10px 15px;
+            border-radius: 4px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            font-size: 12px;
+            z-index: 100;
+            max-width: 250px;
+            color: #333;
         }
     </style>
 </head>
 <body>
     <div id="map"></div>
+    <div class="map-info" id="mapInfo">Loading map...</div>
     
-    <script src="https://stadsatlas.malmo.se/stadsatlas/js/origo.js"></script>
+    <!-- OpenLayers -->
     <script src="https://cdn.jsdelivr.net/npm/ol@7.5.0/dist/ol.min.js"></script>
+    
+    <!-- Origo -->
+    <script src="https://raw.githubusercontent.com/origo-map/origo/master/origo.js"></script>
+    
     <script>
-        // ✅ CORS FIX: Embed config directly instead of fetching
-        const stadsatlasConfig = {
-            "controls": [
+        // Configuration for Malmö map (SWEREF 99 13 30 - EPSG:3008)
+        const origConfig = {
+            projectionCode: 'EPSG:3008',
+            projectionExtent: [-72234.21, 6098290.04, 573714.68, 7702218.01],
+            proj4Defs: [
                 {
-                    "name": "home",
-                    "options": {
-                        "zoomOnStart": true
-                    }
-                },
-                {
-                    "name": "mapmenu",
-                    "options": {
-                        "isActive": false
-                    }
-                },
-                {
-                    "name": "sharemap"
-                },
-                {
-                    "name": "print"
-                },
-                {
-                    "name": "search",
-                    "options": {
-                        "url": "https://geo.malmo.se/api/search",
-                        "searchAttribute": "NAMN",
-                        "titleAttribute": "TYPE",
-                        "contentAttribute": "NAMN",
-                        "geometryAttribute": "GEOM",
-                        "hintText": "Sök adress eller platser...",
-                        "minLength": 2,
-                        "groupSuggestions": true,
-                        "maxZoomLevel": "8"
-                    }
+                    code: 'EPSG:3008',
+                    projection: '+proj=tmerc +lat_0=0 +lon_0=13.5 +k=1 +x_0=150000 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs',
+                    alias: 'SWEREF 99 1330'
                 }
             ],
-            "pageSettings": {
-                "footer": {
-                    "img": "img/png/malmo-logo.png",
-                    "url": "https://malmo.se"
+            extent: [34364.701176279224, 6105850.2404539045, 180404.6059212964, 6198940.128187204],
+            center: [120844, 6161226],
+            zoom: 3,
+            constrainResolution: true,
+            resolutions: [
+                66.6751333502667, 33.86673440013547, 25.400050800101603, 16.933367200067735,
+                12.700025400050801, 8.466683600033868, 4.233341800016934, 2.116670900008467,
+                1.0583354500042335, 0.5291677250021167, 0.26458386250105836
+            ],
+            controls: [
+                { name: 'home', options: { zoomOnStart: true } },
+                { name: 'mapmenu', options: { isActive: false } },
+                { name: 'search', options: {
+                    url: 'https://geo.malmo.se/api/search',
+                    searchAttribute: 'NAMN',
+                    titleAttribute: 'TYPE',
+                    contentAttribute: 'NAMN',
+                    geometryAttribute: 'GEOM',
+                    hintText: 'Sök adress...',
+                    minLength: 2,
+                    groupSuggestions: true,
+                    maxZoomLevel: '8'
+                } }
+            ],
+            pageSettings: { footer: { img: 'img/malmo-logo.png', url: 'https://malmo.se' } },
+            featureinfoOptions: { infowindow: 'overlay', pinning: false, hitTolerance: 10 },
+            
+            // Source definitions
+            source: {
+                'bakgrund': {
+                    url: 'https://gis.malmo.se/arcgis/rest/services/baskartor/Bakgrundskarta_nedtonad_3008_text/MapServer/tile/{z}/{y}/{x}',
+                    tileGrid: {
+                        resolutions: [66.6751333502667, 33.86673440013547, 25.400050800101603, 16.933367200067735, 12.700025400050801, 8.466683600033868, 4.233341800016934, 2.116670900008467, 1.0583354500042335, 0.5291677250021167, 0.26458386250105836, 0.13229193125052918, 0.06614596562526459, 0.026458386250105836],
+                        origin: [-399.9999999999999, 9006799.254740989],
+                        extent: [-1678505.1838360203, 4665380, 2431912.7361639794, 8775797.92]
+                    }
                 },
-                "mapGrid": {
-                    "visible": false
+                'wms-malmo': {
+                    url: 'https://stadsatlas.malmo.se/geoserver/malmows/wms',
+                    type: 'WMS'
                 }
             },
-            "projectionCode": "EPSG:3008",
-            "projectionExtent": [
-                -72234.21,
-                6098290.04,
-                573714.68,
-                7702218.01
+            
+            // Groups
+            groups: [
+                { name: 'background', title: 'Bakgrundskartor', groups: [] },
+                { name: 'data', title: 'Data', groups: [] }
             ],
-            "proj4Defs": [
+            
+            // Layers
+            layers: [
                 {
-                    "code": "EPSG:3008",
-                    "projection": "+proj=tmerc +lat_0=0 +lon_0=13.5 +k=1 +x_0=150000 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs",
-                    "alias": "SWEREF 99 1330"
+                    name: 'bakgrundskarta',
+                    title: 'Bakgrundskarta',
+                    group: 'background',
+                    source: 'bakgrund',
+                    type: 'XYZ',
+                    visible: true,
+                    queryable: false,
+                    attribution: '© Malmö stad'
                 },
                 {
-                    "code": "EPSG:3006",
-                    "projection": "+proj=utm +zone=33 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs",
-                    "alias": "SWEREF 99 TM"
+                    name: 'miljodata',
+                    title: 'Miljöparkering',
+                    group: 'data',
+                    source: 'wms-malmo',
+                    type: 'WMS',
+                    layers: 'malmows:Miljoparkering',
+                    visible: true,
+                    transparent: true,
+                    opacity: 0.7
                 },
                 {
-                    "code": "EPSG:4326",
-                    "projection": "+proj=longlat +datum=WGS84 +no_defs",
-                    "alias": "WGS 84"
-                }
-            ],
-            "extent": [
-                34364.701176279224,
-                6105850.2404539045,
-                180404.6059212964,
-                6198940.128187204
-            ],
-            "center": [
-                120844,
-                6161226
-            ],
-            "zoom": 3,
-            "constrainResolution": true,
-            "resolutions": [
-                66.6751333502667,
-                33.86673440013547,
-                25.400050800101603,
-                16.933367200067735,
-                12.700025400050801,
-                8.466683600033868,
-                4.233341800016934,
-                2.116670900008467,
-                1.0583354500042335,
-                0.5291677250021167,
-                0.26458386250105836
-            ],
-            "featureinfoOptions": {
-                "infowindow": "overlay",
-                "pinning": false,
-                "hitTolerance": 10
-            },
-            "source": {
-                "Bakgrundskarta_nedtonad_3008_text": {
-                    "url": "https://gis.malmo.se/arcgis/rest/services/baskartor/Bakgrundskarta_nedtonad_3008_text/MapServer/tile/{z}/{y}/{x}",
-                    "tileGrid": {
-                        "resolutions": [
-                            66.6751333502667,
-                            33.86673440013547,
-                            25.400050800101603,
-                            16.933367200067735,
-                            12.700025400050801,
-                            8.466683600033868,
-                            4.233341800016934,
-                            2.116670900008467,
-                            1.0583354500042335,
-                            0.5291677250021167,
-                            0.26458386250105836,
-                            0.13229193125052918,
-                            0.06614596562526459,
-                            0.026458386250105836
-                        ],
-                        "origin": [
-                            -399.9999999999999,
-                            9006799.254740989
-                        ],
-                        "extent": [
-                            -1678505.1838360203,
-                            4665380,
-                            2431912.7361639794,
-                            8775797.92
-                        ]
-                    }
-                },
-                "geoserver-malmows-wms-atlasp1": {
-                    "url": "https://stadsatlas.malmo.se/geoserver/malmows/wms"
-                }
-            },
-            "groups": [
-                {
-                    "name": "background",
-                    "title": "Bakgrundskartor",
-                    "groups": []
-                }
-            ],
-            "layers": [
-                {
-                    "name": "Bakgrundskarta_nedtonad_3008_text",
-                    "title": "Bakgrundskarta nedtonad",
-                    "group": "background",
-                    "source": "Bakgrundskarta_nedtonad_3008_text",
-                    "type": "XYZ",
-                    "style": "karta-nedtonad",
-                    "attribution": "© CC0 Malmö stad",
-                    "queryable": false,
-                    "visible": true
-                },
-                {
-                    "name": "miljoparkeringl",
-                    "title": "Miljöparkering",
-                    "group": "background",
-                    "source": "geoserver-malmows-wms-atlasp1",
-                    "type": "WMS",
-                    "visible": true
-                }
-            ],
-            "styles": {
-                "karta-nedtonad": [
-                    [
-                        {
-                            "image": {
-                                "src": "img/png/gra.png"
-                            }
+                    name: 'address-pin',
+                    title: 'Adressmarkörer',
+                    group: 'data',
+                    type: 'Vector',
+                    visible: true,
+                    zIndex: 1000,
+                    style: {
+                        icon: {
+                            src: 'data:image/svg+xml;utf8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2244%22 viewBox=%220 0 32 44%22%3E%3Cdefs%3E%3Cfilter id=%22shadow%22%3E%3CfeDropShadow dx=%220%22 dy=%222%22 stdDeviation=%222%22 flood-opacity=%220.3%22/%3E%3C/filter%3E%3C/defs%3E%3Cpath d=%22M16 2 C9 2, 3 8, 3 16 C3 26, 16 44, 16 44 S29 26, 29 16 C29 8, 23 2, 16 2%22 fill=%22%23FF4444%22 stroke=%22white%22 stroke-width=%222.5%22 filter=%22url(%23shadow)%22/%3E%3Ccircle cx=%2216%22 cy=%2215%22 r=%226%22 fill=%22white%22 stroke=%22%23FF4444%22 stroke-width=%221.5%22/%3E%3C/svg%3E',
+                            scale: 1.2,
+                            anchor: [0.5, 1]
                         }
-                    ]
-                ]
-            }
+                    }
+                }
+            ]
         };
-
+        
         // Parse URL parameters
-        const urlParams = new URLSearchParams(window.location.hash.substring(1));
-        const centerStr = urlParams.get('center');
-        const zoom = parseInt(urlParams.get('zoom')) || 18;
+        const params = new URLSearchParams(window.location.hash.substring(1));
+        const centerStr = params.get('center');
+        const zoom = parseInt(params.get('zoom')) || 18;
         
-        let x = 120844;  // Default center
-        let y = 6161226;
+        let mapCenterX = 120844;
+        let mapCenterY = 6161226;
         
-        // Parse center coordinates
         if (centerStr) {
-            const coords = centerStr.split(',');
-            if (coords.length === 2) {
-                x = parseFloat(coords[0]);
-                y = parseFloat(coords[1]);
+            const coords = centerStr.split(',').map(c => parseFloat(c.trim()));
+            if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
+                mapCenterX = coords[0];
+                mapCenterY = coords[1];
             }
         }
         
-        console.log('🗺️ Origo Map Init - Center:', [x, y], 'Zoom:', zoom);
+        console.log('🗺️ Origo Map: Center=[' + mapCenterX + ',' + mapCenterY + '], Zoom=' + zoom);
         
-        // Initialize Origo with embedded config (no CORS issues!)
-        try {
-            console.log('📡 Using embedded StadsAtlas config (CORS bypass)');
-            
-            // Create map
-            window.map = o.create({
-                target: 'map',
-                ...stadsatlasConfig,
-                center: [x, y],
-                zoom: zoom,
-                resolutions: stadsatlasConfig.resolutions
-            });
-            
-            // After a delay, enable layers using Origo's API
-            setTimeout(() => {
-                console.log('✏️ Setting up layers via Origo API...');
+        let mapInstance = null;
+        
+        // Wait for Origo to load
+        const checkOrigoReady = setInterval(() => {
+            if (window.o && typeof window.o.create === 'function') {
+                clearInterval(checkOrigoReady);
+                initializeMap();
+            }
+        }, 100);
+        
+        // Timeout after 10 seconds
+        setTimeout(() => {
+            if (!mapInstance) {
+                clearInterval(checkOrigoReady);
+                document.getElementById('mapInfo').innerHTML = '❌ Failed to load Origo library';
+                console.error('❌ Origo library failed to load after 10 seconds');
+            }
+        }, 10000);
+        
+        function initializeMap() {
+            try {
+                console.log('✅ Origo library detected, initializing map...');
                 
-                // Method 1: Toggle layers by name using Origo's toggleLayer API
-                try {
-                    // Turn on Bakgrund layers
-                    window.map.toggleLayer('Bakgrundskarta_nedtonad_3008_text');
-                    console.log('✅ Toggled Bakgrundskarta_nedtonad_3008_text');
-                } catch (e) {
-                    console.log('🙈 Bakgrund toggle failed:', e.message);
+                // Create map
+                mapInstance = window.o.create({
+                    target: 'map',
+                    ...origConfig,
+                    center: [mapCenterX, mapCenterY],
+                    zoom: zoom
+                });
+                
+                console.log('✅ Map created');
+                
+                // Add address marker
+                setTimeout(() => {
+                    addAddressPin(mapCenterX, mapCenterY);
+                    enableLayers();
+                    updateMapInfo(mapCenterX, mapCenterY);
+                }, 500);
+                
+            } catch (error) {
+                console.error('❌ Map initialization error:', error);
+                document.getElementById('mapInfo').innerHTML = '❌ Map error: ' + error.message;
+            }
+        }
+        
+        function addAddressPin(x, y) {
+            try {
+                if (!mapInstance) {
+                    console.warn('⚠️ Map not ready yet');
+                    return;
                 }
                 
-                try {
-                    // Turn on miljöparkering layer
-                    window.map.toggleLayer('miljoparkeringl');
-                    console.log('✅ Toggled miljoparkeringl');
-                } catch (e) {
-                    console.log('🙈 Miljöparkering toggle failed:', e.message);
-                }
+                // Find or create pin layer
+                const layers = mapInstance.getLayers();
+                let pinLayer = null;
                 
-                // Method 2: Try to access layers array and enable by visibility
-                const layers = window.map.getLayers().getArray();
-                console.log(`📊 Total layers: ${layers.length}`);
-                
-                layers.forEach((layer, idx) => {
-                    const name = layer.get('name') || '';
-                    
-                    // Enable bakgrund
-                    if (name.toLowerCase().includes('bakgrund')) {
-                        layer.setVisible(true);
-                        console.log(`✅ Enabled layer[${idx}]: ${name}`);
-                    }
-                    
-                    // Enable miljöparkering
-                    if (name === 'miljoparkeringl') {
-                        layer.setVisible(true);
-                        console.log(`✅ Enabled layer[${idx}]: ${name}`);
+                // Search for address-pin layer
+                layers.getArray().forEach(layer => {
+                    if (layer.get('name') === 'address-pin') {
+                        pinLayer = layer;
                     }
                 });
                 
-                // Add pin to map
-                addPinMarker(x, y);
+                // Create vector source and layer if not found
+                if (!pinLayer) {
+                    console.log('📍 Creating pin layer...');
+                    const vectorSource = new ol.source.Vector();
+                    pinLayer = new ol.layer.Vector({
+                        source: vectorSource,
+                        zIndex: 1000
+                    });
+                    pinLayer.set('name', 'address-pin');
+                    mapInstance.addLayer(pinLayer);
+                }
                 
-            }, 1000);  // Wait 1 second for map to fully initialize
-        } catch (error) {
-            console.error('❌ Failed to initialize map:', error);
-        }
-        
-        // Function to add a pin marker
-        function addPinMarker(x, y) {
-            console.log('📏 Adding pin at:', [x, y]);
-            
-            const vectorSource = new ol.source.Vector({
-                features: [
-                    new ol.Feature({
+                // Add feature to layer
+                const source = pinLayer.getSource();
+                if (source) {
+                    const feature = new ol.Feature({
                         geometry: new ol.geom.Point([x, y])
-                    })
-                ]
-            });
-            
-            const vectorLayer = new ol.layer.Vector({
-                source: vectorSource,
-                zIndex: 9999,  // Ensure it appears on top
-                style: new ol.style.Style({
-                    image: new ol.style.Icon({
-                        anchor: [0.5, 1],
-                        anchorXUnits: 'fraction',
-                        anchorYUnits: 'fraction',
-                        scale: 1.2,
-                        src: 'data:image/svg+xml;utf8,' + encodeURIComponent(`
-                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="44" viewBox="0 0 32 44">
-                                <defs>
-                                    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-                                        <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.3"/>
-                                    </filter>
-                                </defs>
-                                <path d="M16 2 C9 2, 3 8, 3 16 C3 26, 16 44, 16 44 S29 26, 29 16 C29 8, 23 2, 16 2" 
-                                      fill="#FF4444" stroke="white" stroke-width="2.5" filter="url(#shadow)"/>
-                                <circle cx="16" cy="15" r="6" fill="white" stroke="#FF4444" stroke-width="1.5"/>
-                            </svg>
-                        `)
-                    })
-                })
-            });
-            
-            // Add to map
-            if (window.map) {
-                window.map.addLayer(vectorLayer);
-                console.log('✅ Pin added to map');
-            } else {
-                console.error('❌ Map object not available');
+                    });
+                    
+                    feature.setStyle(new ol.style.Style({
+                        image: new ol.style.Icon({
+                            anchor: [0.5, 1],
+                            anchorXUnits: 'fraction',
+                            anchorYUnits: 'fraction',
+                            scale: 1.2,
+                            src: 'data:image/svg+xml;utf8,' + encodeURIComponent(`
+                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="44" viewBox="0 0 32 44">
+                                    <defs>
+                                        <filter id="shadow">
+                                            <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.3"/>
+                                        </filter>
+                                    </defs>
+                                    <path d="M16 2 C9 2, 3 8, 3 16 C3 26, 16 44, 16 44 S29 26, 29 16 C29 8, 23 2, 16 2" fill="#FF4444" stroke="white" stroke-width="2.5" filter="url(#shadow)"/>
+                                    <circle cx="16" cy="15" r="6" fill="white" stroke="#FF4444" stroke-width="1.5"/>
+                                </svg>
+                            `)
+                        })
+                    }));
+                    
+                    source.addFeature(feature);
+                    pinLayer.setVisible(true);
+                    console.log('✅ Pin added at [' + x + ',' + y + ']');
+                }
+            } catch (error) {
+                console.error('❌ Error adding pin:', error);
             }
         }
+        
+        function enableLayers() {
+            try {
+                if (!mapInstance) return;
+                
+                console.log('🔧 Enabling layers...');
+                const layers = mapInstance.getLayers();
+                
+                layers.getArray().forEach(layer => {
+                    const name = layer.get('name');
+                    
+                    // Enable background
+                    if (name === 'bakgrundskarta') {
+                        layer.setVisible(true);
+                        console.log('✅ Enabled: Bakgrundskarta');
+                    }
+                    
+                    // Enable miljödata
+                    if (name === 'miljodata') {
+                        layer.setVisible(true);
+                        console.log('✅ Enabled: Miljödata');
+                    }
+                    
+                    // Enable pins
+                    if (name === 'address-pin') {
+                        layer.setVisible(true);
+                        console.log('✅ Enabled: Address pins');
+                    }
+                });
+            } catch (error) {
+                console.error('❌ Error enabling layers:', error);
+            }
+        }
+        
+        function updateMapInfo(x, y) {
+            const info = document.getElementById('mapInfo');
+            info.innerHTML = '📍 Origo Map Ready<br>X: ' + x.toFixed(2) + '<br>Y: ' + y.toFixed(2) + '<br>Zoom: ' + (mapInstance ? mapInstance.getView().getZoom() : '?');
+        }
+        
+        // Update info on zoom changes
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                if (mapInstance) {
+                    mapInstance.getView().on('change:resolution', () => {
+                        updateMapInfo(mapCenterX, mapCenterY);
+                    });
+                    console.log('✅ Map fully initialized and ready');
+                }
+            }, 1000);
+        });
     </script>
 </body>
 </html>
