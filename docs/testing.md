@@ -1,26 +1,138 @@
 # Testing
 
-AMP uses a multi-layered testing strategy to ensure correlation accuracy and performance.
+AMP uses multiple testing strategies: unit tests, integration tests, benchmarks, and visual testing with real-world data.
 
-## Test Structure
+## Visual Testing Mode
 
+The `test` subcommand opens browser windows showing correlation results alongside official StadsAtlas for manual verification.
+
+### Quick Start
+
+```bash
+# Default: 10 windows, KD-Tree algorithm, 50m threshold
+cargo run --release -- test
+
+# Custom settings
+cargo run -- test --algorithm rtree --cutoff 100 --windows 15
+
+# Short flags
+cargo run -- test -a kdtree -c 50 -w 10
 ```
-core/
-├── src/
-│   ├── correlation_tests.rs       # Integration tests
-│   └── correlation_algorithms/
-│       ├── distance_based.rs      # Unit tests inline
-│       ├── raycasting.rs
-│       └── ...
-└── tests/
-    └── benchmark_tests.rs        # Performance tests
+
+### What Each Window Shows
+
+**Tab 1: StadsAtlas Integration**
+- Official Malmö map (https://stadsatlas.malmo.se/)
+- Blue pin marker shows address location
+- Manually enable "Miljöparkering" checkbox to see parking zones
+- Search field shows the tested address
+
+**Tab 2: Correlation Results**
+- Address and postal code
+- Data source (Miljödata, Parkering, or both)
+- Distance to matched zone
+- Zone information
+
+### Parameters
+
+#### `--algorithm` / `-a`
+Choose correlation algorithm:
+- `distance-based` — Simple distance calculation
+- `raycasting` — Geometric raycasting method
+- `overlapping-chunks` — Grid-based chunking
+- `rtree` — R-Tree spatial indexing
+- `kdtree` — KD-Tree spatial indexing (default)
+- `grid` — Grid-based nearest neighbor
+
+#### `--cutoff` / `-c`
+Distance threshold in meters (default: 50m)
+
+Affects which addresses appear in testing windows. Only matches within threshold distance are included.
+
+#### `--windows` / `-w`
+Number of browser windows to open (default: 10)
+
+If fewer matches exist than requested windows, opens all available matches.
+
+### Common Testing Scenarios
+
+**Test Algorithm Performance**
+```bash
+# Compare KD-Tree vs R-Tree
+cargo run -- test --algorithm kdtree --windows 10
+cargo run -- test --algorithm rtree --windows 10
+# Manually compare accuracy in both sets of windows
 ```
+
+**Validate Distance Threshold**
+```bash
+# Conservative threshold (25m)
+cargo run -- test --cutoff 25 --windows 5
+
+# Standard threshold (50m)
+cargo run -- test --cutoff 50 --windows 5
+
+# Permissive threshold (100m)
+cargo run -- test --cutoff 100 --windows 5
+```
+
+**Test Data Quality**
+```bash
+# Random sample
+cargo run -- test --windows 20
+
+# If accuracy is low, try different algorithm
+cargo run -- test --algorithm overlapping-chunks --windows 20
+
+# If still low, increase threshold
+cargo run -- test --algorithm overlapping-chunks --cutoff 100 --windows 20
+```
+
+### Interpreting Results
+
+**Good Correlation** ✅
+- StadsAtlas zone matches Tab 2 information
+- Distance shown (e.g., "15.3m away") seems reasonable
+- Zone name and regulations visible
+
+**Poor Correlation** ⚠️
+- StadsAtlas shows different zone
+- Distance at or very close to cutoff threshold (e.g., "49.8m away")
+- Zone information doesn't match visible features
+
+**No Match** ❌
+- Tab 2 shows "No matches found"
+- Address outside all zones or beyond cutoff
+- Try: `--cutoff 100` for larger search radius
+
+### Troubleshooting
+
+**"No matching addresses found for testing!"**
+- Cause: No addresses within cutoff distance
+- Solution: `--cutoff 100` or try different algorithm
+
+**Windows Not Opening**
+- Windows: Ensure default browser configured
+- macOS: Grant terminal permission to control applications
+- Linux: Ensure `xdg-open` installed (`which xdg-open`)
+
+**StadsAtlas Search Not Working**
+1. Verify you're in correct region (Malmö)
+2. Try clicking location icon first
+3. Zoom map to Malmö area
+4. Try street name without number
+
+**Data Tab Not Showing**
+1. Browser may have blocked data URL
+2. Try refreshing page
+3. Check browser console (F12 → Console)
+4. Try different browser
 
 ## Unit Tests
 
 Each algorithm module includes tests for core functionality.
 
-**Example:** `distance_based.rs`
+**Example:** `core/src/correlation_algorithms/distance_based.rs`
 
 ```rust
 #[cfg(test)]
@@ -46,53 +158,8 @@ mod tests {
         ];
         
         let dist = point_to_line_distance(point, line_start, line_end);
-        
-        // Should be perpendicular distance
         assert!(dist < 50.0);
         assert!(dist > 0.0);
-    }
-    
-    #[test]
-    fn test_correlate_finds_closest() {
-        let address = AdressClean {
-            coordinates: [
-                Decimal::from_str("55.6050").unwrap(),
-                Decimal::from_str("13.0024").unwrap()
-            ],
-            adress: "Test Street 1".to_string(),
-            gata: "Test".to_string(),
-            gatunummer: "1".to_string(),
-            postnummer: "211 22".to_string(),
-        };
-        
-        let zones = vec![
-            MiljoeDataClean {
-                coordinates: [
-                    [Decimal::from_str("55.6040").unwrap(), Decimal::from_str("13.0020").unwrap()],
-                    [Decimal::from_str("55.6060").unwrap(), Decimal::from_str("13.0030").unwrap()]
-                ],
-                info: "Zone 1".to_string(),
-                tid: "06:00-18:00".to_string(),
-                dag: 31,
-            },
-            MiljoeDataClean {
-                coordinates: [
-                    [Decimal::from_str("55.7000").unwrap(), Decimal::from_str("13.1000").unwrap()],
-                    [Decimal::from_str("55.7010").unwrap(), Decimal::from_str("13.1010").unwrap()]
-                ],
-                info: "Zone 2 (far)".to_string(),
-                tid: "08:00-16:00".to_string(),
-                dag: 31,
-            },
-        ];
-        
-        let algo = DistanceBasedAlgo;
-        let result = algo.correlate(&address, &zones);
-        
-        assert!(result.is_some());
-        let (idx, dist) = result.unwrap();
-        assert_eq!(idx, 0);  // Should match Zone 1 (closer)
-        assert!(dist < 50.0);
     }
 }
 ```
@@ -104,80 +171,28 @@ cargo test --lib distance_based
 
 ## Integration Tests
 
-**Module:** `core/src/correlation_tests.rs`
-
 Tests full correlation pipeline with real data structures.
 
+**Module:** `core/src/correlation_tests.rs`
+
+Tests that all algorithms agree on results:
 ```rust
-#[cfg(test)]
-mod correlation_tests {
-    use super::*;
+#[test]
+fn test_all_algorithms_agree() {
+    // Load test data
+    let (addresses, zones) = create_test_data();
     
-    fn create_test_data() -> (Vec<AdressClean>, Vec<MiljoeDataClean>) {
-        let addresses = vec![
-            AdressClean {
-                coordinates: [
-                    Decimal::from_str("55.6050").unwrap(),
-                    Decimal::from_str("13.0024").unwrap()
-                ],
-                adress: "Stortorget 1".to_string(),
-                gata: "Stortorget".to_string(),
-                gatunummer: "1".to_string(),
-                postnummer: "211 22".to_string(),
-            },
-            // ... more addresses
-        ];
+    // Test each algorithm
+    for address in &addresses {
+        let results: Vec<_> = algos
+            .iter()
+            .map(|algo| algo.correlate(address, &zones))
+            .collect();
         
-        let zones = vec![
-            MiljoeDataClean {
-                coordinates: [
-                    [Decimal::from_str("55.6045").unwrap(), Decimal::from_str("13.0020").unwrap()],
-                    [Decimal::from_str("55.6055").unwrap(), Decimal::from_str("13.0028").unwrap()]
-                ],
-                info: "Miljözon Stortorget".to_string(),
-                tid: "06:00-18:00".to_string(),
-                dag: 31,
-            },
-            // ... more zones
-        ];
-        
-        (addresses, zones)
-    }
-    
-    #[test]
-    fn test_all_algorithms_agree() {
-        let (addresses, zones) = create_test_data();
-        
-        let algos: Vec<Box<dyn CorrelationAlgo>> = vec![
-            Box::new(DistanceBasedAlgo),
-            Box::new(RTreeSpatialAlgo::new(&zones)),
-            Box::new(OverlappingChunksAlgo::new(&zones)),
-        ];
-        
-        for address in &addresses {
-            let results: Vec<Option<(usize, f64)>> = algos
-                .iter()
-                .map(|algo| algo.correlate(address, &zones))
-                .collect();
-            
-            // All algorithms should find same zone (or all fail)
-            if let Some((idx, _)) = results[0] {
-                for result in &results[1..] {
-                    assert!(result.is_some());
-                    assert_eq!(result.unwrap().0, idx);
-                }
-            }
-        }
-    }
-    
-    #[test]
-    fn test_threshold_enforcement() {
-        let (addresses, zones) = create_test_data();
-        let algo = RTreeSpatialAlgo::new(&zones);
-        
-        for address in &addresses {
-            if let Some((_, dist)) = algo.correlate(address, &zones) {
-                assert!(dist <= 50.0, "Distance {} exceeds threshold", dist);
+        // Verify all find same zone (or all fail)
+        if let Some((idx, _)) = results[0] {
+            for result in &results[1..] {
+                assert_eq!(result.unwrap().0, idx);
             }
         }
     }
@@ -195,39 +210,21 @@ Performance validation using real datasets.
 
 **Example:** `core/tests/benchmark_tests.rs`
 
-```rust
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use amp_core::correlation_algorithms::*;
+```bash
+# Run benchmarks
+cargo bench
 
-fn benchmark_algorithms(c: &mut Criterion) {
-    let (addresses, zones) = load_test_data();  // 1000 addresses, 200 zones
-    
-    c.bench_function("distance_based", |b| {
-        let algo = DistanceBasedAlgo;
-        b.iter(|| {
-            for addr in &addresses {
-                black_box(algo.correlate(addr, &zones));
-            }
-        });
-    });
-    
-    c.bench_function("rtree", |b| {
-        let algo = RTreeSpatialAlgo::new(&zones);
-        b.iter(|| {
-            for addr in &addresses {
-                black_box(algo.correlate(addr, &zones));
-            }
-        });
-    });
-}
-
-criterion_group!(benches, benchmark_algorithms);
-criterion_main!(benches);
+# Benchmark specific algorithm
+cargo bench -- rtree_spatial
 ```
 
-**Run:**
+**CLI Benchmarking:**
 ```bash
-cargo bench
+# Interactive algorithm selection
+cargo run --release -- benchmark --sample-size 500
+
+# With cutoff threshold
+cargo run -- benchmark --sample-size 500 --cutoff 100
 ```
 
 ## Real-World Validation
@@ -238,66 +235,13 @@ Manual verification against known address-zone pairs from Malmö city records.
 1. Fetch live data from ArcGIS API
 2. Run correlation with all algorithms
 3. Compare results to manual inspection
-4. Verify threshold compliance (all matches ≤50m)
+4. Verify threshold compliance (all matches ≤ threshold)
 
 **Command:**
 ```bash
 amp-server correlate --algorithm rtree > results.txt
-# Inspect "10 Addresses with Largest Distances" section
-# All should be ≤50.0m
-```
-
-## Test Coverage
-
-**Unit Tests:**
-- Point-to-line distance calculation
-- Edge cases (point before/after line segment)
-- Coordinate precision (Decimal vs f64)
-
-**Integration Tests:**
-- Algorithm consistency (all find same zone)
-- Threshold enforcement
-- Dual dataset correlation
-- Missing data handling
-
-**Performance Tests:**
-- Algorithm comparison (relative speed)
-- Memory usage
-- Scalability (1K, 10K, 100K addresses)
-
-**Validation Tests:**
-- Real Malmö data (100K+ addresses)
-- Known address-zone pairs
-- Threshold verification
-
-## Continuous Integration
-
-**GitHub Actions:** `.github/workflows/correlation-tests.yml`
-
-```yaml
-name: Correlation Algorithm Tests
-
-on: [push, pull_request]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-      
-      - name: Run tests
-        run: cargo test --release
-      
-      - name: Run benchmarks
-        run: cargo bench --no-fail-fast
-      
-      - name: Validate threshold
-        run: |
-          cargo run --release -p amp_server -- correlate --algorithm rtree > output.txt
-          grep "Threshold verification: All matches" output.txt
+# Inspect "Largest Distances" section
+# Verify all are ≤ 50.0m (or your cutoff)
 ```
 
 ## Running All Tests
@@ -320,16 +264,24 @@ cargo install cargo-tarpaulin
 cargo tarpaulin --out Html
 ```
 
+## Test Structure
+
+```
+core/
+├── src/
+│   ├── correlation_tests.rs       # Integration tests
+│   └── correlation_algorithms/
+│       ├── distance_based.rs     # Unit tests inline
+│       ├── raycasting.rs
+│       └── ...
+└── tests/
+    └── benchmark_tests.rs        # Performance tests
+```
+
 ## Test Data
 
-**Location:** Test data embedded in source files (no external files).
+Test data is embedded in source files. Example:
 
-**Structure:**
-- 10-100 addresses per test
-- 5-50 zones per test
-- Known distances for validation
-
-**Generation:**
 ```rust
 fn create_test_address(lat: &str, lon: &str, name: &str) -> AdressClean {
     AdressClean {
@@ -345,7 +297,7 @@ fn create_test_address(lat: &str, lon: &str, name: &str) -> AdressClean {
 }
 ```
 
-## Known Issues
+## Known Issues & Edge Cases
 
 **Floating-point precision:**
 - Use `Decimal` for coordinates
@@ -354,9 +306,51 @@ fn create_test_address(lat: &str, lon: &str, name: &str) -> AdressClean {
 **Edge cases:**
 - Address exactly on zone boundary → distance = 0.0
 - Multiple zones at same distance → returns first found
+- Address outside all zones → no match (or match at max cutoff)
+
+## Performance Notes
+
+**Visual Testing Performance:**
+- Window opening: ~500ms delay between each (system stability)
+- 10 windows: ~5 seconds to fully open
+- 20 windows: ~10 seconds to fully open
+- Correlation runtime: 2-8 seconds depending on algorithm
+
+**Unit Test Runtime:**
+- All unit tests: <1 second
+- Full integration tests: <5 seconds
+- Benchmarks: 1-2 minutes
+
+## Tips for Accurate Testing
+
+1. **Start with defaults**
+   - Establishes baseline accuracy
+   - Uses proven KD-Tree algorithm
+   - Standard 50m cutoff
+
+2. **Test incrementally**
+   - Quick test: `--windows 5`
+   - Review results
+   - Larger sample: `--windows 20`
+
+3. **Compare algorithms systematically**
+   - Same cutoff for fair comparison
+   - Same number of windows
+   - Document which performs best
+
+4. **Adjust cutoff based on results**
+   - Too many false positives: decrease cutoff
+   - Missing valid addresses: increase cutoff
+   - Find sweet spot for your use case
+
+5. **Check data freshness**
+   - If all algorithms fail: data might be outdated
+   - Run: `cargo run -- check-updates`
+   - Verify checksums
 
 ## Related Documentation
 
-- [Algorithms](algorithms.md) — Algorithm details
+- [CLI Usage](cli-usage.md) — Complete command reference
+- [Algorithms](algorithms.md) — How each algorithm works
 - [Architecture](architecture.md) — System design
-- [core/README.md](../core/README.md) — Core library guide
+- [core/README.md](../core/README.md) — Library guide
