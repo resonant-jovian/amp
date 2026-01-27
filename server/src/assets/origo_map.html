@@ -208,16 +208,9 @@
             0.06614596562526459, 0.026458386250105836
         ];
         
-        // Resolution to zoom level mapping
-        const zoomToResolution = {
-            0: 66.6751333502667, 1: 33.86673440013547, 2: 25.400050800101603, 3: 16.933367200067735,
-            4: 12.700025400050801, 5: 8.466683600033868, 6: 4.233341800016934, 7: 2.116670900008467,
-            8: 1.0583354500042335, 9: 0.5291677250021167, 10: 0.26458386250105836, 11: 0.13229193125052918,
-            12: 0.06614596562526459, 13: 0.026458386250105836
-        };
-        
-        // Use closest resolution for the requested zoom level
-        const resolution = zoomToResolution[Math.min(zoom, 13)];
+        // Use requested zoom level, capped at max available
+        const zoomIndex = Math.min(Math.max(zoom, 0), resolutions.length - 1);
+        const resolution = resolutions[zoomIndex];
         
         try {
             console.log('🔧 Creating map with OpenLayers 7.x...');
@@ -462,15 +455,18 @@
                 }, 6000);
             }
             
-            // Update info box
+            // Update info box - calculate zoom from resolution
             function updateInfo() {
-                const z = view.getZoom() || zoom;
+                const currentResolution = view.getResolution();
+                const currentZoomIndex = resolutions.indexOf(resolutions.reduce((prev, curr) => 
+                    Math.abs(curr - currentResolution) < Math.abs(prev - currentResolution) ? curr : prev
+                ));
                 const c = view.getCenter();
                 document.getElementById('mapInfo').innerHTML = 
                     '🗺️ Map Ready<br>' +
                     'X: ' + c[0].toFixed(0) + '<br>' +
                     'Y: ' + c[1].toFixed(0) + '<br>' +
-                    'Zoom: ' + z.toFixed(1);
+                    'Zoom: ' + currentZoomIndex.toFixed(1);
             }
             
             updateInfo();
