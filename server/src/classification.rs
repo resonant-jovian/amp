@@ -175,10 +175,11 @@ fn correlate_dataset(
             let algo = DistanceBasedAlgo;
             for addr in addresses {
                 if let Some((idx, dist)) = algo.correlate(addr, zones)
-                    && dist <= cutoff {
-                        let info = zones.get(idx).map(|z| z.info.clone()).unwrap_or_default();
-                        results.push((addr.adress.clone(), dist, info));
-                    }
+                    && dist <= cutoff
+                {
+                    let info = zones.get(idx).map(|z| z.info.clone()).unwrap_or_default();
+                    results.push((addr.adress.clone(), dist, info));
+                }
                 let cnt = counter.fetch_add(1, Ordering::Relaxed) + 1;
                 if cnt.is_multiple_of(10_000) || cnt == total {
                     let pct = (cnt as f64 / total as f64) * 100.0;
@@ -190,10 +191,11 @@ fn correlate_dataset(
             let algo = RaycastingAlgo;
             for addr in addresses {
                 if let Some((idx, dist)) = algo.correlate(addr, zones)
-                    && dist <= cutoff {
-                        let info = zones.get(idx).map(|z| z.info.clone()).unwrap_or_default();
-                        results.push((addr.adress.clone(), dist, info));
-                    }
+                    && dist <= cutoff
+                {
+                    let info = zones.get(idx).map(|z| z.info.clone()).unwrap_or_default();
+                    results.push((addr.adress.clone(), dist, info));
+                }
                 let cnt = counter.fetch_add(1, Ordering::Relaxed) + 1;
                 if cnt.is_multiple_of(10_000) || cnt == total {
                     let pct = (cnt as f64 / total as f64) * 100.0;
@@ -205,10 +207,11 @@ fn correlate_dataset(
             let algo = OverlappingChunksAlgo::new(zones);
             for addr in addresses {
                 if let Some((idx, dist)) = algo.correlate(addr, zones)
-                    && dist <= cutoff {
-                        let info = zones.get(idx).map(|z| z.info.clone()).unwrap_or_default();
-                        results.push((addr.adress.clone(), dist, info));
-                    }
+                    && dist <= cutoff
+                {
+                    let info = zones.get(idx).map(|z| z.info.clone()).unwrap_or_default();
+                    results.push((addr.adress.clone(), dist, info));
+                }
                 let cnt = counter.fetch_add(1, Ordering::Relaxed) + 1;
                 if cnt.is_multiple_of(10_000) || cnt == total {
                     let pct = (cnt as f64 / total as f64) * 100.0;
@@ -220,10 +223,11 @@ fn correlate_dataset(
             let algo = RTreeSpatialAlgo::new(zones);
             for addr in addresses {
                 if let Some((idx, dist)) = algo.correlate(addr, zones)
-                    && dist <= cutoff {
-                        let info = zones.get(idx).map(|z| z.info.clone()).unwrap_or_default();
-                        results.push((addr.adress.clone(), dist, info));
-                    }
+                    && dist <= cutoff
+                {
+                    let info = zones.get(idx).map(|z| z.info.clone()).unwrap_or_default();
+                    results.push((addr.adress.clone(), dist, info));
+                }
                 let cnt = counter.fetch_add(1, Ordering::Relaxed) + 1;
                 if cnt.is_multiple_of(10_000) || cnt == total {
                     let pct = (cnt as f64 / total as f64) * 100.0;
@@ -235,10 +239,11 @@ fn correlate_dataset(
             let algo = KDTreeSpatialAlgo::new(zones);
             for addr in addresses {
                 if let Some((idx, dist)) = algo.correlate(addr, zones)
-                    && dist <= cutoff {
-                        let info = zones.get(idx).map(|z| z.info.clone()).unwrap_or_default();
-                        results.push((addr.adress.clone(), dist, info));
-                    }
+                    && dist <= cutoff
+                {
+                    let info = zones.get(idx).map(|z| z.info.clone()).unwrap_or_default();
+                    results.push((addr.adress.clone(), dist, info));
+                }
                 let cnt = counter.fetch_add(1, Ordering::Relaxed) + 1;
                 if cnt.is_multiple_of(10_000) || cnt == total {
                     let pct = (cnt as f64 / total as f64) * 100.0;
@@ -250,10 +255,11 @@ fn correlate_dataset(
             let algo = GridNearestAlgo::new(zones);
             for addr in addresses {
                 if let Some((idx, dist)) = algo.correlate(addr, zones)
-                    && dist <= cutoff {
-                        let info = zones.get(idx).map(|z| z.info.clone()).unwrap_or_default();
-                        results.push((addr.adress.clone(), dist, info));
-                    }
+                    && dist <= cutoff
+                {
+                    let info = zones.get(idx).map(|z| z.info.clone()).unwrap_or_default();
+                    results.push((addr.adress.clone(), dist, info));
+                }
                 let cnt = counter.fetch_add(1, Ordering::Relaxed) + 1;
                 if cnt.is_multiple_of(10_000) || cnt == total {
                     let pct = (cnt as f64 / total as f64) * 100.0;
