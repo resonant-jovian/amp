@@ -1,11 +1,17 @@
 // ===================================================================
 // AMP StadsAtlas Interface - JavaScript Controller
 // Handles address search, map loading, tab switching, and logging
+// Uses localStorage for persistent classification data (works with file:// URLs)
 // ===================================================================
 
 const BASE_URL = 'https://geo.malmo.se/api/search';
 let shouldAutoLoad = true; // Flag to auto-load on page load
 let hasAutoLoaded = false; // Track if auto-load has already happened
+
+// Storage keys
+const STORAGE_KEY_NOT_MATCHING = 'amp_classification_notMatching';
+const STORAGE_KEY_INVALID = 'amp_classification_invalid';
+const STORAGE_KEY_LAST_ADDED = 'amp_classification_lastAdded';
 
 function logToConsole(prefix, message) {
     const timestamp = new Date().toLocaleTimeString();
@@ -207,7 +213,49 @@ function buildCurrentDataSnapshot() {
     };
 }
 
-// Handle classification buttons - call Rust backend
+// Helper: get classification array from localStorage
+function getClassificationArray(category) {
+    const key = category === 'notMatching' ? STORAGE_KEY_NOT_MATCHING : STORAGE_KEY_INVALID;
+    const stored = localStorage.getItem(key);
+    try {
+        return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+        logToConsole('ERROR', `Failed to parse ${category} classifications: ${e.message}`);
+        return [];
+    }
+}
+
+// Helper: save classification array to localStorage
+function saveClassificationArray(category, entries) {
+    const key = category === 'notMatching' ? STORAGE_KEY_NOT_MATCHING : STORAGE_KEY_INVALID;
+    localStorage.setItem(key, JSON.stringify(entries));
+}
+
+// Helper: export all classifications as JSON file
+function exportClassificationsToFile() {
+    const notMatching = getClassificationArray('notMatching');
+    const invalid = getClassificationArray('invalid');
+
+    const data = {
+        exported_at: new Date().toISOString(),
+        notMatching,
+        invalid
+    };
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'amp_stadsatlas_classification.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    logToConsole('DATA', 'Exported classifications to file');
+}
+
+// Handle classification buttons
 function handleDataReviewAction(category) {
     if (category !== 'notMatching' && category !== 'invalid') {
         logToConsole('DATA', `Unknown category: ${category}`);
@@ -222,64 +270,76 @@ function handleDataReviewAction(category) {
         return;
     }
 
-    // Call Rust backend endpoint to save classification
-    fetch('/api/classify', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            category,
-            data: snapshot,
-            timestamp: new Date().toISOString()
-        })
-    })
-    .then(response => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json();
-    })
-    .then(result => {
-        logToConsole('DATA', `Successfully saved classification for "${snapshot.address}" under "${category}"`);
-        console.log('Backend response:', result);
-    })
-    .catch(error => {
-        logToConsole('ERROR', `Failed to save classification: ${error.message}`);
-        console.error('Classification error:', error);
-    });
+    // Generate unique ID
+    const id = `${category}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+
+    // Create entry
+    const entry = {
+        id,
+        timestamp: new Date().toISOString(),
+        address: snapshot.address,
+        postal_code: snapshot.postalCode,
+        source: snapshot.source,
+        matches_html: snapshot.matchesHtml
+    };
+
+    // Get current array
+    const entries = getClassificationArray(category);
+    entries.push(entry);
+
+    // Save to localStorage
+    saveClassificationArray(category, entries);
+
+    // Save last added for this category
+    const lastAdded = JSON.parse(localStorage.getItem(STORAGE_KEY_LAST_ADDED) || '{}');
+    lastAdded[category] = id;
+    localStorage.setItem(STORAGE_KEY_LAST_ADDED, JSON.stringify(lastAdded));
+
+    logToConsole('DATA', `Successfully saved classification for "${snapshot.address}" under "${category}"`);
+    logToConsole('DATA', `Total ${category} entries: ${entries.length}`);
+    
+    // Auto-export to file for backup
+    exportClassificationsToFile();
 }
 
-// Undo the last addition in a category
+// Undo the last classification in a category
 function undoDataReviewAction(category) {
     if (category !== 'notMatching' && category !== 'invalid') {
         logToConsole('DATA', `Unknown category for undo: ${category}`);
         return;
     }
 
-    const snapshot = buildCurrentDataSnapshot();
+    const lastAdded = JSON.parse(localStorage.getItem(STORAGE_KEY_LAST_ADDED) || '{}');
+    const lastId = lastAdded[category];
 
-    // Call Rust backend endpoint to undo last classification
-    fetch('/api/classify/undo', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            category,
-            address: snapshot.address
-        })
-    })
-    .then(response => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json();
-    })
-    .then(result => {
-        logToConsole('DATA', `Undid last addition for category "${category}"`);
-        console.log('Undo response:', result);
-    })
-    .catch(error => {
-        logToConsole('ERROR', `Failed to undo classification: ${error.message}`);
-        console.error('Undo error:', error);
-    });
+    if (!lastId) {
+        logToConsole('DATA', `No recent additions to undo for category "${category}"`);
+        return;
+    }
+
+    // Get current array
+    const entries = getClassificationArray(category);
+    
+    // Find and remove the last added entry
+    const index = entries.findIndex(e => e.id === lastId);
+    if (index === -1) {
+        logToConsole('DATA', `Entry with ID "${lastId}" not found`);
+        delete lastAdded[category];
+        localStorage.setItem(STORAGE_KEY_LAST_ADDED, JSON.stringify(lastAdded));
+        return;
+    }
+
+    entries.splice(index, 1);
+    saveClassificationArray(category, entries);
+    
+    delete lastAdded[category];
+    localStorage.setItem(STORAGE_KEY_LAST_ADDED, JSON.stringify(lastAdded));
+
+    logToConsole('DATA', `Undid last addition for category "${category}"`);
+    logToConsole('DATA', `Total ${category} entries: ${entries.length}`);
+    
+    // Auto-export to file for backup
+    exportClassificationsToFile();
 }
 
 // Initialize on page load
@@ -301,6 +361,8 @@ document.addEventListener('DOMContentLoaded', function() {
     logToConsole('INFO', '  3. If it does NOT match, press "No - Not matching".');
     logToConsole('INFO', '  4. If the data is NOT relevant for the address, press "No - Invalid/Irrelevant".');
     logToConsole('INFO', '  5. Then close this tab and move to the next one.');
+    logToConsole('INFO', '');
+    logToConsole('INFO', 'Classifications are saved to browser localStorage and exported as JSON files.');
     logToConsole('INFO', '');
     
     // Set up search button
