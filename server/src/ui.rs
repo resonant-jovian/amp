@@ -16,7 +16,6 @@ use amp_core::correlation_algorithms::{
 };
 use amp_core::structs::{AdressClean, CorrelationResult, MiljoeDataClean};
 
-/// Type alias for correlation result tuples: (address, distance_meters, zone_info)
 type CorrelationTuple = (String, f64, String);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -83,15 +82,11 @@ impl View {
 pub struct AppState {
     pub view: View,
     pub selected_tab: usize,
-
     pub selected_algorithm: AlgorithmChoice,
     pub cutoff: f64,
-
     pub is_running: bool,
     pub progress: f64,
-
     pub correlation_results: Vec<CorrelationResult>,
-
     pub last_action: String,
 }
 
@@ -138,11 +133,19 @@ impl App {
                 .checked_sub(last_tick.elapsed())
                 .unwrap_or_else(|| Duration::from_secs(0));
 
-            if crossterm::event::poll(timeout)?
-                && let Event::Key(key) = crossterm::event::read()?
-                && self.on_key(key)?
-            {
-                break;
+            if crossterm::event::poll(timeout)? {
+                if let Event::Key(key) = crossterm::event::read()? {
+                    // Always exit on Ctrl+C
+                    if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL)
+                        && matches!(key.code, KeyCode::Char('c') | KeyCode::Char('C'))
+                    {
+                        break;
+                    }
+
+                    if self.on_key(key)? {
+                        break;
+                    }
+                }
             }
 
             if last_tick.elapsed() >= tick_rate {
@@ -161,7 +164,7 @@ impl App {
         }
 
         match key.code {
-            KeyCode::Char('q') => return Ok(true),
+            KeyCode::Char('q') | KeyCode::Char('Q') => return Ok(true),
             KeyCode::Left => {
                 if self.state.selected_tab > 0 {
                     self.state.selected_tab -= 1;
@@ -283,7 +286,7 @@ impl App {
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
             .split(area);
 
-        let help = Paragraph::new("[←/→] Tab  [1-5] Jump  [a] Algo  [+/-] Cut  [↵] Run  [q] Quit")
+        let help = Paragraph::new("[←/→] Tab  [1-5] Jump  [a] Algo  [+/-] Cut  [↵] Run  [q/Ctrl+C] Quit")
             .style(Style::default().fg(Color::Gray));
         frame.render_widget(help, layout[0]);
 
@@ -577,18 +580,21 @@ impl App {
         self.state.last_action =
             "Launching browser-based test mode (see external windows)...".into();
         classification::run_test_mode_legacy(self.state.selected_algorithm, self.state.cutoff)?;
+        self.state.last_action = "Browser test mode complete".into();
         Ok(())
     }
 
     fn run_benchmark(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         self.state.last_action = "Running benchmark in external logging (see stdout)...".into();
         classification::run_benchmark_legacy(self.state.cutoff)?;
+        self.state.last_action = "Benchmark complete".into();
         Ok(())
     }
 
     fn run_update_check(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         self.state.last_action = "Checking remote data for updates...".into();
         classification::run_check_updates_legacy()?;
+        self.state.last_action = "Update check complete".into();
         Ok(())
     }
 }
