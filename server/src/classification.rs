@@ -17,11 +17,13 @@ use std::time::Instant;
 pub const _STANDARD_CUTOFF_METERS: f64 = 20.0;
 
 /// Type alias for correlation result tuples: (address, distance_meters, zone_info)
+#[allow(dead_code)]
 type CorrelationTuple = (String, f64, String);
 
 /// Type alias for benchmark algorithm function
 type BenchmarkAlgoFn = fn(&Benchmarker, &[AdressClean], &ProgressBar, &AtomicUsize) -> ();
 
+#[allow(dead_code)]
 pub fn run_test_mode_legacy(
     algorithm: AlgorithmChoice,
     cutoff: f64,
@@ -110,8 +112,7 @@ pub fn run_check_updates_legacy() -> Result<(), Box<dyn std::error::Error>> {
         );
 
         let pb = ProgressBar::new_spinner();
-        pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
-        pb.set_message("Fetching remote data...");
+        pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);        pb.set_message("Fetching remote data...");
 
         new_checksums.update_from_remote().await?;
         pb.finish_with_message("✓ Data fetched");
@@ -138,6 +139,7 @@ pub fn run_check_updates_legacy() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// Correlate datasets for the browser-based visual testing harness.
+#[allow(dead_code)]
 fn correlate_dataset_for_browser(
     algorithm: AlgorithmChoice,
     addresses: &[AdressClean],
@@ -160,6 +162,7 @@ fn correlate_dataset_for_browser(
 }
 
 /// Correlate addresses with a dataset using the specified algorithm, honoring the given cutoff.
+#[allow(dead_code)]
 fn correlate_dataset(
     algorithm: &AlgorithmChoice,
     addresses: &[AdressClean],
@@ -273,6 +276,7 @@ fn correlate_dataset(
 }
 
 /// Merge correlation results from two datasets into the core `CorrelationResult` type.
+#[allow(dead_code)]
 fn merge_results(
     addresses: &[AdressClean],
     miljo_results: &[CorrelationTuple],
