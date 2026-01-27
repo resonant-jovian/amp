@@ -74,7 +74,7 @@
 </head>
 <body>
     <div id="map"></div>
-    <div class="map-info" id="mapInfo">🗺️ Loading map...
+    <div class="map-info" id="mapInfo"🗺️ Loading map...
     </div>
     <div class="attribution">© Malmö stad</div>
     
@@ -131,7 +131,7 @@
         const resolution = zoomToResolution[Math.min(zoom, 13)];
         
         try {
-            console.log('🔧 Creating map with OpenLayers...');
+            console.log('🔧 Creating map with OpenLayers 7.x...');
             
             // Create XYZ tile layer for background
             const backgroundLayer = new ol.layer.Tile({
@@ -226,11 +226,17 @@
                 target: 'map',
                 layers: [backgroundLayer, miljoLayer, vectorLayer],
                 view: view,
-                controls: ol.control.defaults({
-                    zoom: true,
-                    rotate: false,
-                    attribution: true
-                })
+                controls: [
+                    new ol.control.Zoom({
+                        zoomInLabel: '+',
+                        zoomOutLabel: '-',
+                        zoomInTipLabel: 'Zoom in',
+                        zoomOutTipLabel: 'Zoom out'
+                    }),
+                    new ol.control.Attribution({
+                        collapsible: false
+                    })
+                ]
             });
             
             console.log('✅ Map created successfully');
