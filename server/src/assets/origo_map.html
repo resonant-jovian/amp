@@ -124,11 +124,6 @@
             font-weight: 600;
             margin-bottom: 3px;
         }
-        .popup-title {
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 3px;
-        }
         .popup-distance {
             color: #ff6b35;
             font-weight: 500;
@@ -148,18 +143,11 @@
             font-size: 11px;
             color: #666;
         }
-        .ol-popup {
-            display: none;
-        }
-        .ol-popup.show {
-            display: block;
-        }
     </style>
 </head>
 <body>
     <div id="map"></div>
-    <div class="map-info" id="mapInfo">🗺️ Loading map...
-    </div>
+    <div class="map-info" id="mapInfo">🗺️ Loading map...</div>
     
     <!-- Layer Controls -->
     <div class="layer-controls" id="layerControls">
@@ -195,8 +183,8 @@
         const centerStr = params.get('center');
         const zoom = parseInt(params.get('zoom')) || 11;
         
-        let mapCenterX = 120844;
-        let mapCenterY = 6161226;
+        let mapCenterX = 119378;
+        let mapCenterY = 6162294;
         
         if (centerStr) {
             const coords = centerStr.split(',').map(c => parseFloat(c.trim()));
@@ -350,8 +338,8 @@
             
             console.log('✅ Map created successfully');
             console.log('✅ Background layer added (ArcGIS REST export)');
-            console.log('✅ Miljöparkering WMS layer added (visible by default)');
-            console.log('✅ Parkeringsavgifter WMS layer added (visible by default)');
+            console.log('✅ Miljöparkering WMS layer added');
+            console.log('✅ Parkeringsavgifter WMS layer added');
             console.log('✅ Address pin added at [' + mapCenterX + ',' + mapCenterY + ']');
             
             // Layer toggle functionality
@@ -370,7 +358,6 @@
                 const coordinate = evt.coordinate;
                 const popupElement = document.getElementById('popup');
                 
-                // Query both layers
                 const promises = [];
                 
                 if (miljoLayer.getVisible()) {
@@ -389,8 +376,6 @@
                     const validResults = results.filter(r => r && r.info);
                     if (validResults.length > 0) {
                         showPopup(coordinate, validResults, popupElement, map);
-                    } else {
-                        console.log('No features found at this location');
                     }
                 });
             });
@@ -418,8 +403,6 @@
                     fetch(url)
                         .then(response => response.json())
                         .then(data => {
-                            console.log('GetFeatureInfo response (' + type + '):', data);
-                            
                             if (data.features && data.features.length > 0) {
                                 const feature = data.features[0];
                                 const props = feature.properties || {};
@@ -429,11 +412,9 @@
                                 
                                 if (type === 'miljo') {
                                     title = '🌍 Miljödata';
-                                    // Try different field names based on your API
                                     info = props.copy_value || props.value || props.copyvalue || 'Parkeringsrestriktioner';
                                 } else if (type === 'avgift') {
                                     title = '🅿️ Parkering';
-                                    // For avgifter, use taxa field
                                     info = props.taxa || props.value || props.copyvalue || 'Parkeringsavgift';
                                 }
                                 
@@ -476,7 +457,6 @@
                 element.style.top = (pixel[1] - 10) + 'px';
                 element.classList.add('show');
                 
-                // Auto-hide after 6 seconds
                 setTimeout(() => {
                     element.classList.remove('show');
                 }, 6000);
@@ -490,18 +470,14 @@
                     '🗺️ Map Ready<br>' +
                     'X: ' + c[0].toFixed(0) + '<br>' +
                     'Y: ' + c[1].toFixed(0) + '<br>' +
-                    'Zoom: ' + z.toFixed(1) + '<br>' +
-                    '<small>Click on zones for info</small>';
+                    'Zoom: ' + z.toFixed(1);
             }
             
-            // Initial update
             updateInfo();
-            
-            // Update on view changes
             view.on('change:center', updateInfo);
             view.on('change:resolution', updateInfo);
             
-            console.log('🚀 Map initialization complete with layer toggles and feature info!');
+            console.log('🚀 Map initialization complete!');
             
         } catch (error) {
             console.error('❌ Map initialization error:', error);
