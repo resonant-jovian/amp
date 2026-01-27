@@ -1,5 +1,6 @@
 use crate::structs::*;
 use anyhow;
+use arrow::array::UInt16Builder;
 use arrow::{
     array::{Float64Array, Float64Builder, StringArray, StringBuilder, UInt8Array, UInt8Builder},
     datatypes::{DataType, Field, Schema},
@@ -13,14 +14,14 @@ use parquet::{
 use std::{collections::BTreeMap, fs::File, sync::Arc};
 
 /// Parking restriction info extracted from parquet data
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ParkingRestriction {
     pub gata: String,
     pub gatunummer: String,
     pub postnummer: u16,
-    pub dag: u8,          // Day of month (1-31)
-    pub tid: String,      // Time interval "HHMM-HHMM"
-    pub info: String,     // Restriction info
+    pub dag: u8,      // Day of month (1-31)
+    pub tid: String,  // Time interval "HHMM-HHMM"
+    pub info: String, // Restriction info
 }
 
 /// Read correlation results from parquet file
@@ -247,8 +248,7 @@ pub fn android_local_schema() -> Arc<Schema> {
 
 /// Read Android local addresses from parquet file
 pub fn read_android_local_addresses(path: &str) -> anyhow::Result<Vec<ParkingRestriction>> {
-    let file = File::open(path)
-        .map_err(|e| anyhow::anyhow!("Failed to open {}: {}", path, e))?;
+    let file = File::open(path).map_err(|e| anyhow::anyhow!("Failed to open {}: {}", path, e))?;
 
     let builder = ParquetRecordBatchReaderBuilder::try_new(file)
         .map_err(|e| anyhow::anyhow!("Failed to create Parquet reader builder: {}", e))?;
@@ -318,11 +318,7 @@ pub fn read_android_local_addresses(path: &str) -> anyhow::Result<Vec<ParkingRes
                     .flatten()
                     .map(|s| s.to_string())
                     .unwrap_or_default(),
-                postnummer: postnummer
-                    .clone()
-                    .nth(i)
-                    .flatten()
-                    .unwrap_or(0),
+                postnummer: postnummer.clone().nth(i).flatten().unwrap_or(0),
                 dag: dag.clone().nth(i).flatten().unwrap_or(0),
                 tid: tid
                     .clone()
@@ -358,14 +354,11 @@ pub fn write_android_local_addresses(
     // Group by postal code for row groups
     let mut grouped: BTreeMap<u16, Vec<ParkingRestriction>> = BTreeMap::new();
     for addr in addresses {
-        grouped
-            .entry(addr.postnummer)
-            .or_default()
-            .push(addr);
+        grouped.entry(addr.postnummer).or_default().push(addr);
     }
 
-    let file = File::create(path)
-        .map_err(|e| anyhow::anyhow!("Failed to create file {}: {}", path, e))?;
+    let file =
+        File::create(path).map_err(|e| anyhow::anyhow!("Failed to create file {}: {}", path, e))?;
 
     let props = WriterProperties::builder()
         .set_statistics_enabled(EnabledStatistics::None)

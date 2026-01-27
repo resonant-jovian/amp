@@ -1,17 +1,14 @@
-use dioxus::prelude::*;
-use crate::countdown::{bucket_for, format_countdown, TimeBucket};
+use crate::countdown::{TimeBucket, bucket_for, format_countdown};
 use crate::static_data::StaticAddressEntry;
+use dioxus::prelude::*;
 
 /// Display an address with countdown timer in appropriate category
 #[component]
-pub fn CategorizedAddress(
-    entry: StaticAddressEntry,
-    on_remove: EventHandler<()>,
-) -> Element {
+pub fn CategorizedAddress(entry: StaticAddressEntry, on_remove: EventHandler<()>) -> Element {
     let bucket = bucket_for(entry.dag, &entry.tid);
     let countdown = format_countdown(entry.dag, &entry.tid).unwrap_or_else(|| "...".to_string());
 
-    let (category_name, css_class) = match bucket {
+    let (_category_name, css_class) = match bucket {
         TimeBucket::Now => ("Nu", "bucket-now"),
         TimeBucket::Within6Hours => ("Om mindre än 6h", "bucket-6h"),
         TimeBucket::Within1Day => ("Inom 24h", "bucket-1d"),
@@ -76,10 +73,7 @@ pub fn Active(
 
 /// Panel displaying addresses within 6 hours
 #[component]
-pub fn Six(
-    addresses: Vec<StaticAddressEntry>,
-    on_remove_address: EventHandler<String>,
-) -> Element {
+pub fn Six(addresses: Vec<StaticAddressEntry>, on_remove_address: EventHandler<String>) -> Element {
     let addrs: Vec<_> = addresses
         .into_iter()
         .filter(|a| matches!(bucket_for(a.dag, &a.tid), TimeBucket::Within6Hours))
@@ -114,10 +108,7 @@ pub fn Six(
 
 /// Panel displaying addresses within 24 hours
 #[component]
-pub fn Day(
-    addresses: Vec<StaticAddressEntry>,
-    on_remove_address: EventHandler<String>,
-) -> Element {
+pub fn Day(addresses: Vec<StaticAddressEntry>, on_remove_address: EventHandler<String>) -> Element {
     let addrs: Vec<_> = addresses
         .into_iter()
         .filter(|a| matches!(bucket_for(a.dag, &a.tid), TimeBucket::Within1Day))

@@ -34,11 +34,11 @@ fn add_one_month(date: NaiveDate) -> Option<NaiveDate> {
 }
 
 /// Calculate remaining duration until next parking restriction deadline
-/// 
+///
 /// # Arguments
 /// * `dag` - Day of month (1-31) when parking restriction ends
 /// * `tid` - Time interval string (e.g., "0800-1000")
-/// 
+///
 /// # Returns
 /// Duration until the next occurrence of the restriction deadline, or None if invalid
 pub fn remaining_duration(dag: u8, tid: &str) -> Option<Duration> {
@@ -68,7 +68,7 @@ pub fn remaining_duration(dag: u8, tid: &str) -> Option<Duration> {
 }
 
 /// Format countdown as human-readable string
-/// 
+///
 /// # Returns
 /// Formatted string like "5d 02h 30m" or None if calculation fails
 pub fn format_countdown(dag: u8, tid: &str) -> Option<String> {
@@ -115,6 +115,7 @@ pub fn bucket_for(dag: u8, tid: &str) -> TimeBucket {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Timelike;
 
     #[test]
     fn test_parse_tid_interval() {

@@ -8,8 +8,10 @@ use amp_core::correlation_algorithms::{
     CorrelationAlgo, DistanceBasedAlgo, GridNearestAlgo, KDTreeSpatialAlgo, OverlappingChunksAlgo,
     RTreeSpatialAlgo, RaycastingAlgo,
 };
+use amp_core::parquet::{
+    ParkingRestriction, write_android_local_addresses, write_correlation_parquet,
+};
 use amp_core::structs::{AdressClean, CorrelationResult, MiljoeDataClean};
-use amp_core::parquet::{write_correlation_parquet, write_android_local_addresses, ParkingRestriction};
 use clap::{Parser, Subcommand};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use rand::seq::SliceRandom;
@@ -136,7 +138,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Correlate { algorithm, cutoff } => {
             run_correlation(algorithm, cutoff)?;
         }
-        Commands::Output { algorithm, cutoff, output, android } => {
+        Commands::Output {
+            algorithm,
+            cutoff,
+            output,
+            android,
+        } => {
             run_output(algorithm, cutoff, &output, android)?;
         }
         Commands::Test {
@@ -443,7 +450,8 @@ fn run_correlation(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Load data with progress
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);    pb.set_message("Loading data...");
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
+    pb.set_message("Loading data...");
 
     let (addresses, miljodata, parkering): (
         Vec<AdressClean>,
@@ -475,7 +483,8 @@ fn run_correlation(
     let pb = ProgressBar::new(addresses.len() as u64);
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}% {msg}")?            .progress_chars("█▓▒░ "),
+            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}% {msg}")?
+            .progress_chars("█▓▒░ "),
     );
 
     // Correlate with miljödata
@@ -621,7 +630,8 @@ fn run_output(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Load data with progress
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);    pb.set_message("Loading data...");
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
+    pb.set_message("Loading data...");
 
     let (addresses, miljodata, parkering): (
         Vec<AdressClean>,
@@ -650,7 +660,8 @@ fn run_output(
     let pb = ProgressBar::new(addresses.len() as u64);
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}% {msg}")?            .progress_chars("█▓▒░ "),
+            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}% {msg}")?
+            .progress_chars("█▓▒░ "),
     );
 
     // Correlate with miljödata
@@ -669,7 +680,8 @@ fn run_output(
 
     let total_matches = merged.iter().filter(|r| r.has_match()).count();
     println!("\n✓ Correlation complete");
-    println!("   Total matches: {}/{} ({:.1}%)",
+    println!(
+        "   Total matches: {}/{} ({:.1}%)",
         total_matches,
         addresses.len(),
         (total_matches as f64 / addresses.len() as f64) * 100.0
@@ -689,7 +701,7 @@ fn run_output(
         let mut android_addresses = Vec::new();
 
         for result in merged {
-            if let Some((distance, info)) = result.miljo_match {
+            if let Some((_distance, info)) = result.miljo_match {
                 // Parse info to extract day and time
                 // Info format from miljödata might be like "Miljöparkering mån-fre 8-18, dag: 1, tid: 0800-1000"
                 // For now, we'll extract from structured data if available
@@ -702,7 +714,7 @@ fn run_output(
                             postnummer: parse_postnummer(&result.postnummer),
                             dag: restriction.dag,
                             tid: restriction.tid,
-                            info: info,
+                            info,
                         });
                     }
                 }
@@ -710,11 +722,20 @@ fn run_output(
         }
 
         if !android_addresses.is_empty() {
-            let android_output = format!("{}/.app_addresses.parquet", std::path::Path::new(output_path).parent().unwrap_or_else(|| std::path::Path::new(".")).display());
+            let android_output = format!(
+                "{}/.app_addresses.parquet",
+                std::path::Path::new(output_path)
+                    .parent()
+                    .unwrap_or_else(|| std::path::Path::new("."))
+                    .display()
+            );
             write_android_local_addresses(&android_output, android_addresses.clone())
                 .map_err(|e| format!("Failed to write Android parquet: {}", e))?;
             println!("   ✓ Saved to {}", android_output);
-            println!("   ✓ Extracted {} parking restrictions for Android app", android_addresses.len());
+            println!(
+                "   ✓ Extracted {} parking restrictions for Android app",
+                android_addresses.len()
+            );
         } else {
             println!("   ⚠️  No restrictions extracted for Android format");
         }
@@ -734,7 +755,7 @@ struct ExtractedRestriction {
 fn extract_restriction_from_info(info: &str) -> Option<ExtractedRestriction> {
     // Try to parse day (1-31) and time (HHMM-HHMM) from info
     // This is a simplified implementation - actual parsing depends on info format
-    
+
     // Look for patterns like "dag: 1" and "tid: 0800-1000"
     let dag = if let Some(pos) = info.find("dag:") {
         let rest = &info[pos + 4..].trim_start();
@@ -776,7 +797,8 @@ fn run_test_mode(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Load data with progress
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);    pb.set_message("Loading data for testing...");
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
+    pb.set_message("Loading data for testing...");
 
     let (addresses, miljodata, parkering): (
         Vec<AdressClean>,
@@ -800,7 +822,8 @@ fn run_test_mode(
     let pb = ProgressBar::new(addresses.len() as u64);
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}%")?            .progress_chars("█▓▒░ "),
+            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}%")?
+            .progress_chars("█▓▒░ "),
     );
 
     let miljo_results = correlate_dataset(&algorithm, &addresses, &miljodata, cutoff, &pb)?;
@@ -1020,7 +1043,8 @@ fn open_browser_window(
 fn run_benchmark(sample_size: usize, cutoff: f64) -> Result<(), Box<dyn std::error::Error>> {
     // Load data
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);    pb.set_message("Loading data for benchmarking...");
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
+    pb.set_message("Loading data for benchmarking...");
 
     let (addresses, zones) = amp_core::api::api_miljo_only()?;
 
@@ -1283,7 +1307,8 @@ async fn check_updates(checksum_file: &str) -> Result<(), Box<dyn std::error::Er
     );
 
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);    pb.set_message("Fetching remote data...");
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
+    pb.set_message("Fetching remote data...");
 
     new_checksums.update_from_remote().await?;
     pb.finish_with_message("✓ Data fetched");

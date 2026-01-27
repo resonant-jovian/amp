@@ -2,15 +2,14 @@ pub mod adresser;
 pub mod paneler;
 pub mod topbar;
 
+use crate::static_data::StaticAddressEntry;
 use crate::ui::{
     adresser::Adresser,
     paneler::{Active, Day, Month, NotValid, Six},
     topbar::TopBar,
 };
-use crate::static_data::StaticAddressEntry;
 
 use dioxus::prelude::*;
-use std::time::{Duration, SystemTime};
 
 static CSS: Asset = asset!("/assets/style.css");
 
@@ -37,7 +36,6 @@ pub fn App() -> Element {
     // Initialize with sample data for testing
     use_effect(move || {
         if !addresses.read().is_empty() {
-            return;
         }
         // TODO: Initialize with sample data or from persistent storage
     });

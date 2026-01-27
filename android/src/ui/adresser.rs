@@ -1,23 +1,15 @@
-use dioxus::prelude::*;
-use crate::matching::{match_address, validate_input, MatchResult};
+use crate::matching::{MatchResult, match_address, validate_input};
 use crate::static_data::StaticAddressEntry;
+use dioxus::prelude::*;
 
 #[derive(Clone, Debug, PartialEq)]
+#[derive(Default)]
 pub struct AddressInputState {
     pub gata: String,
     pub gatunummer: String,
     pub postnummer: String,
 }
 
-impl Default for AddressInputState {
-    fn default() -> Self {
-        Self {
-            gata: String::new(),
-            gatunummer: String::new(),
-            postnummer: String::new(),
-        }
-    }
-}
 
 #[derive(Clone, Debug)]
 pub enum ValidationStatus {
@@ -27,11 +19,9 @@ pub enum ValidationStatus {
 }
 
 #[component]
-pub fn Adresser(
-    on_add_valid_address: EventHandler<StaticAddressEntry>,
-) -> Element {
+pub fn Adresser(on_add_valid_address: EventHandler<StaticAddressEntry>) -> Element {
     let mut input = use_signal(AddressInputState::default);
-    let mut validation_status = use_signal(ValidationStatus::None);
+    let mut validation_status = use_signal(|| ValidationStatus::None);
 
     let handle_add = move |_| {
         let current = input.read().clone();
