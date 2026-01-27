@@ -81,7 +81,7 @@ impl DataLoader {
         }
     }
 
-    fn extract_point_coordinates_legacy(feature: &Feature) -> Option<[Decimal; 2]> {
+    fn _extract_point_coordinates_legacy(feature: &Feature) -> Option<[Decimal; 2]> {
         if let Some(ref geom) = feature.geometry {
             match &geom.value {
                 geojson::Value::Point(coords) => {
@@ -284,7 +284,7 @@ impl DataLoader {
             collection
                 .features
                 .into_iter()
-                .flat_map(|f| Self::parse_parking_feature(f, is_avgifter))  // flat_map to expand segments
+                .flat_map(|f| Self::parse_parking_feature(f, is_avgifter)) // flat_map to expand segments
                 .collect()
         } else {
             return Err(format!("Invalid GeoJSON format for {}", dataset_name).into());
