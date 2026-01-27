@@ -7,10 +7,11 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, ModifierKeyState};
+use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     prelude::*,
+    style::Stylize,
     text::{Line, Span},
     widgets::{Block, Borders, Gauge, List, ListItem, Paragraph, Row, Table, Tabs, Wrap},
 };
@@ -69,7 +70,7 @@ impl ColorTheme {
 
     pub fn header_style(&self) -> Style {
         match self {
-            ColorTheme::Light => Style::default().fg(Color::DarkCyan).add_modifier(Modifier::BOLD),
+            ColorTheme::Light => Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD),
             ColorTheme::Dark => Style::default().fg(Color::Cyan),
         }
     }
@@ -288,14 +289,14 @@ impl App {
         // Optimize for small/vertical screens: reduce header to 1 line if needed
         let header_height = if area.height < 20 { 1 } else { 2 };
         let footer_height = 1;
-        let content_height = area.height.saturating_sub(header_height + footer_height);
+        let content_height = area.height.saturating_sub(header_height + footer_height) as u16;
 
         // Main layout: header | content | footer
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Length(header_height),
-                Constraint::Min(content_height as usize),
+                Constraint::Min(content_height),
                 Constraint::Length(footer_height),
             ])
             .split(area);
@@ -374,8 +375,16 @@ impl App {
         lines.push(Line::from(vec![
             Span::styled("📋 Quick Stats:", Style::default().fg(theme.text_color()).add_modifier(Modifier::BOLD)),
         ]));
-        lines.push(Line::from(format!("  • Algorithm: {}", self.state.current_algorithm.name()).style(theme.text_color())));
-        lines.push(Line::from(format!("  • Cutoff: {:.1}m", self.state.cutoff_distance).style(theme.text_color())));
+
+        // Algorithm line
+        lines.push(Line::from(vec![
+            Span::raw(format!("  • Algorithm: {}", self.state.current_algorithm.name())).fg(theme.text_color()),
+        ]));
+
+        // Cutoff line
+        lines.push(Line::from(vec![
+            Span::raw(format!("  • Cutoff: {:.1}m", self.state.cutoff_distance)).fg(theme.text_color()),
+        ]));
 
         // Spacing
         lines.push(Line::from(""));
@@ -384,7 +393,10 @@ impl App {
         lines.push(Line::from(vec![
             Span::styled("⌨️ Navigation:", Style::default().fg(theme.text_color()).add_modifier(Modifier::BOLD)),
         ]));
-        lines.push(Line::from("  [1-5] Jump | [←→] Tab | [a] Algorithm | [+/-] Distance".style(theme.text_color())));
+
+        lines.push(Line::from(vec![
+            Span::raw("  [1-5] Jump | [←→] Tab | [a] Algorithm | [+/-] Distance").fg(theme.text_color()),
+        ]));
 
         // Spacing
         lines.push(Line::from(""));
@@ -677,7 +689,7 @@ impl App {
             status_lines.push(Line::from(""));
         }
 
-        status_lines.push(Line::from(&self.state.updates.status));
+        status_lines.push(Line::from(self.state.updates.status.clone()));
 
         let status = Paragraph::new(status_lines)
             .block(
@@ -702,10 +714,7 @@ impl App {
 
         let footer = Paragraph::new(status_text)
             .style(Style::default()
-                .fg(match theme {
-                    ColorTheme::Light => Color::White,
-                    ColorTheme::Dark => Color::White,
-                })
+                .fg(Color::White)
                 .bg(Color::DarkGray))
             .alignment(Alignment::Left);
 
@@ -719,7 +728,7 @@ impl App {
 
         match key.code {
             // Ctrl+C always exits
-            KeyCode::Char('c') if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 self.state.should_quit = true;
             }
             KeyCode::Char('q') | KeyCode::Char('Q') => self.state.should_quit = true,
