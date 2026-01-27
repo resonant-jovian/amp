@@ -133,10 +133,12 @@ impl App {
                 .checked_sub(last_tick.elapsed())
                 .unwrap_or_else(|| Duration::from_secs(0));
 
-            if crossterm::event::poll(timeout)? {
-                if let Event::Key(key) = crossterm::event::read()? {
+            if crossterm::event::poll(timeout)?
+                && let Event::Key(key) = crossterm::event::read()? {
                     // Always exit on Ctrl+C
-                    if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL)
+                    if key
+                        .modifiers
+                        .contains(crossterm::event::KeyModifiers::CONTROL)
                         && matches!(key.code, KeyCode::Char('c') | KeyCode::Char('C'))
                     {
                         break;
@@ -146,7 +148,6 @@ impl App {
                         break;
                     }
                 }
-            }
 
             if last_tick.elapsed() >= tick_rate {
                 self.on_tick()?;
@@ -286,8 +287,9 @@ impl App {
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
             .split(area);
 
-        let help = Paragraph::new("[←/→] Tab  [1-5] Jump  [a] Algo  [+/-] Cut  [↵] Run  [q/Ctrl+C] Quit")
-            .style(Style::default().fg(Color::Gray));
+        let help =
+            Paragraph::new("[←/→] Tab  [1-5] Jump  [a] Algo  [+/-] Cut  [↵] Run  [q/Ctrl+C] Quit")
+                .style(Style::default().fg(Color::Gray));
         frame.render_widget(help, layout[0]);
 
         let status = Paragraph::new(self.state.last_action.clone())
