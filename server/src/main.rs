@@ -148,6 +148,32 @@ fn load_asset_file(filename: &str) -> Result<String, Box<dyn std::error::Error>>
     Err(format!("Could not find asset file: {}", filename).into())
 }
 
+/// Encode text as base64 for data URIs
+fn base64_encode(data: &str) -> String {
+    use std::str;
+    const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let bytes = data.as_bytes();
+    let mut result = String::new();
+    
+    let mut i = 0;
+    while i < bytes.len() {
+        let b1 = bytes[i];
+        let b2 = if i + 1 < bytes.len() { bytes[i + 1] } else { 0 };
+        let b3 = if i + 2 < bytes.len() { bytes[i + 2] } else { 0 };
+        
+        let n = ((b1 as u32) << 16) | ((b2 as u32) << 8) | (b3 as u32);
+        
+        result.push(CHARSET[((n >> 18) & 63) as usize] as char);
+        result.push(CHARSET[((n >> 12) & 63) as usize] as char);
+        result.push(if i + 1 < bytes.len() { CHARSET[((n >> 6) & 63) as usize] as char } else { '=' });
+        result.push(if i + 2 < bytes.len() { CHARSET[(n & 63) as usize] as char } else { '=' });
+        
+        i += 3;
+    }
+    
+    result
+}
+
 /// Prompt user to select which algorithms to benchmark
 fn select_algorithms() -> Vec<&'static str> {
     let algorithms = vec![
@@ -375,7 +401,7 @@ fn run_correlation(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Load data with progress
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);;
     pb.set_message("Loading data...");
 
     let (addresses, miljodata, parkering): (
@@ -408,7 +434,8 @@ fn run_correlation(
     let pb = ProgressBar::new(addresses.len() as u64);
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}% {msg}")?
+            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}% {msg}")
+            .unwrap()
             .progress_chars("█▓▒░ "),
     );
 
@@ -553,7 +580,7 @@ fn run_test_mode(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Load data with progress
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);;
     pb.set_message("Loading data for testing...");
 
     let (addresses, miljodata, parkering): (
@@ -578,7 +605,8 @@ fn run_test_mode(
     let pb = ProgressBar::new(addresses.len() as u64);
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}%")?
+            .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}%")
+            .unwrap()
             .progress_chars("█▓▒░ "),
     );
 
@@ -708,7 +736,7 @@ fn format_matches_html(result: &CorrelationResult) -> String {
     }
 }
 
-/// Create HTML page by loading template and inlining CSS/JS
+/// Create HTML page by loading template and inlining CSS/JS, with origo_map.html as inline data URI
 fn create_tabbed_interface_page(
     address: &str,
     result: &CorrelationResult,
@@ -717,9 +745,18 @@ fn create_tabbed_interface_page(
     let mut html = load_asset_file("stadsatlas_interface.html")?;
     let css = load_asset_file("stadsatlas_interface.css")?;
     let js = load_asset_file("stadsatlas_interface.js")?;
+    let origo_map_html = load_asset_file("origo_map.html")?;
 
     let matches_html = format_matches_html(result);
     let address_escaped = address.replace('"', "&quot;");
+
+    // Escape HTML content for embedding in JavaScript string
+    let origo_map_escaped = origo_map_html.replace('\\', "\\\\").replace('"', "\\"");
+
+    // Create data URI for origo_map.html
+    let origo_data_uri = format!("data:text/html;charset=utf-8,{}", 
+        origo_map_escaped.replace('\n', "").replace(' ', "%20")
+    );
 
     // Replace placeholders
     html = html.replace("{ADDRESS}", &address_escaped);
@@ -727,6 +764,7 @@ fn create_tabbed_interface_page(
     html = html.replace("{RESULT_POSTNUMMER}", &result.postnummer);
     html = html.replace("{RESULT_SOURCE}", &result.dataset_source());
     html = html.replace("{RESULT_MATCHES}", &matches_html);
+    html = html.replace("{ORIGO_DATA_URI}", &origo_data_uri);
 
     // Inline CSS and JS
     html = html.replace(
@@ -792,7 +830,7 @@ fn open_browser_window(
 fn run_benchmark(sample_size: usize, cutoff: f64) -> Result<(), Box<dyn std::error::Error>> {
     // Load data
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);;
     pb.set_message("Loading data for benchmarking...");
 
     let (addresses, zones) = amp_core::api::api_miljo_only()?;
@@ -1056,7 +1094,7 @@ async fn check_updates(checksum_file: &str) -> Result<(), Box<dyn std::error::Er
     );
 
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);;
     pb.set_message("Fetching remote data...");
 
     new_checksums.update_from_remote().await?;
