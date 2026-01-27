@@ -121,37 +121,27 @@ function loadMapWithAddress(address, x, y) {
     
     logToConsole('MAP', `✓ iframe element found`);
     
-    // IMPORTANT: Use SIMPLE URL without layer parameters
-    // StadsAtlas does NOT support layer activation via URL hash parameters
-    // Layer toggling requires JavaScript access (blocked by CORS)
-    // Solution: Show map centered on address, user manually enables layers
-    const baseUrl = 'https://stadsatlas.malmo.se/stadsatlas/';
-    const mapUrl = `${baseUrl}#center=${x},${y}&zoom=18`;
+    // Load our custom origo_map.html with coordinates
+    // This file will handle layer activation automatically
+    const mapUrl = `origo_map.html#center=${x},${y}&zoom=18`;
     
     logToConsole('MAP', `URL: ${mapUrl}`);
-    logToConsole('MAP', `Setting iframe src...`);
+    logToConsole('MAP', `Setting iframe src to custom Origo map...`);
     
     iframe.src = mapUrl;
     
     logToConsole('MAP', '✓ iframe.src set successfully');
     logToConsole('MAP', '');
-    logToConsole('LAYERS', '⚠️  IMPORTANT: StadsAtlas does not support automatic layer activation via URL');
-    logToConsole('LAYERS', '🎯 Next: You must MANUALLY enable layers in the map:');
+    logToConsole('LAYERS', '✅ AUTOMATIC LAYER ACTIVATION:');
+    logToConsole('LAYERS', 'The map should now:');
+    logToConsole('LAYERS', '  1. Display the background tiles (Bakgrundskarta)');
+    logToConsole('LAYERS', '  2. Show the Miljöparkering layer (if data exists)');
+    logToConsole('LAYERS', '  3. Display a red pin at your address');
     logToConsole('LAYERS', '');
-    logToConsole('LAYERS', 'Steps to enable BAKGRUND (background/tiled layer):');
-    logToConsole('LAYERS', '  1. Look for the LAYERS icon (top-right of map, looks like stacked cards)');
-    logToConsole('LAYERS', '  2. Click it to open the layers panel');
-    logToConsole('LAYERS', '  3. Find and check the BAKGRUND layer');
-    logToConsole('LAYERS', '');
-    logToConsole('LAYERS', 'Steps to enable MILJÖPARKERING (environment parking):');
-    logToConsole('LAYERS', '  1. In the same layers panel, click arrows to expand sections');
-    logToConsole('LAYERS', '  2. Look for MILJÖPARKERING, MILJÖDATA, or similar');
-    logToConsole('LAYERS', '  3. Check the checkbox to enable it');
-    logToConsole('LAYERS', '');
-    logToConsole('MAP', '💡 Troubleshooting:');
-    logToConsole('MAP', '  - If layers still don\'t appear, check browser console (F12) for errors');
-    logToConsole('MAP', '  - Close and reopen the layers panel');
-    logToConsole('MAP', '  - Zoom in/out to force layer re-render');
+    logToConsole('MAP', '💡 If layers don\'t appear:');
+    logToConsole('MAP', '  - Check browser console (F12) for JavaScript errors');
+    logToConsole('MAP', '  - Zoom in/out on the map');
+    logToConsole('MAP', '  - Wait 2-3 seconds for layers to load');
     logToConsole('MAP', '  - Try refreshing the page');
     logToConsole('MAP', '');
     logToConsole('MAP', '=== MAP LOAD COMPLETE ===');
@@ -169,7 +159,7 @@ function loadMapWithAddress(address, x, y) {
 function updateSearchStatus(address) {
     const statusEl = document.getElementById('search-status');
     if (statusEl) {
-        statusEl.textContent = `✓ Found: ${address} - Map loaded (enable layers manually)`;
+        statusEl.textContent = `✓ Found: ${address} - Loading map with automatic layers...`;
     }
     
     const statusIndicator = document.getElementById('status-indicator');
@@ -212,8 +202,8 @@ document.addEventListener('DOMContentLoaded', function() {
     logToConsole('INFO', '  2. Middle: Control panel with address search');
     logToConsole('INFO', '  3. Bottom: Tabs for instructions, data, and debug info');
     logToConsole('INFO', '');
-    logToConsole('INFO', '⚠️  NOTE: Layers must be enabled manually in the map');
-    logToConsole('INFO', '   (StadsAtlas doesn\'t support URL-based layer control)');
+    logToConsole('INFO', '✨ NEW: Layers now enable automatically!');
+    logToConsole('INFO', '   (Background tiles + Miljöparkering + Red pin)');
     logToConsole('INFO', '');
     
     // Set up search button
