@@ -47,6 +47,7 @@ const AMP_LOGO: &str = r#"
 pub enum ColorTheme {
     #[allow(dead_code)]
     Light,
+    #[allow(dead_code)]
     Dark,
 }
 
@@ -54,7 +55,7 @@ impl ColorTheme {
     /// Auto-detect theme based on terminal background
     pub fn auto() -> Self {
         // Default to dark for now, can be enhanced with terminal detection
-        ColorTheme::Dark
+        ColorTheme::Light
     }
 
     pub fn text_color(&self) -> Color {
@@ -282,9 +283,10 @@ impl App {
                 .unwrap_or_else(|| Duration::from_secs(0));
 
             if crossterm::event::poll(timeout)?
-                && let crossterm::event::Event::Key(key) = crossterm::event::read()? {
-                    self.handle_key(key)?;
-                }
+                && let crossterm::event::Event::Key(key) = crossterm::event::read()?
+            {
+                self.handle_key(key)?;
+            }
 
             if last_tick.elapsed() >= tick_rate {
                 last_tick = Instant::now();
