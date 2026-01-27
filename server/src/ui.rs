@@ -11,7 +11,6 @@ use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     prelude::*,
-    style::Stylize,
     text::{Line, Span},
     widgets::{
         Block, Borders, Gauge, List, ListItem, Paragraph, Row, Scrollbar, ScrollbarOrientation,
@@ -55,7 +54,11 @@ impl Mode {
         // Check for dark theme environment variable
         if let Ok(theme) = std::env::var("COLORFGBG") {
             // Light background if average of RGB > 127
-            if let Ok(bg) = theme.split(';').last().and_then(|s| s.parse::<u32>().ok()) {
+            if let Some(bg) = theme
+                .split(';')
+                .next_back()
+                .and_then(|s| s.parse::<u32>().ok())
+            {
                 return if bg > 7 { Mode::Light } else { Mode::Dark };
             }
         }
@@ -106,8 +109,8 @@ impl Theme {
     /// Create theme for light mode
     pub fn light() -> Self {
         Self {
-            primary: Color::Blue,       // Blue instead of cyan (darker)
-            primary_dark: Color::DarkBlue,
+            primary: Color::Blue, // Blue instead of cyan (darker)
+            primary_dark: Color::Blue,
             secondary: Color::Rgb(184, 134, 11), // Dark yellow/gold
             accent: Color::Green,
             error: Color::Red,
@@ -146,7 +149,7 @@ impl Theme {
         Style::default().fg(self.text)
     }
 
-    pub fn text_muted(&self) -> Style {
+    pub fn _text_muted(&self) -> Style {
         Style::default().fg(self.text_muted)
     }
 
@@ -169,10 +172,8 @@ impl Theme {
             .add_modifier(Modifier::BOLD)
     }
 
-    pub fn button_default(&self) -> Style {
-        Style::default()
-            .fg(self.text)
-            .add_modifier(Modifier::BOLD)
+    pub fn _button_default(&self) -> Style {
+        Style::default().fg(self.text).add_modifier(Modifier::BOLD)
     }
 
     pub fn table_header(&self) -> Style {
@@ -473,7 +474,10 @@ impl App {
 
         // Description
         lines.push(Line::from(vec![
-            Span::styled("Correlate addresses with parking zones using ", theme.text_default()),
+            Span::styled(
+                "Correlate addresses with parking zones using ",
+                theme.text_default(),
+            ),
             Span::styled("spatial algorithms", theme.warning()),
         ]));
 
