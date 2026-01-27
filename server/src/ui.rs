@@ -2,7 +2,7 @@
 //! Rebuilt with modern Ratatui patterns (v0.30) and professional architecture
 //! Inspired by: Slumber, Yozefu
 //! Pattern: Elm architecture with component-based design
-//! Features: Unified color theming, Vertical layout, Ctrl+C exit
+//! Features: Unified color theming, Light/Dark mode support, Ctrl+C exit
 
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -11,6 +11,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     prelude::*,
+    style::Stylize,
     text::{Line, Span},
     widgets::{
         Block, Borders, Gauge, List, ListItem, Paragraph, Row, Scrollbar, ScrollbarOrientation,
@@ -41,7 +42,29 @@ const AMP_LOGO: &str = r#"
 .8'       `8. `88888. ,8'         `         `8.`8888. 8 8888
 "#;
 
-/// Unified color theme
+/// Color mode detection
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Mode {
+    Light,
+    Dark,
+}
+
+impl Mode {
+    /// Auto-detect mode based on environment or default to dark
+    pub fn auto() -> Self {
+        // Check for dark theme environment variable
+        if let Ok(theme) = std::env::var("COLORFGBG") {
+            // Light background if average of RGB > 127
+            if let Ok(bg) = theme.split(';').last().and_then(|s| s.parse::<u32>().ok()) {
+                return if bg > 7 { Mode::Light } else { Mode::Dark };
+            }
+        }
+        // Default to dark for terminal (most common)
+        Mode::Dark
+    }
+}
+
+/// Unified color theme with light/dark mode support
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Theme {
     // Primary colors
@@ -52,27 +75,62 @@ pub struct Theme {
     pub error: Color,        // Red - errors
 
     // Text colors
-    pub text: Color,         // White - primary text
-    pub text_muted: Color,   // Gray - secondary text
-    pub text_inverse: Color, // Black - on colored backgrounds
+    pub text: Color,         // Primary text
+    pub text_muted: Color,   // Secondary text
+    pub text_inverse: Color, // Text on colored backgrounds
 
     // Background
-    pub bg: Color, // Black - main bg
+    pub bg: Color, // Main background
+
+    // Mode
+    pub mode: Mode,
 }
 
-impl Default for Theme {
-    fn default() -> Self {
+impl Theme {
+    /// Create theme for dark mode
+    pub fn dark() -> Self {
         Self {
             primary: Color::Cyan,
             primary_dark: Color::Cyan,
             secondary: Color::Yellow,
             accent: Color::Green,
             error: Color::Red,
-            text: Color::White,
-            text_muted: Color::Gray,
-            text_inverse: Color::Black,
+            text: Color::White,         // White text on black
+            text_muted: Color::Gray,    // Gray for secondary
+            text_inverse: Color::Black, // Black on cyan
             bg: Color::Black,
+            mode: Mode::Dark,
         }
+    }
+
+    /// Create theme for light mode
+    pub fn light() -> Self {
+        Self {
+            primary: Color::Blue,       // Blue instead of cyan (darker)
+            primary_dark: Color::DarkBlue,
+            secondary: Color::Rgb(184, 134, 11), // Dark yellow/gold
+            accent: Color::Green,
+            error: Color::Red,
+            text: Color::Black,         // Black text on white
+            text_muted: Color::Gray,    // Gray for secondary
+            text_inverse: Color::White, // White on blue
+            bg: Color::White,
+            mode: Mode::Light,
+        }
+    }
+
+    /// Auto-detect and create appropriate theme
+    pub fn auto() -> Self {
+        match Mode::auto() {
+            Mode::Light => Self::light(),
+            Mode::Dark => Self::dark(),
+        }
+    }
+}
+
+impl Default for Theme {
+    fn default() -> Self {
+        Self::auto()
     }
 }
 
@@ -88,7 +146,7 @@ impl Theme {
         Style::default().fg(self.text)
     }
 
-    pub fn _text_muted(&self) -> Style {
+    pub fn text_muted(&self) -> Style {
         Style::default().fg(self.text_muted)
     }
 
@@ -111,8 +169,10 @@ impl Theme {
             .add_modifier(Modifier::BOLD)
     }
 
-    pub fn _button_default(&self) -> Style {
-        Style::default().fg(self.text).add_modifier(Modifier::BOLD)
+    pub fn button_default(&self) -> Style {
+        Style::default()
+            .fg(self.text)
+            .add_modifier(Modifier::BOLD)
     }
 
     pub fn table_header(&self) -> Style {
@@ -256,7 +316,7 @@ impl Default for AppState {
             current_algorithm: Algorithm::KDTree,
             cutoff_distance: 20.0,
             should_quit: false,
-            theme: Theme::default(),
+            theme: Theme::auto(),
             _dashboard: DashboardState { _scroll_offset: 0 },
             correlate: CorrelateState {
                 running: false,
@@ -413,10 +473,7 @@ impl App {
 
         // Description
         lines.push(Line::from(vec![
-            Span::styled(
-                "Correlate addresses with parking zones using ",
-                theme.text_default(),
-            ),
+            Span::styled("Correlate addresses with parking zones using ", theme.text_default()),
             Span::styled("spatial algorithms", theme.warning()),
         ]));
 
