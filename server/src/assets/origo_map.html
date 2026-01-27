@@ -163,25 +163,25 @@
                 name: 'miljodata',
                 title: 'Miljöparkering',
                 source: new ol.source.ImageWMS({
-                    url: 'https://stadsatlas.malmo.se/geoserver/malmows/wms',
+                    url: 'https://stadsatlas.malmo.se/wms/fgk.qgs',
                     params: {
-                        'LAYERS': 'malmows:Miljoparkering',
+                        'LAYERS': 'miljoparkering_l',
                         'TRANSPARENT': 'true',
                         'FORMAT': 'image/png',
                         'VERSION': '1.1.1'
                     },
                     imageLoadFunction: (image, src) => {
                         image.getImage().onload = () => {
-                            console.log('✅ Miljödata WMS tile loaded');
+                            console.log('✅ Miljöparkering WMS tile loaded');
                         };
                         image.getImage().onerror = (err) => {
-                            console.warn('⚠️ Miljödata WMS tile failed (may be no data in this area):', err);
+                            console.warn('⚠️ Miljöparkering WMS tile failed (may be no data in this area):', err);
                         };
                         image.getImage().src = src;
                     }
                 }),
                 visible: true,
-                opacity: 0.7,
+                opacity: 0.75,
                 zIndex: 20
             });
             
@@ -249,7 +249,7 @@
             
             console.log('✅ Map created successfully');
             console.log('✅ Background layer added (ArcGIS REST export)');
-            console.log('✅ Miljödata WMS layer added');
+            console.log('✅ Miljöparkering WMS layer added (stadsatlas.malmo.se)');
             console.log('✅ Address pin added at [' + mapCenterX + ',' + mapCenterY + ']');
             
             // Update info box
