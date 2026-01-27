@@ -16,6 +16,12 @@ use std::time::Instant;
 /// Standard distance cutoff used everywhere (was 50m, now 20m)
 pub const STANDARD_CUTOFF_METERS: f64 = 20.0;
 
+/// Type alias for correlation result tuples: (address, distance_meters, zone_info)
+type CorrelationTuple = (String, f64, String);
+
+/// Type alias for benchmark algorithm function
+type BenchmarkAlgoFn = fn(&Benchmarker, &[AdressClean], &ProgressBar, &AtomicUsize) -> ();
+
 pub fn run_test_mode_legacy(
     algorithm: AlgorithmChoice,
     cutoff: f64,
@@ -172,7 +178,7 @@ fn correlate_dataset(
     cutoff: f64,
     counter: &Arc<AtomicUsize>,
     total: usize,
-) -> Result<Vec<(String, f64, String)>, Box<dyn std::error::Error>> {
+) -> Result<Vec<CorrelationTuple>, Box<dyn std::error::Error>> {
     let mut results = Vec::new();
 
     match algorithm {
@@ -280,8 +286,8 @@ fn correlate_dataset(
 /// Merge correlation results from two datasets into the core `CorrelationResult` type.
 fn merge_results(
     addresses: &[AdressClean],
-    miljo_results: &[(String, f64, String)],
-    parkering_results: &[(String, f64, String)],
+    miljo_results: &[CorrelationTuple],
+    parkering_results: &[CorrelationTuple],
 ) -> Vec<CorrelationResult> {
     use std::collections::HashMap;
 
@@ -327,7 +333,7 @@ fn benchmark_selected_with_progress(
     let mut results = Vec::new();
     let mut pb_idx = 0;
 
-    let all_algos: Vec<(&str, fn(&Benchmarker, &[AdressClean], &ProgressBar, &AtomicUsize) -> ())> = vec![
+    let all_algos: Vec<(&str, BenchmarkAlgoFn)> = vec![
         ("Distance-Based", |bm, addrs, pb, matches| {
             let algo = DistanceBasedAlgo;
             run_single_benchmark(&algo, addrs, &bm.parking_lines, pb, matches, "Distance-Based");
