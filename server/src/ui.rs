@@ -2,7 +2,7 @@
 //! Rebuilt with modern Ratatui patterns (v0.30) and professional architecture
 //! Inspired by: Slumber, Yozefu
 //! Pattern: Elm architecture with component-based design
-//! Features: Unified color theming, Light/Dark mode support, Ctrl+C exit
+//! Features: High-contrast color theming, Light/Dark mode support, Ctrl+C exit
 
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -67,19 +67,19 @@ impl Mode {
     }
 }
 
-/// Unified color theme with light/dark mode support
+/// High-contrast unified color theme with light/dark mode support
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Theme {
-    // Primary colors
-    pub primary: Color,      // Cyan - accent color
-    pub primary_dark: Color, // Darker cyan
-    pub secondary: Color,    // Yellow - warning/info
-    pub accent: Color,       // Green - success
-    pub error: Color,        // Red - errors
+    // Primary colors - HIGH CONTRAST
+    pub primary: Color,      // Bright cyan - accent color
+    pub primary_dark: Color, // Bright magenta - alternative accent
+    pub secondary: Color,    // Bright yellow - warning/info
+    pub accent: Color,       // Bright green - success
+    pub error: Color,        // Bright red - errors
 
-    // Text colors
-    pub text: Color,         // Primary text
-    pub text_muted: Color,   // Secondary text
+    // Text colors - HIGH CONTRAST
+    pub text: Color,         // Primary text (white or black)
+    pub text_muted: Color,   // Secondary text (bright gray/cyan)
     pub text_inverse: Color, // Text on colored backgrounds
 
     // Background
@@ -90,34 +90,34 @@ pub struct Theme {
 }
 
 impl Theme {
-    /// Create theme for dark mode
+    /// Create high-contrast theme for dark mode
     pub fn dark() -> Self {
         Self {
-            primary: Color::Cyan,
-            primary_dark: Color::Cyan,
-            secondary: Color::Yellow,
-            accent: Color::Green,
-            error: Color::Red,
-            text: Color::White,         // White text on black
-            text_muted: Color::Gray,    // Gray for secondary
-            text_inverse: Color::Black, // Black on cyan
-            bg: Color::Black,
+            primary: Color::Cyan,           // Bright cyan
+            primary_dark: Color::Magenta,   // Bright magenta
+            secondary: Color::Yellow,       // Bright yellow
+            accent: Color::LightGreen,      // Bright green
+            error: Color::LightRed,         // Bright red
+            text: Color::White,             // Pure white text
+            text_muted: Color::Cyan,        // Cyan for muted (still bright)
+            text_inverse: Color::Black,     // Black text on bright backgrounds
+            bg: Color::Black,               // Pure black background
             mode: Mode::Dark,
         }
     }
 
-    /// Create theme for light mode
+    /// Create high-contrast theme for light mode
     pub fn light() -> Self {
         Self {
-            primary: Color::Blue, // Blue instead of cyan (darker)
-            primary_dark: Color::Blue,
-            secondary: Color::Rgb(184, 134, 11), // Dark yellow/gold
-            accent: Color::Green,
-            error: Color::Red,
-            text: Color::Black,         // Black text on white
-            text_muted: Color::Gray,    // Gray for secondary
-            text_inverse: Color::White, // White on blue
-            bg: Color::White,
+            primary: Color::Blue,           // Bright blue
+            primary_dark: Color::Magenta,   // Bright magenta
+            secondary: Color::Rgb(184, 134, 11), // Dark gold/yellow for contrast
+            accent: Color::Green,           // Green
+            error: Color::Red,              // Dark red for contrast
+            text: Color::Black,             // Pure black text
+            text_muted: Color::Blue,        // Blue for muted (still visible)
+            text_inverse: Color::White,     // White on blue
+            bg: Color::White,               // Pure white background
             mode: Mode::Light,
         }
     }
@@ -138,11 +138,11 @@ impl Default for Theme {
 }
 
 impl Theme {
-    // ═══ Style Builders ═══
+    // ═══ Style Builders - HIGH CONTRAST ═══
     pub fn header(&self) -> Style {
         Style::default()
             .fg(self.primary)
-            .add_modifier(Modifier::BOLD)
+            .add_modifier(Modifier::BOLD | Modifier::UNDERLINED)
     }
 
     pub fn text_default(&self) -> Style {
@@ -150,19 +150,25 @@ impl Theme {
     }
 
     pub fn _text_muted(&self) -> Style {
-        Style::default().fg(self.text_muted)
+        Style::default().fg(self.text_muted).add_modifier(Modifier::DIM)
     }
 
     pub fn accent(&self) -> Style {
-        Style::default().fg(self.accent)
+        Style::default()
+            .fg(self.accent)
+            .add_modifier(Modifier::BOLD)
     }
 
     pub fn error(&self) -> Style {
-        Style::default().fg(self.error)
+        Style::default()
+            .fg(self.error)
+            .add_modifier(Modifier::BOLD)
     }
 
     pub fn warning(&self) -> Style {
-        Style::default().fg(self.secondary)
+        Style::default()
+            .fg(self.secondary)
+            .add_modifier(Modifier::BOLD)
     }
 
     pub fn button_selected(&self) -> Style {
@@ -177,11 +183,14 @@ impl Theme {
     }
 
     pub fn table_header(&self) -> Style {
-        Style::default().fg(self.text_inverse).bg(self.primary)
+        Style::default()
+            .fg(self.text_inverse)
+            .bg(self.primary)
+            .add_modifier(Modifier::BOLD)
     }
 
     pub fn block(&self) -> Style {
-        Style::default().fg(self.primary)
+        Style::default().fg(self.primary).add_modifier(Modifier::BOLD)
     }
 }
 
