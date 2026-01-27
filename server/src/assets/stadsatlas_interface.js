@@ -246,13 +246,13 @@ function exportClassificationsToFile() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'amp_stadsatlas_classification.json';
+    a.download = `amp_stadsatlas_classification_${Date.now()}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    logToConsole('DATA', 'Exported classifications to file');
+    logToConsole('DATA', `Exported ${notMatching.length + invalid.length} classifications to file`);
 }
 
 // Handle classification buttons
@@ -295,11 +295,8 @@ function handleDataReviewAction(category) {
     lastAdded[category] = id;
     localStorage.setItem(STORAGE_KEY_LAST_ADDED, JSON.stringify(lastAdded));
 
-    logToConsole('DATA', `Successfully saved classification for "${snapshot.address}" under "${category}"`);
+    logToConsole('DATA', `Saved classification for "${snapshot.address}" under "${category}"`);
     logToConsole('DATA', `Total ${category} entries: ${entries.length}`);
-    
-    // Auto-export to file for backup
-    exportClassificationsToFile();
 }
 
 // Undo the last classification in a category
@@ -337,9 +334,6 @@ function undoDataReviewAction(category) {
 
     logToConsole('DATA', `Undid last addition for category "${category}"`);
     logToConsole('DATA', `Total ${category} entries: ${entries.length}`);
-    
-    // Auto-export to file for backup
-    exportClassificationsToFile();
 }
 
 // Initialize on page load
@@ -361,8 +355,7 @@ document.addEventListener('DOMContentLoaded', function() {
     logToConsole('INFO', '  3. If it does NOT match, press "No - Not matching".');
     logToConsole('INFO', '  4. If the data is NOT relevant for the address, press "No - Invalid/Irrelevant".');
     logToConsole('INFO', '  5. Then close this tab and move to the next one.');
-    logToConsole('INFO', '');
-    logToConsole('INFO', 'Classifications are saved to browser localStorage and exported as JSON files.');
+    logToConsole('INFO', '  6. When done with all tabs, click "Download JSON" to export classifications.');
     logToConsole('INFO', '');
     
     // Set up search button

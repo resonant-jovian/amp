@@ -247,12 +247,24 @@
             border-color: #9ca3af !important;
             color: #374151 !important;
         }
+        .action-button.export {
+            background: #dbeafe !important;
+            border-color: #3b82f6 !important;
+            color: #1e40af !important;
+        }
         .action-button:hover {
             opacity: 0.8 !important;
         }
         .action-button:disabled {
             opacity: 0.5 !important;
             cursor: not-allowed !important;
+        }
+        .export-section {
+            margin-top: 20px !important;
+            padding: 12px !important;
+            background: #f0f9ff !important;
+            border: 1px solid #bfdbfe !important;
+            border-radius: 4px !important;
         }
     </style>
 </head>
@@ -328,6 +340,16 @@
                     <div class="step-number">3</div>
                     <div class="step-content">
                         If all checks passed, close this tab and continue to the next one.
+                    </div>
+                </div>
+
+                <div class="export-section">
+                    <strong>💾 Export Classifications</strong><br>
+                    <div class="step-actions" style="margin-left: 0; margin-top: 8px;">
+                        <button class="action-button export" onclick="exportClassificationsToFile()">Download JSON</button>
+                    </div>
+                    <div style="font-size: 12px; color: #666; margin-top: 8px;">
+                        Click to download all classifications as JSON file to your Downloads folder.
                     </div>
                 </div>
             </div>
