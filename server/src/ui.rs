@@ -2,7 +2,7 @@
 //! Rebuilt with modern Ratatui patterns (v0.30) and professional architecture
 //! Inspired by: Slumber, Yozefu
 //! Pattern: Elm architecture with component-based design
-//! Features: Light/Dark mode, Vertical layout, Ctrl+C exit
+//! Features: Unified color theming, Vertical layout, Ctrl+C exit
 
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -42,50 +42,90 @@ const AMP_LOGO: &str = r#"
 .8'       `8. `88888. ,8'         `         `8.`8888. 8 8888
 "#;
 
-/// Color theme for light/dark modes
+/// Unified color theme
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ColorTheme {
-    #[allow(dead_code)]
-    Light,
-    #[allow(dead_code)]
-    Dark,
+pub struct Theme {
+    // Primary colors
+    pub primary: Color,          // Cyan - accent color
+    pub primary_dark: Color,     // Darker cyan
+    pub secondary: Color,        // Yellow - warning/info
+    pub accent: Color,           // Green - success
+    pub error: Color,            // Red - errors
+
+    // Text colors
+    pub text: Color,             // White - primary text
+    pub text_muted: Color,       // Gray - secondary text
+    pub text_inverse: Color,     // Black - on colored backgrounds
+
+    // Background
+    pub bg: Color,               // Black - main bg
 }
 
-impl ColorTheme {
-    /// Auto-detect theme based on terminal background
-    pub fn auto() -> Self {
-        // Default to dark for now, can be enhanced with terminal detection
-        ColorTheme::Light
-    }
-
-    pub fn text_color(&self) -> Color {
-        match self {
-            ColorTheme::Light => Color::Black,
-            ColorTheme::Dark => Color::White,
+impl Default for Theme {
+    fn default() -> Self {
+        Self {
+            primary: Color::Cyan,
+            primary_dark: Color::DarkCyan,
+            secondary: Color::Yellow,
+            accent: Color::Green,
+            error: Color::Red,
+            text: Color::White,
+            text_muted: Color::Gray,
+            text_inverse: Color::Black,
+            bg: Color::Black,
         }
     }
+}
 
-    pub fn _bg_color(&self) -> Color {
-        match self {
-            ColorTheme::Light => Color::White,
-            ColorTheme::Dark => Color::Black,
-        }
+impl Theme {
+    // ═══ Style Builders ═══
+    pub fn header(&self) -> Style {
+        Style::default()
+            .fg(self.primary)
+            .add_modifier(Modifier::BOLD)
     }
 
-    pub fn _alt_text_color(&self) -> Color {
-        match self {
-            ColorTheme::Light => Color::DarkGray,
-            ColorTheme::Dark => Color::Gray,
-        }
+    pub fn text_default(&self) -> Style {
+        Style::default().fg(self.text)
     }
 
-    pub fn _header_style(&self) -> Style {
-        match self {
-            ColorTheme::Light => Style::default()
-                .fg(Color::Blue)
-                .add_modifier(Modifier::BOLD),
-            ColorTheme::Dark => Style::default().fg(Color::Cyan),
-        }
+    pub fn text_muted(&self) -> Style {
+        Style::default().fg(self.text_muted)
+    }
+
+    pub fn accent(&self) -> Style {
+        Style::default().fg(self.accent)
+    }
+
+    pub fn error(&self) -> Style {
+        Style::default().fg(self.error)
+    }
+
+    pub fn warning(&self) -> Style {
+        Style::default().fg(self.secondary)
+    }
+
+    pub fn button_selected(&self) -> Style {
+        Style::default()
+            .fg(self.text_inverse)
+            .bg(self.primary)
+            .add_modifier(Modifier::BOLD)
+    }
+
+    pub fn button_default(&self) -> Style {
+        Style::default()
+            .fg(self.text)
+            .add_modifier(Modifier::BOLD)
+    }
+
+    pub fn table_header(&self) -> Style {
+        Style::default()
+            .fg(self.text_inverse)
+            .bg(self.primary)
+    }
+
+    pub fn block(&self) -> Style {
+        Style::default().fg(self.primary)
     }
 }
 
@@ -204,7 +244,7 @@ pub struct AppState {
     pub current_algorithm: Algorithm,
     pub cutoff_distance: f64,
     pub should_quit: bool,
-    pub theme: ColorTheme,
+    pub theme: Theme,
 
     // Per-view states
     _dashboard: DashboardState,
@@ -221,7 +261,7 @@ impl Default for AppState {
             current_algorithm: Algorithm::KDTree,
             cutoff_distance: 20.0,
             should_quit: false,
-            theme: ColorTheme::auto(),
+            theme: Theme::default(),
             _dashboard: DashboardState { _scroll_offset: 0 },
             correlate: CorrelateState {
                 running: false,
@@ -325,6 +365,8 @@ impl App {
     }
 
     fn render_header(&self, f: &mut Frame, area: Rect) {
+        let theme = &self.state.theme;
+
         // Tab bar
         let titles: Vec<&str> = View::ALL.iter().map(|v| v.title()).collect();
         let current_idx = View::ALL
@@ -334,13 +376,8 @@ impl App {
 
         let tabs = Tabs::new(titles)
             .select(current_idx)
-            .style(Style::default().fg(self.state.theme.text_color()))
-            .highlight_style(
-                Style::default()
-                    .fg(Color::Black)
-                    .bg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD),
-            )
+            .style(theme.text_default())
+            .highlight_style(theme.button_selected())
             .divider("│");
 
         f.render_widget(tabs, area);
@@ -357,118 +394,93 @@ impl App {
     }
 
     fn render_dashboard(&self, f: &mut Frame, area: Rect) {
-        let _theme = self.state.theme;
+        let theme = &self.state.theme;
+
         let block = Block::default()
             .borders(Borders::ALL)
             .border_type(ratatui::widgets::BorderType::Rounded)
             .title(" 📊 AMP Dashboard ")
             .title_alignment(Alignment::Center)
-            .style(Style::default().fg(Color::Cyan));
+            .style(theme.block());
 
         let inner = block.inner(area);
         f.render_widget(block, area);
 
-        // Create content lines - using proper spacing instead of offsets
+        // Create content lines
         let mut lines = vec![Line::from(AMP_LOGO)];
-
-        // Add spacing
         lines.push(Line::from(""));
 
         // Title
         lines.push(Line::from(vec![Span::styled(
             "Address Parking Mapper",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
+            theme.header(),
         )]));
 
         // Description
         lines.push(Line::from(vec![
-            Span::raw("Correlate addresses with parking zones using "),
-            Span::styled("spatial algorithms", Style::default().fg(Color::Yellow)),
+            Span::styled("Correlate addresses with parking zones using ", theme.text_default()),
+            Span::styled("spatial algorithms", theme.warning()),
         ]));
 
-        // Spacing
         lines.push(Line::from(""));
 
         // Stats section
         lines.push(Line::from(vec![Span::styled(
             "📋 Quick Stats:",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
+            theme.header(),
+        )]));
+        lines.push(Line::from(vec![Span::styled(
+            format!("  • Algorithm: {}", self.state.current_algorithm.name()),
+            theme.text_default(),
+        )]));
+        lines.push(Line::from(vec![Span::styled(
+            format!("  • Cutoff: {:.1}m", self.state.cutoff_distance),
+            theme.text_default(),
         )]));
 
-        // Algorithm line
-        lines.push(Line::from(vec![
-            Span::raw(format!(
-                "  • Algorithm: {}",
-                self.state.current_algorithm.name()
-            ))
-            .fg(Color::White),
-        ]));
-
-        // Cutoff line
-        lines.push(Line::from(vec![
-            Span::raw(format!("  • Cutoff: {:.1}m", self.state.cutoff_distance)).fg(Color::White),
-        ]));
-
-        // Spacing
         lines.push(Line::from(""));
 
         // Navigation section
         lines.push(Line::from(vec![Span::styled(
             "⌨️  Navigation:",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
+            theme.header(),
+        )]));
+        lines.push(Line::from(vec![Span::styled(
+            "  [1-5] Jump | [←→] Tab | [a] Algorithm | [+/-] Distance",
+            theme.text_default(),
         )]));
 
-        lines.push(Line::from(vec![
-            Span::raw("  [1-5] Jump | [←→] Tab | [a] Algorithm | [+/-] Distance").fg(Color::White),
-        ]));
-
-        // Spacing
         lines.push(Line::from(""));
 
         // Exit section
         lines.push(Line::from(vec![
-            Span::styled(
-                "[Enter]",
-                Style::default()
-                    .fg(Color::Green)
-                    .add_modifier(Modifier::BOLD),
-            ),
+            Span::styled("[Enter]", theme.accent()),
             Span::raw(" Run | "),
-            Span::styled(
-                "[Ctrl+C]",
-                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled("[Ctrl+C]", theme.error()),
             Span::raw(" Exit"),
         ]));
 
         let paragraph = Paragraph::new(lines)
             .alignment(Alignment::Left)
             .wrap(Wrap { trim: true })
-            .style(Style::default().fg(Color::White));
+            .style(theme.text_default());
 
         f.render_widget(paragraph, inner);
     }
 
     fn render_correlate(&self, f: &mut Frame, area: Rect) {
-        let _theme = self.state.theme;
+        let theme = &self.state.theme;
 
         // Layout: config | progress | details
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Percentage(40), // config section
-                Constraint::Percentage(20), // progress
-                Constraint::Percentage(40), // details
+                Constraint::Percentage(40),
+                Constraint::Percentage(20),
+                Constraint::Percentage(40),
             ])
             .split(area);
 
-        // Config box
         self.render_algorithm_selector(f, chunks[0]);
 
         // Progress bar
@@ -478,21 +490,21 @@ impl App {
                     .borders(Borders::ALL)
                     .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" Progress ")
-                    .style(Style::default().fg(Color::Cyan)),
+                    .style(theme.block()),
             )
-            .gauge_style(Style::default().fg(Color::Green))
+            .gauge_style(theme.accent())
             .percent((self.state.correlate.progress * 100.0) as u16)
             .label(format!("{:.0}%", self.state.correlate.progress * 100.0));
 
         f.render_widget(gauge, chunks[1]);
 
-        // Details list with scrollbar
+        // Details list
         let items: Vec<ListItem> = self
             .state
             .correlate
             .details
             .iter()
-            .map(|line| ListItem::new(line.as_str()).style(Style::default().fg(Color::White)))
+            .map(|line| ListItem::new(line.as_str()).style(theme.text_default()))
             .collect();
 
         let list = List::new(items).block(
@@ -500,13 +512,12 @@ impl App {
                 .borders(Borders::ALL)
                 .border_type(ratatui::widgets::BorderType::Rounded)
                 .title(" Details ")
-                .title_alignment(Alignment::Left)
-                .style(Style::default().fg(Color::Cyan)),
+                .style(theme.block()),
         );
 
         f.render_widget(list, chunks[2]);
 
-        // Render scrollbar for details
+        // Scrollbar
         let scrollbar = Scrollbar::default()
             .orientation(ScrollbarOrientation::VerticalRight)
             .begin_symbol(Some("↑"))
@@ -517,28 +528,26 @@ impl App {
     }
 
     fn render_algorithm_selector(&self, f: &mut Frame, area: Rect) {
-        let _theme = self.state.theme;
+        let theme = &self.state.theme;
+
         let block = Block::default()
             .borders(Borders::ALL)
             .border_type(ratatui::widgets::BorderType::Rounded)
             .title(" ⚙️  Configuration ")
-            .style(Style::default().fg(Color::Cyan));
+            .style(theme.block());
 
         let inner = block.inner(area);
         f.render_widget(block, area);
 
-        // Create algorithm grid
+        // Algorithm grid
         let rows: Vec<Row> = Algorithm::ALL
             .iter()
             .map(|algo| {
                 let is_selected = *algo == self.state.current_algorithm;
                 let style = if is_selected {
-                    Style::default()
-                        .fg(Color::Black)
-                        .bg(Color::Cyan)
-                        .add_modifier(Modifier::BOLD)
+                    theme.button_selected()
                 } else {
-                    Style::default().fg(Color::White)
+                    theme.text_default()
                 };
 
                 let check = if is_selected { "✓" } else { " " };
@@ -554,13 +563,13 @@ impl App {
             rows,
             [Constraint::Percentage(35), Constraint::Percentage(65)],
         )
-        .style(Style::default().fg(Color::White));
+        .style(theme.text_default());
 
         f.render_widget(table, inner);
     }
 
     fn render_results(&self, f: &mut Frame, area: Rect) {
-        let _theme = self.state.theme;
+        let theme = &self.state.theme;
         let result_count = self.state.results.results.len();
 
         if result_count == 0 {
@@ -568,18 +577,18 @@ impl App {
                 .borders(Borders::ALL)
                 .border_type(ratatui::widgets::BorderType::Rounded)
                 .title(" 📊 Results (0 found) ")
-                .style(Style::default().fg(Color::Yellow));
+                .style(theme.warning());
 
             let para = Paragraph::new("No results. Run correlation first (Tab 2)")
                 .alignment(Alignment::Center)
-                .style(Style::default().fg(Color::White))
+                .style(theme.text_default())
                 .block(block);
 
             f.render_widget(para, area);
             return;
         }
 
-        // Results table with scrollbar
+        // Results table
         let rows: Vec<Row> = self
             .state
             .results
@@ -608,7 +617,7 @@ impl App {
                             .unwrap_or(999.0)
                     ),
                 ])
-                .style(Style::default().fg(Color::White))
+                .style(theme.text_default())
             })
             .collect();
 
@@ -622,7 +631,7 @@ impl App {
         )
         .header(
             Row::new(vec!["Address", "Miljö (m)", "Parkering (m)"])
-                .style(Style::default().fg(Color::Black).bg(Color::Cyan))
+                .style(theme.table_header())
                 .bottom_margin(1),
         )
         .block(
@@ -630,12 +639,12 @@ impl App {
                 .borders(Borders::ALL)
                 .border_type(ratatui::widgets::BorderType::Rounded)
                 .title(format!(" 📊 Results ({} found) ", result_count))
-                .style(Style::default().fg(Color::Cyan)),
+                .style(theme.block()),
         );
 
         f.render_widget(table, area);
 
-        // Render scrollbar
+        // Scrollbar
         let scrollbar = Scrollbar::default()
             .orientation(ScrollbarOrientation::VerticalRight)
             .begin_symbol(Some("↑"))
@@ -646,13 +655,11 @@ impl App {
     }
 
     fn render_benchmark(&self, f: &mut Frame, area: Rect) {
-        let _theme = self.state.theme;
+        let theme = &self.state.theme;
+
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Percentage(20), // Controls
-                Constraint::Percentage(80), // Results table
-            ])
+            .constraints([Constraint::Percentage(20), Constraint::Percentage(80)])
             .split(area);
 
         // Controls
@@ -662,9 +669,9 @@ impl App {
                     .borders(Borders::ALL)
                     .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" 🎯 Controls ")
-                    .style(Style::default().fg(Color::Cyan)),
+                    .style(theme.block()),
             )
-            .style(Style::default().fg(Color::White))
+            .style(theme.text_default())
             .alignment(Alignment::Center);
 
         f.render_widget(controls, chunks[0]);
@@ -677,10 +684,10 @@ impl App {
                         .borders(Borders::ALL)
                         .border_type(ratatui::widgets::BorderType::Rounded)
                         .title(" ⚡ Performance ")
-                        .style(Style::default().fg(Color::Yellow)),
+                        .style(theme.warning()),
                 )
                 .alignment(Alignment::Center)
-                .style(Style::default().fg(Color::White));
+                .style(theme.text_default());
 
             f.render_widget(msg, chunks[1]);
         } else {
@@ -695,7 +702,7 @@ impl App {
                         format!("{}ms", total.as_millis()),
                         format!("{}μs", avg.as_micros()),
                     ])
-                    .style(Style::default().fg(Color::White))
+                    .style(theme.text_default())
                 })
                 .collect();
 
@@ -709,7 +716,7 @@ impl App {
             )
             .header(
                 Row::new(vec!["Algorithm", "Total Time", "Per Address"])
-                    .style(Style::default().fg(Color::Black).bg(Color::Cyan))
+                    .style(theme.table_header())
                     .bottom_margin(1),
             )
             .block(
@@ -717,12 +724,12 @@ impl App {
                     .borders(Borders::ALL)
                     .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" ⚡ Performance Results ")
-                    .style(Style::default().fg(Color::Cyan)),
+                    .style(theme.block()),
             );
 
             f.render_widget(table, chunks[1]);
 
-            // Render scrollbar
+            // Scrollbar
             let scrollbar = Scrollbar::default()
                 .orientation(ScrollbarOrientation::VerticalRight)
                 .begin_symbol(Some("↑"))
@@ -734,13 +741,11 @@ impl App {
     }
 
     fn render_updates(&self, f: &mut Frame, area: Rect) {
-        let _theme = self.state.theme;
+        let theme = &self.state.theme;
+
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Percentage(20), // Controls
-                Constraint::Percentage(80), // Status
-            ])
+            .constraints([Constraint::Percentage(20), Constraint::Percentage(80)])
             .split(area);
 
         // Controls
@@ -750,9 +755,9 @@ impl App {
                     .borders(Borders::ALL)
                     .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" 🔍 Data Portal ")
-                    .style(Style::default().fg(Color::Cyan)),
+                    .style(theme.block()),
             )
-            .style(Style::default().fg(Color::White))
+            .style(theme.text_default())
             .alignment(Alignment::Center);
 
         f.render_widget(controls, chunks[0]);
@@ -776,14 +781,14 @@ impl App {
                     .borders(Borders::ALL)
                     .border_type(ratatui::widgets::BorderType::Rounded)
                     .title(" ✓ Status ")
-                    .style(Style::default().fg(Color::Cyan)),
+                    .style(theme.block()),
             )
             .wrap(Wrap { trim: true })
-            .style(Style::default().fg(Color::White));
+            .style(theme.text_default());
 
         f.render_widget(status, chunks[1]);
 
-        // Render scrollbar
+        // Scrollbar
         let scrollbar = Scrollbar::default()
             .orientation(ScrollbarOrientation::VerticalRight)
             .begin_symbol(Some("↑"))
@@ -794,7 +799,8 @@ impl App {
     }
 
     fn render_footer(&self, f: &mut Frame, area: Rect) {
-        let _theme = self.state.theme;
+        let theme = &self.state.theme;
+
         let status_text = format!(
             " {} | Cutoff: {:.1}m | Ctrl+C to Exit ",
             self.state.current_algorithm.name(),
@@ -802,7 +808,7 @@ impl App {
         );
 
         let footer = Paragraph::new(status_text)
-            .style(Style::default().fg(Color::Black).bg(Color::Cyan))
+            .style(theme.button_selected())
             .alignment(Alignment::Left);
 
         f.render_widget(footer, area);
@@ -814,7 +820,6 @@ impl App {
         }
 
         match key.code {
-            // Ctrl+C always exits
             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 self.state.should_quit = true;
             }
@@ -950,7 +955,6 @@ impl App {
         let total = addresses.len();
         let mut counter = 0usize;
 
-        // Convert to old-style algorithm for compatibility
         let algo_choice = match self.state.current_algorithm {
             Algorithm::KDTree => AlgorithmChoice::KDTree,
             Algorithm::RTree => AlgorithmChoice::RTree,
@@ -986,7 +990,6 @@ impl App {
         ));
         self.state.correlate.running = false;
 
-        // Switch to results view
         self.state.current_view = View::Results;
 
         Ok(())
@@ -1152,7 +1155,6 @@ impl App {
     }
 }
 
-// Keep old-style enum for compatibility with existing code
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AlgorithmChoice {
     DistanceBased,
