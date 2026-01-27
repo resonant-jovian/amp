@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AMP Testing Interface - {ADDRESS}</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="stadsatlas_interface.css">
+    <style>
+        /* CRITICAL: Force explicit dimensions for Origo/OpenLayers rendering */
+        /* These inline styles override any conflicting CSS and ensure map container has size */
+        * {
+            margin: 0 !important;
+            padding: 0 !important;
+            box-sizing: border-box !important;
+        }
+        html, body {
+            height: 100% !important;
+            width: 100% !important;
+            overflow: hidden !important;
+        }
+        body {
+            display: flex !important;
+            flex-direction: column !important;
+        }
+        .header {
+            flex-shrink: 0 !important;
+            padding: 10px 15px !important;
+            background: white !important;
+            border-bottom: 1px solid #ddd !important;
+            z-index: 100 !important;
+        }
+        .map-section {
+            height: 550px !important;
+            width: 100% !important;
+            min-height: 550px !important;
+            max-width: 100% !important;
+            flex-shrink: 0 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border-bottom: 1px solid #ddd !important;
+            z-index: 50 !important;
+        }
+        .control-panel {
+            flex-shrink: 0 !important;
+            height: auto !important;
+            min-height: 50px !important;
+            padding: 10px 15px !important;
+            background: white !important;
+            border-bottom: 1px solid #ddd !important;
+            display: flex !important;
+            gap: 10px !important;
+            align-items: center !important;
+            width: 100% !important;
+            margin: 0 !important;
+        }
+        .search-input {
+            flex: 1 !important;
+            min-width: 200px !important;
+            padding: 8px 12px !important;
+            font-size: 14px !important;
+            border: 1px solid #ccc !important;
+            border-radius: 4px !important;
+            width: auto !important;
+        }
+        .control-button {
+            flex-shrink: 0 !important;
+            padding: 8px 16px !important;
+            background: #6366f1 !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 4px !important;
+            cursor: pointer !important;
+            font-size: 14px !important;
+            white-space: nowrap !important;
+        }
+        .control-button:hover {
+            background: #4f46e5 !important;
+        }
+        .status-text {
+            flex-shrink: 0 !important;
+            font-size: 13px !important;
+            color: #666 !important;
+            white-space: nowrap !important;
+        }
+        .map-container {
+            height: 100% !important;
+            width: 100% !important;
+            min-width: 100% !important;
+            max-width: 100% !important;
+            position: relative !important;
+            flex: 1 !important;
+            min-height: 0 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+        }
+        .stadsatlas-iframe {
+            width: 100% !important;
+            height: 100% !important;
+            border: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            display: block !important;
+        }
+        .tab-container {
+            flex: 1 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-height: 0 !important;
+            overflow: hidden !important;
+            z-index: 40 !important;
+        }
+        .tab-buttons {
+            flex-shrink: 0 !important;
+            display: flex !important;
+            border-bottom: 1px solid #ddd !important;
+            background: white !important;
+            width: 100% !important;
+        }
+        .tab-btn {
+            flex: 1 !important;
+            padding: 10px 15px !important;
+            border: none !important;
+            background: white !important;
+            color: #666 !important;
+            cursor: pointer !important;
+            font-size: 14px !important;
+            border-bottom: 3px solid transparent !important;
+        }
+        .tab-btn.active {
+            color: #333 !important;
+            border-bottom-color: #6366f1 !important;
+        }
+        .tab-content {
+            display: none !important;
+            flex: 1 !important;
+            overflow-y: auto !important;
+            padding: 15px !important;
+            width: 100% !important;
+        }
+        .tab-content.active {
+            display: block !important;
+        }
+        .field {
+            margin-bottom: 15px !important;
+        }
+        .label {
+            font-weight: bold !important;
+            color: #333 !important;
+            margin-bottom: 5px !important;
+        }
+        .value {
+            padding: 8px 12px !important;
+            background: #f5f5f5 !important;
+            border-left: 3px solid #6366f1 !important;
+            font-family: monospace !important;
+            word-break: break-all !important;
+        }
+        h1 {
+            font-size: 18px !important;
+            margin-bottom: 15px !important;
+        }
+        h2 {
+            font-size: 16px !important;
+            margin-top: 20px !important;
+            margin-bottom: 10px !important;
+        }
+        .console-log {
+            background: #1e1e1e !important;
+            color: #d4d4d4 !important;
+            padding: 10px !important;
+            font-family: monospace !important;
+            font-size: 12px !important;
+            height: 200px !important;
+            overflow-y: auto !important;
+            border-radius: 4px !important;
+        }
+        .log-entry {
+            margin-bottom: 3px !important;
+            line-height: 1.4 !important;
+        }
+        .log-timestamp {
+            color: #858585 !important;
+        }
+        .data-review-panel {
+            margin-top: 20px !important;
+            padding-top: 15px !important;
+            border-top: 1px solid #ddd !important;
+        }
+        .data-review-step {
+            margin-bottom: 10px !important;
+            font-size: 14px !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+        }
+        .step-number {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 24px !important;
+            height: 24px !important;
+            background: #6366f1 !important;
+            color: white !important;
+            border-radius: 50% !important;
+            font-weight: bold !important;
+            font-size: 12px !important;
+            flex-shrink: 0 !important;
+        }
+        .step-content {
+            flex: 1 !important;
+        }
+        .step-actions {
+            display: flex !important;
+            gap: 6px !important;
+            margin-left: 32px !important;
+            margin-top: 4px !important;
+            margin-bottom: 8px !important;
+        }
+        .action-button {
+            padding: 6px 10px !important;
+            font-size: 12px !important;
+            border-radius: 4px !important;
+            border: 1px solid #ccc !important;
+            background: #f9fafb !important;
+            cursor: pointer !important;
+            white-space: nowrap !important;
+        }
+        .action-button.primary {
+            background: #fee2e2 !important;
+            border-color: #ef4444 !important;
+            color: #991b1b !important;
+        }
+        .action-button.secondary {
+            background: #ffedd5 !important;
+            border-color: #f97316 !important;
+            color: #92400e !important;
+        }
+        .action-button.undo {
+            background: #e5e7eb !important;
+            border-color: #9ca3af !important;
+            color: #374151 !important;
+        }
+        .action-button.export {
+            background: #dbeafe !important;
+            border-color: #3b82f6 !important;
+            color: #1e40af !important;
+        }
+        .action-button:hover {
+            opacity: 0.8 !important;
+        }
+        .action-button:disabled {
+            opacity: 0.5 !important;
+            cursor: not-allowed !important;
+        }
+        .export-section {
+            margin-top: 20px !important;
+            padding: 12px !important;
+            background: #f0f9ff !important;
+            border: 1px solid #bfdbfe !important;
+            border-radius: 4px !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📏 AMP Correlation Testing Interface</h1>
+        <div class="address">Address: <strong>{ADDRESS}</strong></div>
+    </div>
+    
+    <!-- Map Container - Always visible at top -->
+    <div class="map-section">
+        <div class="control-panel">
+            <input type="text" id="address-input" class="search-input" placeholder="Enter address to search..." value="{ADDRESS}">
+            <button class="control-button" onclick="searchAddress()">🔍 Load Map</button>
+            <span id="status-indicator" class="status-text">Ready</span>
+        </div>
+        <!-- IMPORTANT: iframe ONLY, no placeholder div -->
+        <div id="map-container" class="map-container">
+            <iframe id="stadsatlas-iframe" class="stadsatlas-iframe" src="" frameborder="0"></iframe>
+        </div>
+    </div>
+    
+    <!-- Tab Container - Below the map -->
+    <div class="tab-container">
+        <div class="tab-buttons">
+            <button class="tab-btn active" onclick="switchTab(event, 1)">📊 Data</button>
+            <button class="tab-btn" onclick="switchTab(event, 2)">🐛 Debug</button>
+        </div>
+        
+        <div id="tab1" class="tab-content active">
+            <h1>📊 Correlation Result Data</h1>
+            <div class="field">
+                <div class="label">📍 Address</div>
+                <div class="value">{RESULT_ADDRESS}</div>
+            </div>
+            <div class="field">
+                <div class="label">🏤 Postal Code</div>
+                <div class="value">{RESULT_POSTNUMMER}</div>
+            </div>
+            <div class="field">
+                <div class="label">📂 Dataset Source</div>
+                <div class="value">{RESULT_SOURCE}</div>
+            </div>
+            <h2>🏘️ Matched Zones</h2>
+            <div id="matches-container">{RESULT_MATCHES}</div>
+
+            <div class="data-review-panel">
+                <h2>📋 Data Review Checklist</h2>
+                
+                <div class="data-review-step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        Click on the line closest to the pin in the map. Is the data matching?
+                    </div>
+                </div>
+                <div class="step-actions">
+                    <button class="action-button primary" onclick="handleDataReviewAction('notMatching')">No - Not matching</button>
+                    <button class="action-button undo" onclick="undoDataReviewAction('notMatching')">Undo</button>
+                </div>
+
+                <div class="data-review-step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        Is the information relevant for this address?
+                    </div>
+                </div>
+                <div class="step-actions">
+                    <button class="action-button secondary" onclick="handleDataReviewAction('invalid')">No - Invalid/Irrelevant</button>
+                    <button class="action-button undo" onclick="undoDataReviewAction('invalid')">Undo</button>
+                </div>
+
+                <div class="data-review-step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        If all checks passed, close this tab and continue to the next one.
+                    </div>
+                </div>
+
+                <div class="export-section">
+                    <strong>💾 Export Classifications</strong><br>
+                    <div class="step-actions" style="margin-left: 0; margin-top: 8px;">
+                        <button class="action-button export" onclick="exportClassificationsToFile()">Download JSON</button>
+                    </div>
+                    <div style="font-size: 12px; color: #666; margin-top: 8px;">
+                        Click to download all classifications as JSON file to your Downloads folder.
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="tab2" class="tab-content">
+            <h1>🐛 Debug Console</h1>
+            <div style="background: #fff3cd; padding: 10px; border-left: 3px solid #ff9800; border-radius: 4px; margin-bottom: 15px;">
+                <strong>Status:</strong> All search and map loading logs appear below. Check browser DevTools Console (F12) for extended logs marked with <code>[AMP]</code>.
+            </div>
+            <div class="field">
+                <div class="label">Search Status</div>
+                <div class="value" id="search-status">Ready to search...</div>
+            </div>
+            <div class="label" style="margin-top: 20px;">Message Logs</div>
+            <div class="console-log" id="message-logs"></div>
+        </div>
+    </div>
+    
+    <script src="stadsatlas_interface.js"></script>
+</body>
+</html>

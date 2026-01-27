@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AMP Origo Map</title>
+    
+    <!-- OpenLayers CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@7.5.0/ol.css">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+            background: #f5f5f5;
+        }
+        #map canvas {
+            display: block;
+        }
+        .ol-control {
+            position: absolute;
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 4px;
+            padding: 2px;
+            margin: 8px;
+        }
+        .ol-control button {
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 2px;
+            width: 36px;
+            height: 36px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .ol-control button:hover {
+            background-color: #f0f0f0;
+        }
+        .map-info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: white;
+            padding: 10px 15px;
+            border-radius: 4px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            font-size: 12px;
+            z-index: 100;
+            max-width: 250px;
+            color: #333;
+            font-family: monospace;
+        }
+        .layer-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            padding: 15px;
+            border-radius: 4px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            z-index: 100;
+            font-size: 13px;
+            min-width: 180px;
+        }
+        .layer-controls h3 {
+            margin: 0 0 10px 0;
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+        }
+        .layer-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+        .layer-item:last-child {
+            margin-bottom: 0;
+        }
+        .layer-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin-right: 8px;
+            cursor: pointer;
+        }
+        .layer-item label {
+            cursor: pointer;
+            user-select: none;
+        }
+        .popup {
+            position: absolute;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            max-width: 280px;
+            z-index: 1001;
+            font-size: 13px;
+            display: none;
+        }
+        .popup.show {
+            display: block;
+        }
+        .popup-item {
+            margin-bottom: 12px;
+        }
+        .popup-item:last-child {
+            margin-bottom: 0;
+        }
+        .popup-icon {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+        .popup-info {
+            color: #666;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        .attribution {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            background: white;
+            padding: 2px 6px;
+            font-size: 11px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div class="map-info" id="mapInfo">🗺️ Loading map...</div>
+    
+    <!-- Layer Controls -->
+    <div class="layer-controls" id="layerControls">
+        <h3>Lager</h3>
+        <div class="layer-item">
+            <input type="checkbox" id="miljoCheckbox" checked>
+            <label for="miljoCheckbox">Miljöparkering</label>
+        </div>
+        <div class="layer-item">
+            <input type="checkbox" id="parkCheckbox" checked>
+            <label for="parkCheckbox">Parkeringsavgifter</label>
+        </div>
+    </div>
+    
+    <!-- Popup for feature info -->
+    <div id="popup" class="popup"></div>
+    
+    <div class="attribution">© Malmö stad</div>
+    
+    <!-- OpenLayers -->
+    <script src="https://cdn.jsdelivr.net/npm/ol@7.5.0/dist/ol.min.js"></script>
+    
+    <!-- proj4js for coordinate projections -->
+    <script src="https://cdn.jsdelivr.net/npm/proj4@2.9.1/dist/proj4.min.js"></script>
+    
+    <script>
+        // Register SWEREF 99 13:30 (EPSG:3008) projection
+        proj4.defs('EPSG:3008', '+proj=tmerc +lat_0=0 +lon_0=13.5 +k=1 +x_0=150000 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs');
+        ol.proj.proj4.register(proj4);
+        
+        // Parse URL parameters
+        const params = new URLSearchParams(window.location.hash.substring(1));
+        const centerStr = params.get('center');
+        const zoom = parseInt(params.get('zoom')) || 10; // DEFAULT ZOOM IS NOW 10
+        
+        let mapCenterX = 119378;
+        let mapCenterY = 6162294;
+        
+        if (centerStr) {
+            const coords = centerStr.split(',').map(c => parseFloat(c.trim()));
+            if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
+                mapCenterX = coords[0];
+                mapCenterY = coords[1];
+            }
+        }
+        
+        console.log('🗺️ Origo Map: Center=[' + mapCenterX + ',' + mapCenterY + '], Zoom=' + zoom);
+        
+        // Define projection
+        const projection = ol.proj.get('EPSG:3008');
+        projection.setExtent([-72234.21, 6098290.04, 573714.68, 7702218.01]);
+        
+        // Resolutions for SWEREF 99 13:30
+        const resolutions = [
+            66.6751333502667, 33.86673440013547, 25.400050800101603, 16.933367200067735,
+            12.700025400050801, 8.466683600033868, 4.233341800016934, 2.116670900008467,
+            1.0583354500042335, 0.5291677250021167, 0.26458386250105836, 0.13229193125052918,
+            0.06614596562526459, 0.026458386250105836
+        ];
+        
+        // Use requested zoom level, capped at max available
+        const zoomIndex = Math.min(Math.max(zoom, 0), resolutions.length - 1);
+        const resolution = resolutions[zoomIndex];
+        
+        try {
+            console.log('🔧 Creating map with OpenLayers 7.x...');
+            
+            // Create ArcGIS REST Image layer for background
+            const backgroundLayer = new ol.layer.Image({
+                name: 'bakgrundskarta',
+                title: 'Bakgrundskarta',
+                source: new ol.source.ImageArcGISRest({
+                    url: 'https://gis.malmo.se/arcgis/rest/services/baskartor/Bakgrundskarta_nedtonad_3008_text/MapServer',
+                    params: {
+                        'FORMAT': 'png24',
+                        'TRANSPARENT': 'false'
+                    },
+                    ratio: 1
+                }),
+                visible: true,
+                zIndex: 10
+            });
+            
+            // Create WMS layer for Miljöparkering
+            const miljoLayer = new ol.layer.Image({
+                name: 'miljodata',
+                title: 'Miljöparkering',
+                source: new ol.source.ImageWMS({
+                    url: 'https://stadsatlas.malmo.se/wms/fgk.qgs',
+                    params: {
+                        'LAYERS': 'miljoparkering_l',
+                        'TRANSPARENT': 'true',
+                        'FORMAT': 'image/png',
+                        'VERSION': '1.1.1'
+                    }
+                }),
+                visible: true,
+                opacity: 0.75,
+                zIndex: 20
+            });
+            
+            // Create WMS layer for Parkeringsavgifter
+            const parkLayer = new ol.layer.Image({
+                name: 'parkeringsavgifter',
+                title: 'Parkeringsavgifter',
+                source: new ol.source.ImageWMS({
+                    url: 'https://stadsatlas.malmo.se/wms/fgk.qgs',
+                    params: {
+                        'LAYERS': 'parkeringsavgift_p',
+                        'TRANSPARENT': 'true',
+                        'FORMAT': 'image/png',
+                        'VERSION': '1.1.1'
+                    }
+                }),
+                visible: true,
+                opacity: 0.75,
+                zIndex: 20
+            });
+            
+            // Create vector layer for pins
+            const vectorSource = new ol.source.Vector();
+            const vectorLayer = new ol.layer.Vector({
+                name: 'address-pin',
+                title: 'Adressmarkorer',
+                source: vectorSource,
+                style: new ol.style.Style({
+                    image: new ol.style.Icon({
+                        anchor: [0.5, 1],
+                        anchorXUnits: 'fraction',
+                        anchorYUnits: 'fraction',
+                        scale: 1.2,
+                        src: 'data:image/svg+xml;utf8,' + encodeURIComponent(`
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="44" viewBox="0 0 32 44">
+                                <defs>
+                                    <filter id="shadow">
+                                        <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.3"/>
+                                    </filter>
+                                </defs>
+                                <path d="M16 2 C9 2, 3 8, 3 16 C3 26, 16 44, 16 44 S29 26, 29 16 C29 8, 23 2, 16 2" fill="#FF4444" stroke="white" stroke-width="2.5" filter="url(#shadow)"/>
+                                <circle cx="16" cy="15" r="6" fill="white" stroke="#FF4444" stroke-width="1.5"/>
+                            </svg>
+                        `)
+                    })
+                }),
+                zIndex: 1000
+            });
+            
+            // Add feature to vector layer
+            const feature = new ol.Feature({
+                geometry: new ol.geom.Point([mapCenterX, mapCenterY])
+            });
+            vectorSource.addFeature(feature);
+            
+            // Create map view
+            const view = new ol.View({
+                projection: 'EPSG:3008',
+                center: [mapCenterX, mapCenterY],
+                resolution: resolution,
+                extent: [-72234.21, 6098290.04, 573714.68, 7702218.01],
+                resolutions: resolutions,
+                constrainResolution: true
+            });
+            
+            // Create map
+            const map = new ol.Map({
+                target: 'map',
+                layers: [backgroundLayer, miljoLayer, parkLayer, vectorLayer],
+                view: view,
+                controls: [
+                    new ol.control.Zoom({
+                        zoomInLabel: '+',
+                        zoomOutLabel: '-',
+                        zoomInTipLabel: 'Zoom in',
+                        zoomOutTipLabel: 'Zoom out'
+                    }),
+                    new ol.control.Attribution({
+                        collapsible: false
+                    })
+                ]
+            });
+            
+            console.log('✅ Map created successfully');
+            console.log('✅ Background layer added (ArcGIS REST export)');
+            console.log('✅ Miljöparkering WMS layer added');
+            console.log('✅ Parkeringsavgifter WMS layer added');
+            console.log('✅ Address pin added at [' + mapCenterX + ',' + mapCenterY + ']');
+            
+            // Layer toggle functionality
+            document.getElementById('miljoCheckbox').addEventListener('change', (e) => {
+                miljoLayer.setVisible(e.target.checked);
+                console.log('Layer Miljöparkering:', e.target.checked ? 'visible' : 'hidden');
+            });
+            
+            document.getElementById('parkCheckbox').addEventListener('change', (e) => {
+                parkLayer.setVisible(e.target.checked);
+                console.log('Layer Parkeringsavgifter:', e.target.checked ? 'visible' : 'hidden');
+            });
+            
+            // Click handler for WMS GetFeatureInfo
+            map.on('click', (evt) => {
+                const coordinate = evt.coordinate;
+                const popupElement = document.getElementById('popup');
+                
+                const promises = [];
+                
+                if (miljoLayer.getVisible()) {
+                    promises.push(
+                        queryWMS(miljoLayer, coordinate, 'miljoparkering_l', 'miljo')
+                    );
+                }
+                
+                if (parkLayer.getVisible()) {
+                    promises.push(
+                        queryWMS(parkLayer, coordinate, 'parkeringsavgift_p', 'avgift')
+                    );
+                }
+                
+                Promise.all(promises).then((results) => {
+                    const validResults = results.filter(r => r && r.info);
+                    if (validResults.length > 0) {
+                        showPopup(coordinate, validResults, popupElement, map);
+                    }
+                });
+            });
+            
+            // WMS GetFeatureInfo query function
+            function queryWMS(layer, coordinate, layerName, type) {
+                return new Promise((resolve) => {
+                    const resolution = view.getResolution();
+                    const url = layer.getSource().getFeatureInfoUrl(
+                        coordinate,
+                        resolution,
+                        projection,
+                        {
+                            'INFO_FORMAT': 'application/json',
+                            'QUERY_LAYERS': layerName,
+                            'FEATURE_COUNT': 1
+                        }
+                    );
+                    
+                    if (!url) {
+                        resolve(null);
+                        return;
+                    }
+                    
+                    fetch(url)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.features && data.features.length > 0) {
+                                const feature = data.features[0];
+                                const props = feature.properties || {};
+                                
+                                let title = '';
+                                let info = '';
+                                
+                                if (type === 'miljo') {
+                                    title = '🌍 Miljödata';
+                                    info = props.copy_value || props.value || props.copyvalue || 'Parkeringsrestriktioner';
+                                } else if (type === 'avgift') {
+                                    title = '🅿️ Parkering';
+                                    info = props.taxa || props.value || props.copyvalue || 'Parkeringsavgift';
+                                }
+                                
+                                resolve({
+                                    type: type,
+                                    title: title,
+                                    info: info,
+                                    props: props
+                                });
+                            } else {
+                                resolve(null);
+                            }
+                        })
+                        .catch(err => {
+                            console.warn('GetFeatureInfo error (' + type + '):', err);
+                            resolve(null);
+                        });
+                });
+            }
+            
+            // Show popup function
+            function showPopup(coordinate, results, element, map) {
+                let html = '';
+                
+                results.forEach((result, idx) => {
+                    html += '<div class="popup-item">';
+                    html += '<div class="popup-icon">' + result.title + '</div>';
+                    html += '<div class="popup-info">' + result.info + '</div>';
+                    html += '</div>';
+                    
+                    if (idx < results.length - 1) {
+                        html += '<hr style="border: none; border-top: 1px solid #eee; margin: 8px 0;">';
+                    }
+                });
+                
+                element.innerHTML = html;
+                const pixel = map.getPixelFromCoordinate(coordinate);
+                element.style.left = (pixel[0] + 10) + 'px';
+                element.style.top = (pixel[1] - 10) + 'px';
+                element.classList.add('show');
+                
+                setTimeout(() => {
+                    element.classList.remove('show');
+                }, 6000);
+            }
+            
+            // Update info box - calculate zoom from resolution
+            function updateInfo() {
+                const currentResolution = view.getResolution();
+                const currentZoomIndex = resolutions.indexOf(resolutions.reduce((prev, curr) => 
+                    Math.abs(curr - currentResolution) < Math.abs(prev - currentResolution) ? curr : prev
+                ));
+                const c = view.getCenter();
+                document.getElementById('mapInfo').innerHTML = 
+                    '🗺️ Map Ready<br>' +
+                    'X: ' + c[0].toFixed(0) + '<br>' +
+                    'Y: ' + c[1].toFixed(0) + '<br>' +
+                    'Zoom: ' + currentZoomIndex.toFixed(1);
+            }
+            
+            updateInfo();
+            view.on('change:center', updateInfo);
+            view.on('change:resolution', updateInfo);
+            
+            console.log('🚀 Map initialization complete!');
+            
+        } catch (error) {
+            console.error('❌ Map initialization error:', error);
+            document.getElementById('mapInfo').innerHTML = '❌ Error: ' + error.message;
+        }
+    </script>
+</body>
+</html>

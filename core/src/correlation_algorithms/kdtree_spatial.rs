@@ -138,7 +138,7 @@ impl CorrelationAlgo for KDTreeSpatialAlgo {
                     let dist = distance_point_to_line(point, line.start, line.end);
 
                     // Only consider if within threshold
-                    if dist <= MAX_DISTANCE_METERS && (best.is_none() || dist < best.unwrap().1) {
+                    if dist <= MAX_DISTANCE_METERS && (best.is_none() || dist <= best.unwrap().1) {
                         best = Some((line.index, dist));
                     }
                 }

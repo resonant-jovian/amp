@@ -1,0 +1,9 @@
+{
+  "miljo_url": "https://opendata.malmo.se/@fastighets-och-gatukontoret/miljoparkering/73490f00-0d71-4b17-903c-f77ab7664a53",
+  "miljo_checksum": "263114f7d0ab3818cf9072dc2a5b04b934c4a00d655c66aef1e6bae38b8aa9b3",
+  "parkering_url": "https://opendata.malmo.se/@fastighets-och-gatukontoret/parkeringsavgifter/1a6bd68b-30ca-40a5-9d62-01e2a566982e",
+  "parkering_checksum": "5304c329e0d64657cb68500e06ef1b9687499df4c3018ede8e726d1cd2926d08",
+  "adresser_url": "https://opendata.malmo.se/@stadsbyggnadskontoret/adresser/caf1cee8-9af2-4a75-8fb7-f1d7cb11daeb",
+  "adresser_checksum": "d5d042514134cb52ffd1904e5e2ef7b317ff0d4811b1f22f69e2c5e91ea7e098",
+  "last_checked": "2026-01-26T08:53:23.938740607+00:00"
+}
