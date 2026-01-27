@@ -19,9 +19,10 @@ pub struct ParkingRestriction {
     pub gata: String,
     pub gatunummer: String,
     pub postnummer: u16,
-    pub dag: u8,      // Day of month (1-31)
-    pub tid: String,  // Time interval "HHMM-HHMM"
-    pub info: String, // Restriction info
+    pub adress: String,   // Full address (gata + gatunummer)
+    pub dag: u8,          // Day of month (1-31)
+    pub tid: String,      // Time interval "HHMM-HHMM"
+    pub info: String,     // Restriction info
 }
 
 /// Read correlation results from parquet file
@@ -283,6 +284,13 @@ pub fn read_android_local_addresses(path: &str) -> anyhow::Result<Vec<ParkingRes
             .ok_or_else(|| anyhow::anyhow!("postnummer column missing or wrong type"))?
             .iter();
 
+        let adress = batch
+            .column(batch.schema().index_of("adress")?)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .ok_or_else(|| anyhow::anyhow!("adress column missing or wrong type"))?
+            .iter();
+
         let dag = batch
             .column(batch.schema().index_of("dag")?)
             .as_any()
@@ -319,6 +327,12 @@ pub fn read_android_local_addresses(path: &str) -> anyhow::Result<Vec<ParkingRes
                     .map(|s| s.to_string())
                     .unwrap_or_default(),
                 postnummer: postnummer.clone().nth(i).flatten().unwrap_or(0),
+                adress: adress
+                    .clone()
+                    .nth(i)
+                    .flatten()
+                    .map(|s| s.to_string())
+                    .unwrap_or_default(),
                 dag: dag.clone().nth(i).flatten().unwrap_or(0),
                 tid: tid
                     .clone()
@@ -381,7 +395,7 @@ pub fn write_android_local_addresses(
             gata_builder.append_value(&addr.gata);
             gatunummer_builder.append_value(&addr.gatunummer);
             postnummer_builder.append_value(addr.postnummer);
-            adress_builder.append_value(format!("{} {}", &addr.gata, &addr.gatunummer));
+            adress_builder.append_value(&addr.adress);
             dag_builder.append_value(addr.dag);
             tid_builder.append_value(&addr.tid);
             info_builder.append_value(&addr.info);
