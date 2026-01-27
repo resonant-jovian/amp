@@ -5,13 +5,13 @@ use ratatui::{
     layout::{Constraint, Direction, Layout},
     prelude::*,
     widgets::{
-        Block, Borders, Clear, Gauge, List, ListItem, Paragraph, Tabs,
+        Block, Borders, Gauge, Paragraph, Tabs,
     },
 };
 
 use crate::tui::Tui;
 use crate::classification;
-use amp_core::benchmark::{Benchmarker, BenchmarkResult};
+use amp_core::benchmark::BenchmarkResult;
 use amp_core::correlation_algorithms::{
     CorrelationAlgo, DistanceBasedAlgo, GridNearestAlgo, KDTreeSpatialAlgo,
     OverlappingChunksAlgo, RTreeSpatialAlgo, RaycastingAlgo,
@@ -19,7 +19,7 @@ use amp_core::correlation_algorithms::{
 use amp_core::structs::{AdressClean, CorrelationResult, MiljoeDataClean};
 use amp_core::api::api;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AlgorithmChoice {
     DistanceBased,
     Raycasting,
@@ -250,7 +250,7 @@ impl App {
     }
 
     fn draw(&self, frame: &mut ratatui::Frame) {
-        let size = frame.size();
+        let size = frame.area();
 
         let main_layout = Layout::default()
             .direction(Direction::Vertical)
@@ -320,7 +320,7 @@ impl App {
             .split(area);
 
         let art = Paragraph::new(
-            "   ___    __  __  ____\n  / _ |  / / / / / __/\n / __ | / /_/ / _\\ \  \n/_/ |_| \\____/ /___/  Address → Miljözone → Parking  "
+            "   ___    __  __  ____\n  / _ |  / / / / / __/\n / __ | / /_/ / _\\ \\\n/_/ |_| \\____/ /___/\n\nAddress → Miljözone → Parking"
         )
         .block(Block::default().borders(Borders::ALL).title(" amp-server "));
         frame.render_widget(art, chunks[0]);
@@ -573,7 +573,6 @@ impl App {
     }
 
     fn run_test_mode(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        // For now, just call the existing CLI logic via classification or direct function
         self.state.last_action = "Launching browser-based test mode (see external windows)...".into();
         classification::run_test_mode_legacy(self.state.selected_algorithm, self.state.cutoff)?;
         Ok(())
