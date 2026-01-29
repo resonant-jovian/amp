@@ -445,7 +445,7 @@ input[type=number] {
     outline: none !important;
 }
 
-.switch-thumb.active {
+.switch-thumb[data-active="true"] {
     left: calc(100% - 36px - 4px);
     background: #c8c8c8;
 }
@@ -459,7 +459,7 @@ input[type=number] {
     transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.switch-thumb.active .led {
+.switch-thumb[data-active="true"] .led {
     background: #ffff00;
     box-shadow: 0 0 15px 4px #ffff00;
 }
