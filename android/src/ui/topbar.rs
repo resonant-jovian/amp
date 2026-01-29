@@ -36,167 +36,47 @@ pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Ele
     let handle_settings_click = move |_| {
         info!("Settings button clicked - TODO: implement settings");
     };
+    
+    let svg_bg = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:0">
+        <defs>
+            <radialGradient id="Gradient1" cx="50%" cy="50%" fx="0.441602%" fy="50%" r=".5">
+                <animate attributeName="fx" dur="34s" values="0%;3%;0%" repeatCount="indefinite"/>
+                <stop offset="0%" stop-color="rgba(255, 0, 255, 1)"/>
+                <stop offset="100%" stop-color="rgba(255, 0, 255, 0)"/>
+            </radialGradient>
+            <radialGradient id="Gradient2" cx="50%" cy="50%" fx="2.68147%" fy="50%" r=".5">
+                <animate attributeName="fx" dur="23.5s" values="0%;3%;0%" repeatCount="indefinite"/>
+                <stop offset="0%" stop-color="rgba(255, 255, 0, 1)"/>
+                <stop offset="100%" stop-color="rgba(255, 255, 0, 0)"/>
+            </radialGradient>
+            <radialGradient id="Gradient3" cx="50%" cy="50%" fx="0.836536%" fy="50%" r=".5">
+                <animate attributeName="fx" dur="21.5s" values="0%;3%;0%" repeatCount="indefinite"/>
+                <stop offset="0%" stop-color="rgba(0, 255, 255, 1)"/>
+                <stop offset="100%" stop-color="rgba(0, 255, 255, 0)"/>
+            </radialGradient>
+        </defs>
+        <rect x="13.744%" y="1.18473%" width="100%" height="100%" fill="url(#Gradient1)" transform="rotate(334.41 50 50)">
+            <animate attributeName="x" dur="20s" values="25%;0%;25%" repeatCount="indefinite"/>
+            <animate attributeName="y" dur="21s" values="0%;25%;0%" repeatCount="indefinite"/>
+            <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="7s" repeatCount="indefinite"/>
+        </rect>
+        <rect x="-2.17916%" y="35.4267%" width="100%" height="100%" fill="url(#Gradient2)" transform="rotate(255.072 50 50)">
+            <animate attributeName="x" dur="23s" values="-25%;0%;-25%" repeatCount="indefinite"/>
+            <animate attributeName="y" dur="24s" values="0%;50%;0%" repeatCount="indefinite"/>
+            <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="12s" repeatCount="indefinite"/>
+        </rect>
+        <rect x="9.00483%" y="14.5733%" width="100%" height="100%" fill="url(#Gradient3)" transform="rotate(139.903 50 50)">
+            <animate attributeName="x" dur="25s" values="0%;25%;0%" repeatCount="indefinite"/>
+            <animate attributeName="y" dur="12s" values="0%;25%;0%" repeatCount="indefinite"/>
+            <animateTransform attributeName="transform" type="rotate" from="360 50 50" to="0 50 50" dur="9s" repeatCount="indefinite"/>
+        </rect>
+    </svg>"#;
+    
     rsx! {
         div { class: "category-container topbar-container",
             div { class: "category-title topbar-title",
                 div { class: "topbar-bg-wrap",
-                    svg {
-                        xmlns: "http://www.w3.org/2000/svg",
-                        attr:"view-box", "0 0 100 100",
-                        attr:"preserveAspectRatio", "xMidYMid slice",
-                        defs {
-                            "radial-gradient" {
-                                attr:id: "Gradient1",
-                                attr:cx: "50%",
-                                attr:cy: "50%",
-                                attr:fx: "0.441602%",
-                                attr:fy: "50%",
-                                attr:r: ".5",
-                                animate {
-                                    attr:"attributeName": "fx",
-                                    attr:dur: "34s",
-                                    attr:values: "0%;3%;0%",
-                                    attr:"repeatCount": "indefinite",
-                                }
-                                stop {
-                                    attr:offset: "0%",
-                                    attr:"stop-color": "rgba(255, 0, 255, 1)",
-                                }
-                                stop {
-                                    attr:offset: "100%",
-                                    attr:"stop-color": "rgba(255, 0, 255, 0)",
-                                }
-                            }
-                            "radial-gradient" {
-                                attr:id: "Gradient2",
-                                attr:cx: "50%",
-                                attr:cy: "50%",
-                                attr:fx: "2.68147%",
-                                attr:fy: "50%",
-                                attr:r: ".5",
-                                animate {
-                                    attr:"attributeName": "fx",
-                                    attr:dur: "23.5s",
-                                    attr:values: "0%;3%;0%",
-                                    attr:"repeatCount": "indefinite",
-                                }
-                                stop {
-                                    attr:offset: "0%",
-                                    attr:"stop-color": "rgba(255, 255, 0, 1)",
-                                }
-                                stop {
-                                    attr:offset: "100%",
-                                    attr:"stop-color": "rgba(255, 255, 0, 0)",
-                                }
-                            }
-                            "radial-gradient" {
-                                attr:id: "Gradient3",
-                                attr:cx: "50%",
-                                attr:cy: "50%",
-                                attr:fx: "0.836536%",
-                                attr:fy: "50%",
-                                attr:r: ".5",
-                                animate {
-                                    attr:"attributeName": "fx",
-                                    attr:dur: "21.5s",
-                                    attr:values: "0%;3%;0%",
-                                    attr:"repeatCount": "indefinite",
-                                }
-                                stop {
-                                    attr:offset: "0%",
-                                    attr:"stop-color": "rgba(0, 255, 255, 1)",
-                                }
-                                stop {
-                                    attr:offset: "100%",
-                                    attr:"stop-color": "rgba(0, 255, 255, 0)",
-                                }
-                            }
-                        }
-                        rect {
-                            attr:x, "13.744%",
-                            attr:y, "1.18473%",
-                            attr:width, "100%",
-                            attr:height, "100%",
-                            attr:fill, "url(#Gradient1)",
-                            attr:transform, "rotate(334.41 50 50)",
-                            animate {
-                                attr:"attributeName", "x",
-                                attr:dur, "20s",
-                                attr:values, "25%;0%;25%",
-                                attr:"repeatCount", "indefinite",
-                            }
-                            animate {
-                                attr:"attributeName", "y",
-                                attr:dur, "21s",
-                                attr:values, "0%;25%;0%",
-                                attr:"repeatCount", "indefinite",
-                            }
-                            "animate-transform" {
-                                attr:"attributeName", "transform",
-                                attr:type, "rotate",
-                                attr:from, "0 50 50",
-                                attr:to, "360 50 50",
-                                attr:dur, "7s",
-                                attr:"repeatCount", "indefinite",
-                            }
-                        }
-                        rect {
-                            attr:x, "-2.17916%",
-                            attr:y, "35.4267%",
-                            attr:width, "100%",
-                            attr:height, "100%",
-                            attr:fill, "url(#Gradient2)",
-                            attr:transform, "rotate(255.072 50 50)",
-                            animate {
-                                attr:"attributeName", "x",
-                                attr:dur, "23s",
-                                attr:values, "-25%;0%;-25%",
-                                attr:"repeatCount", "indefinite",
-                            }
-                            animate {
-                                attr:"attributeName", "y",
-                                attr:dur, "24s",
-                                attr:values, "0%;50%;0%",
-                                attr:"repeatCount", "indefinite",
-                            }
-                            "animate-transform" {
-                                attr:"attributeName", "transform",
-                                attr:type, "rotate",
-                                attr:from, "0 50 50",
-                                attr:to, "360 50 50",
-                                attr:dur, "12s",
-                                attr:"repeatCount", "indefinite",
-                            }
-                        }
-                        rect {
-                            attr:x, "9.00483%",
-                            attr:y, "14.5733%",
-                            attr:width, "100%",
-                            attr:height, "100%",
-                            attr:fill, "url(#Gradient3)",
-                            attr:transform, "rotate(139.903 50 50)",
-                            animate {
-                                attr:"attributeName", "x",
-                                attr:dur, "25s",
-                                attr:values, "0%;25%;0%",
-                                attr:"repeatCount", "indefinite",
-                            }
-                            animate {
-                                attr:"attributeName", "y",
-                                attr:dur, "12s",
-                                attr:values, "0%;25%;0%",
-                                attr:"repeatCount", "indefinite",
-                            }
-                            "animate-transform" {
-                                attr:"attributeName", "transform",
-                                attr:type, "rotate",
-                                attr:from, "360 50 50",
-                                attr:to, "0 50 50",
-                                attr:dur, "9s",
-                                attr:"repeatCount", "indefinite",
-                            }
-                        }
-                    }
+                    dangerous_inner_html: svg_bg,
                 }
                 div { class: "topbar-title-content",
                     span { class: "topbar-title-text", "amp" }
@@ -208,12 +88,12 @@ pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Ele
                             xmlns: "http://www.w3.org/2000/svg",
                             width: "24",
                             height: "24",
-                            attr:"view-box", "0 0 24 24",
+                            view_box: "0 0 24 24",
                             fill: "none",
                             stroke: "white",
-                            attr:"stroke-width", "2",
-                            attr:"stroke-linecap", "round",
-                            attr:"stroke-linejoin", "round",
+                            stroke_width: "2",
+                            stroke_linecap: "round",
+                            stroke_linejoin: "round",
                             line {
                                 x1: "3",
                                 y1: "6",
