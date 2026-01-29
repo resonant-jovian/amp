@@ -1,6 +1,5 @@
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
-
 #[component]
 pub fn Adresser(
     stored_addresses: Vec<StoredAddress>,
