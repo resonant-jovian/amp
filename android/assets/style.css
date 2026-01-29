@@ -24,7 +24,6 @@ body {
     transition: background 0.4s ease;
 }
 
-/* Remove default input/button styling globally */
 input,
 button,
 select,
@@ -46,37 +45,35 @@ input[type=number] {
     -moz-appearance: textfield !important;
 }
 
-/* Firefox focus ring removal */
 ::-moz-focus-inner {
     border: none !important;
     outline: none !important;
 }
 
-/* ============================================================
-   PALETTE COLOR ANIMATIONS
-   Smooth transitions between 8 vibrant color palettes
-   ============================================================ */
-
-@keyframes colorCycleSmoothL1 {
-    0% { --c1-stop1: #FF6B6B; --c1-stop2: #FFE66D; --c1-stop3: #4ECDC4; }
-    12.5% { --c1-stop1: #1E90FF; --c1-stop2: #00CED1; --c1-stop3: #FF69B4; }
-    25% { --c1-stop1: #00C853; --c1-stop2: #81C784; --c1-stop3: #558B2F; }
-    37.5% { --c1-stop1: #7B68EE; --c1-stop2: #BA55D3; --c1-stop3: #DDA0DD; }
-    50% { --c1-stop1: #FFA500; --c1-stop2: #FFD700; --c1-stop3: #FF6347; }
-    62.5% { --c1-stop1: #FF4500; --c1-stop2: #FF8C00; --c1-stop3: #FF69B4; }
-    75% { --c1-stop1: #00BFFF; --c1-stop2: #87CEEB; --c1-stop3: #E0FFFF; }
-    87.5% { --c1-stop1: #FF1493; --c1-stop2: #FF69B4; --c1-stop3: #FFB6C1; }
-    100% { --c1-stop1: #FF6B6B; --c1-stop2: #FFE66D; --c1-stop3: #4ECDC4; }
+@keyframes smoothGradient {
+    0% {
+        background: linear-gradient(90deg, #FF6B6B 0%, #FFE66D 16.66%, #4ECDC4 33.33%, #1E90FF 50%, #FF69B4 66.66%, #FFA500 100%);
+    }
+    16.66% {
+        background: linear-gradient(90deg, #FFE66D 0%, #4ECDC4 16.66%, #1E90FF 33.33%, #FF69B4 50%, #FFA500 66.66%, #FF6B6B 100%);
+    }
+    33.33% {
+        background: linear-gradient(90deg, #4ECDC4 0%, #1E90FF 16.66%, #FF69B4 33.33%, #FFA500 50%, #FF6B6B 66.66%, #FFE66D 100%);
+    }
+    50% {
+        background: linear-gradient(90deg, #1E90FF 0%, #FF69B4 16.66%, #FFA500 33.33%, #FF6B6B 50%, #FFE66D 66.66%, #4ECDC4 100%);
+    }
+    66.66% {
+        background: linear-gradient(90deg, #FF69B4 0%, #FFA500 16.66%, #FF6B6B 33.33%, #FFE66D 50%, #4ECDC4 66.66%, #1E90FF 100%);
+    }
+    83.33% {
+        background: linear-gradient(90deg, #FFA500 0%, #FF6B6B 16.66%, #FFE66D 33.33%, #4ECDC4 50%, #1E90FF 66.66%, #FF69B4 100%);
+    }
+    100% {
+        background: linear-gradient(90deg, #FF6B6B 0%, #FFE66D 16.66%, #4ECDC4 33.33%, #1E90FF 50%, #FF69B4 66.66%, #FFA500 100%);
+    }
 }
 
-:root {
-    --c1-stop1: #FF6B6B;
-    --c1-stop2: #FFE66D;
-    --c1-stop3: #4ECDC4;
-    animation: colorCycleSmoothL1 128s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
-}
-
-/* TopBar Styling - Single Radial Gradient in Top Right */
 .topbar-container {
     margin-bottom: 16px;
     border-radius: 16px;
@@ -86,9 +83,7 @@ input[type=number] {
 }
 
 .topbar-title {
-    background: 
-        radial-gradient(circle 60% at 85% 15%, var(--c1-stop1) 0%, transparent 70%),
-        #2a2a4a;
+    animation: smoothGradient 12s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
     position: relative;
     display: flex;
     align-items: center;
