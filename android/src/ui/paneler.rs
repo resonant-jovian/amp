@@ -207,7 +207,7 @@ pub fn Month(addresses: Vec<StoredAddress>) -> Element {
 pub fn NotValid(addresses: Vec<StoredAddress>) -> Element {
     let addrs: Vec<_> = addresses
         .into_iter()
-        .filter(|a| !a.valid || !a.active)
+        .filter(|a| a.active && !a.valid)
         .collect();
     let count = addrs.len();
     rsx! {
