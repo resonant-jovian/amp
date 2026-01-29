@@ -11,7 +11,7 @@ pub fn Adresser(
             div { class: "category-title", "Adresser" }
             div { class: "category-content",
                 if stored_addresses.is_empty() {
-                    div { class: "empty-state", "Inga adresser tillagda" }
+                    div { class: "empty-state", "Inga adresser" }
                 } else {
                     div { id: "addressList",
                         {

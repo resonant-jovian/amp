@@ -87,6 +87,8 @@ pub fn App() -> Element {
             addrs.remove(index);
         }
     };
+    let addresses = stored_addresses.read().clone();
+    /*
     let addresses: Vec<StoredAddress> = vec![
         StoredAddress {
             gata: "Testgatan".to_string(),
@@ -97,6 +99,9 @@ pub fn App() -> Element {
             matched_entry: None,
         },
     ];
+
+
+     */
     rsx! {
         Stylesheet { href: CSS }
         TopBar { on_add_address: handle_add_address }
