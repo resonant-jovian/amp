@@ -60,10 +60,13 @@ use crate::ui::{
 };
 #[component]
 pub fn App() -> Element {
-    let mut stored_addresses = use_signal::<Vec<StoredAddress>>(Vec::new());
+    let mut stored_addresses = use_signal::<Vec<StoredAddress>>(Vec::new);
     let handle_add_address = move |args: (String, String, String)| {
         let (gata, gatunummer, postnummer) = args;
-        tracing::info!("handle_add_address called with gata='{}', gatunummer='{}', postnummer='{}'", gata, gatunummer, postnummer);
+        info!(
+            "handle_add_address called with gata='{}', gatunummer='{}', postnummer='{}'",
+            gata, gatunummer, postnummer
+        );
         let new_addr = StoredAddress::new(gata, gatunummer, postnummer);
         let mut addrs = stored_addresses.write();
         if !addrs
@@ -73,26 +76,29 @@ pub fn App() -> Element {
                     && a.postnummer == new_addr.postnummer
             })
         {
-            tracing::info!("Adding new address, total now: {}", addrs.len() + 1);
+            info!("Adding new address, total now: {}", addrs.len() + 1);
             addrs.push(new_addr);
         } else {
-            tracing::warn!("Duplicate address detected, not adding");
+            warn!("Duplicate address detected, not adding");
         }
     };
     let handle_toggle_active = move |index: usize| {
-        tracing::info!("toggle_active called for index {}", index);
+        info!("toggle_active called for index {}", index);
         let mut addrs = stored_addresses.write();
         if let Some(addr) = addrs.get_mut(index) {
             addr.active = !addr.active;
-            tracing::info!("Address {} now active: {}", index, addr.active);
+            info!("Address {} now active: {}", index, addr.active);
         }
     };
     let handle_remove_address = move |index: usize| {
-        tracing::info!("remove_address called for index {}", index);
+        info!("remove_address called for index {}", index);
         let mut addrs = stored_addresses.write();
         if index < addrs.len() {
             let removed = addrs.remove(index);
-            tracing::info!("Removed address: {} {}, {}", removed.gata, removed.gatunummer, removed.postnummer);
+            info!(
+                "Removed address: {} {}, {}", removed.gata, removed.gatunummer, removed
+                .postnummer
+            );
         }
     };
     rsx! {
