@@ -6,10 +6,7 @@ pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Ele
     let handle_add_click = move |_| {
         let address_str = address_input();
         let postnummer = postnummer_input();
-        info!(
-            "Add button clicked: address='{}', postal='{}'",
-            address_str, postnummer
-        );
+        info!("Add button clicked: address='{}', postal='{}'", address_str, postnummer);
         if address_str.trim().is_empty() || postnummer.trim().is_empty() {
             warn!("Validation failed: empty fields");
             return;
@@ -22,8 +19,8 @@ pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Ele
         let gatunummer = street_words[street_words.len() - 1].to_string();
         let gata = street_words[..street_words.len() - 1].join(" ");
         info!(
-            "Parsed: gata='{}', gatunummer='{}', postnummer='{}'",
-            gata, gatunummer, postnummer
+            "Parsed: gata='{}', gatunummer='{}', postnummer='{}'", gata, gatunummer,
+            postnummer
         );
         on_add_address.call((gata, gatunummer, postnummer.to_string()));
         address_input.set(String::new());
@@ -36,7 +33,6 @@ pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Ele
     let handle_settings_click = move |_| {
         info!("Settings button clicked - TODO: implement settings");
     };
-    
     let svg_bg = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:0">
         <defs>
             <radialGradient id="Gradient1" cx="50%" cy="50%" fx="0.441602%" fy="50%" r=".5">
@@ -71,13 +67,10 @@ pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Ele
             <animateTransform attributeName="transform" type="rotate" from="360 50 50" to="0 50 50" dur="9s" repeatCount="indefinite"/>
         </rect>
     </svg>"#;
-    
     rsx! {
         div { class: "category-container topbar-container",
             div { class: "category-title topbar-title",
-                div { class: "topbar-bg-wrap",
-                    dangerous_inner_html: svg_bg,
-                }
+                div { class: "topbar-bg-wrap", dangerous_inner_html: svg_bg }
                 div { class: "topbar-title-content",
                     span { class: "topbar-title-text", "amp" }
                     button {
