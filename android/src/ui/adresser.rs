@@ -1,5 +1,6 @@
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
+
 #[component]
 pub fn Adresser(
     stored_addresses: Vec<StoredAddress>,
@@ -7,11 +8,11 @@ pub fn Adresser(
     on_remove_address: EventHandler<usize>,
 ) -> Element {
     rsx! {
-        div { class: "category-container category-invalid",
+        div { class: "category-container category-addresses",
             div { class: "category-title", "Adresser" }
             div { class: "category-content",
                 if stored_addresses.is_empty() {
-                    div { class: "empty-state", "Inga adresser" }
+                    div { class: "empty-state", "Inga adresser tillagda" }
                 } else {
                     div { id: "addressList",
                         {
