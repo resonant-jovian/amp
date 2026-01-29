@@ -32,21 +32,27 @@ input,
 button,
 select,
 textarea {
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    -webkit-tap-highlight-color: transparent;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    -webkit-tap-highlight-color: transparent !important;
     outline: none !important;
 }
 
 input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button {
-    -webkit-appearance: none;
+    -webkit-appearance: none !important;
     margin: 0;
 }
 
 input[type=number] {
-    -moz-appearance: textfield;
+    -moz-appearance: textfield !important;
+}
+
+/* Firefox focus ring removal */
+::-moz-focus-inner {
+    border: none !important;
+    outline: none !important;
 }
 
 /* TopBar Styling - Category Box with Inverted Header */
@@ -157,6 +163,7 @@ input[type=number] {
     transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
     outline: none !important;
     -webkit-tap-highlight-color: transparent;
+    caret-color: transparent;
 }
 
 .topbar-input::placeholder {
@@ -165,7 +172,8 @@ input[type=number] {
 }
 
 .topbar-input:focus {
-    outline: none;
+    outline: none !important;
+    box-shadow: none !important;
 }
 
 .topbar-buttons-row {
@@ -367,7 +375,17 @@ input[type=number] {
 }
 
 .toggle-switch input {
-    display: none;
+    display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    height: 0 !important;
+    opacity: 0 !important;
+    outline: none !important;
+}
+
+.toggle-switch input:focus {
+    outline: none !important;
+    box-shadow: none !important;
 }
 
 .switch-container {
@@ -381,21 +399,29 @@ input[type=number] {
     cursor: pointer;
     transition: box-shadow 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     outline: none !important;
-    -webkit-tap-highlight-color: transparent;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    user-select: none;
-    pointer-events: auto;
-    tabindex: -1;
+    border: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    user-select: none !important;
+    pointer-events: auto !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    transform: translate(0, 0);
+    box-shadow: inset 3px 3px 7px #a3b1c6, inset -3px -3px 7px #ffffff !important;
 }
 
 .switch-container:focus,
 .switch-container:focus-visible,
 .switch-container:focus-within,
-.switch-container:active {
+.switch-container:active,
+.switch-container::-webkit-focus-ring-color {
     outline: none !important;
-    box-shadow: inset 3px 3px 7px #a3b1c6, inset -3px -3px 7px #ffffff;
+    border: none !important;
+    box-shadow: inset 3px 3px 7px #a3b1c6, inset -3px -3px 7px #ffffff !important;
     -webkit-appearance: none !important;
+    -webkit-focus-ring-color: transparent !important;
 }
 
 .switch-thumb {
@@ -416,6 +442,12 @@ input[type=number] {
     transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     -webkit-tap-highlight-color: transparent;
     pointer-events: none;
+    outline: none !important;
+}
+
+.switch-thumb:focus,
+.switch-thumb:focus-visible {
+    outline: none !important;
 }
 
 .switch-thumb.active {
