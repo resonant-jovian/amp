@@ -88,20 +88,6 @@ pub fn App() -> Element {
         }
     };
     let addresses = stored_addresses.read().clone();
-    /*
-    let addresses: Vec<StoredAddress> = vec![
-        StoredAddress {
-            gata: "Testgatan".to_string(),
-            gatunummer: "1A".to_string(),
-            postnummer: "123 45".to_string(),
-            valid: false,
-            active: true,
-            matched_entry: None,
-        },
-    ];
-
-
-     */
     rsx! {
         Stylesheet { href: CSS }
         TopBar { on_add_address: handle_add_address }
