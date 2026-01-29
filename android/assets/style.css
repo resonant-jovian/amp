@@ -78,7 +78,7 @@ input[type=number] {
     justify-content: space-between;
     padding: 0;
     min-height: 80px;
-    background: linear-gradient(135deg, var(--strawberry-red) 0%, var(--tuscan-sun) 40%, var(--seagrass) 100%);
+    background: linear-gradient(90deg, var(--strawberry-red) 0%, var(--strawberry-red) 10%, var(--atomic-tangerine) 10%, var(--atomic-tangerine) 20%, var(--carrot-orange) 20%, var(--carrot-orange) 30%, var(--coral-glow) 30%, var(--coral-glow) 40%, var(--tuscan-sun) 40%, var(--tuscan-sun) 50%, var(--willow-green) 50%, var(--willow-green) 60%, var(--seagrass) 60%, var(--seagrass) 70%, var(--dark-cyan) 70%, var(--dark-cyan) 80%, var(--blue-slate) 80%, var(--blue-slate) 90%, var(--cerulean) 90%);
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15), inset 0 1px 2px rgba(255, 255, 255, 0.1);
 }
 
