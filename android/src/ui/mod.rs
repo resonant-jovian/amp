@@ -60,34 +60,34 @@ use crate::ui::{
 };
 #[component]
 pub fn App() -> Element {
-    let mut stored_addresses = use_signal::<Vec<StoredAddress>>(Vec::new);
+    let mut stored_addresses = use_signal::<Vec<StoredAddress>>(Vec::new());
+    // Debug addresses for testing - variety of addresses to test filtering and switches
     {
         let mut addrs = stored_addresses.write();
         if addrs.is_empty() {
-            addrs
-                .push(
-                    StoredAddress::new(
-                        "Storgatan".to_string(),
-                        "1".to_string(),
-                        "22100".to_string(),
-                    ),
-                );
-            addrs
-                .push(
-                    StoredAddress::new(
-                        "Centralvägen".to_string(),
-                        "5".to_string(),
-                        "22100".to_string(),
-                    ),
-                );
-            addrs
-                .push(
-                    StoredAddress::new(
-                        "Testgatan".to_string(),
-                        "99".to_string(),
-                        "00000".to_string(),
-                    ),
-                );
+            // Add a mix of real-looking Lund addresses
+            // Some should match in database, some should be invalid for testing
+            addrs.push(StoredAddress::new(
+                "Storgatan".to_string(),
+                "5".to_string(),
+                "22100".to_string(),
+            ));
+            addrs.push(StoredAddress::new(
+                "Flogatan".to_string(),
+                "12".to_string(),
+                "22220".to_string(),
+            ));
+            addrs.push(StoredAddress::new(
+                "Järnvägsgatan".to_string(),
+                "3".to_string(),
+                "22100".to_string(),
+            ));
+            // Obviously invalid address for NotValid panel testing
+            addrs.push(StoredAddress::new(
+                "Fantasigatan".to_string(),
+                "999".to_string(),
+                "00000".to_string(),
+            ));
         }
     }
     let handle_add_address = move |args: (String, String, String)| {
