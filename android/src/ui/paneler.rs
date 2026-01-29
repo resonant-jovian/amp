@@ -1,33 +1,38 @@
-use crate::countdown::{TimeBucket, bucket_for, format_countdown};
-use crate::static_data::StaticAddressEntry;
+use crate::countdown::{bucket_for, format_countdown, TimeBucket};
+use crate::ui::StoredAddress;
 use dioxus::prelude::*;
+
+/// Represents the five panel buckets for categorizing addresses
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum PanelBucket {
+    Active,
+    Six,
+    Day,
+    Month,
+    NotValid,
+}
 
 /// Display an address with countdown timer in appropriate category
 #[component]
-pub fn CategorizedAddress(entry: StaticAddressEntry, on_remove: EventHandler<()>) -> Element {
-    let bucket = bucket_for(entry.dag, &entry.tid);
-    let countdown = format_countdown(entry.dag, &entry.tid).unwrap_or_else(|| "...".to_string());
+fn AddressItem(addr: StoredAddress, index: usize, on_remove: EventHandler<usize>) -> Element {
+    let matched = &addr.matched_entry;
+    let countdown = matched
+        .as_ref()
+        .and_then(|e| format_countdown(e.dag, &e.tid))
+        .unwrap_or_else(|| "...".to_string());
 
-    let (_category_name, css_class) = match bucket {
-        TimeBucket::Now => ("Nu", "bucket-now"),
-        TimeBucket::Within6Hours => ("Om mindre än 6h", "bucket-6h"),
-        TimeBucket::Within1Day => ("Inom 24h", "bucket-1d"),
-        TimeBucket::Within1Month => ("Inom 1 månad", "bucket-1m"),
-        TimeBucket::Invalid => ("Ingen städning här", "bucket-invalid"),
-    };
+    let address_display = format!("{} {}, {}", addr.gata, addr.gatunummer, addr.postnummer);
 
     rsx! {
-        div { class: "category-item {css_class}",
-            div { class: "address-text",
-                "{entry.adress}"
-            }
-            div { class: "countdown-text",
-                "{countdown}"
+        div { class: "address-item",
+            div { class: "address-info",
+                div { class: "address-text", "{address_display}" }
+                div { class: "countdown-text", "{countdown}" }
             }
             button {
                 class: "remove-button",
-                onclick: move |_| on_remove.call(()),
-                "x"
+                onclick: move |_| on_remove.call(index),
+                "×"
             }
         }
     }
@@ -35,37 +40,46 @@ pub fn CategorizedAddress(entry: StaticAddressEntry, on_remove: EventHandler<()>
 
 /// Panel displaying addresses needing attention within 4 hours
 #[component]
-pub fn Active(
-    addresses: Vec<StaticAddressEntry>,
-    on_remove_address: EventHandler<String>,
-) -> Element {
+pub fn Active(addresses: Vec<StoredAddress>) -> Element {
     let active_addrs: Vec<_> = addresses
         .into_iter()
-        .filter(|a| matches!(bucket_for(a.dag, &a.tid), TimeBucket::Now))
+        .filter(|a| a.valid && a.active)
+        .filter(|a| {
+            if let Some(entry) = &a.matched_entry {
+                matches!(bucket_for(entry.dag, &entry.tid), TimeBucket::Now)
+            } else {
+                false
+            }
+        })
         .collect();
 
-    if active_addrs.is_empty() {
-        return rsx! {
-            div { class: "panel panel-active",
-                h3 { "Nu" }
-                p { "Inga adresser kräver uppmärksamhet just nu" }
-            }
-        };
-    }
+    let active_count = active_addrs.len();
 
     rsx! {
-        div { class: "panel panel-active",
-            h3 { "Nu" }
-            div { class: "address-list",
-                {active_addrs.into_iter().map(|addr| {
-                    let key = addr.adress.clone();
+        div { class: "category-container category-active",
+            div { class: "category-title", "Städas nu" }
+            div { class: "category-content",
+                if active_count == 0 {
                     rsx! {
-                        CategorizedAddress {
-                            entry: addr,
-                            on_remove: move |_| on_remove_address.call(key.clone()),
+                        div { class: "empty-state",
+                            "Inga adresser kräver omedelbar uppmärksamhet"
                         }
                     }
-                })}
+                } else {
+                    rsx! {
+                        div { class: "address-list",
+                            {active_addrs.into_iter().enumerate().map(|(i, addr)| {
+                                rsx! {
+                                    AddressItem {
+                                        addr: addr.clone(),
+                                        index: i,
+                                        on_remove: move |_| { /* TODO: wire to parent */ },
+                                    }
+                                }
+                            })}
+                        }
+                    }
+                }
             }
         }
     }
@@ -73,34 +87,46 @@ pub fn Active(
 
 /// Panel displaying addresses within 6 hours
 #[component]
-pub fn Six(addresses: Vec<StaticAddressEntry>, on_remove_address: EventHandler<String>) -> Element {
+pub fn Six(addresses: Vec<StoredAddress>) -> Element {
     let addrs: Vec<_> = addresses
         .into_iter()
-        .filter(|a| matches!(bucket_for(a.dag, &a.tid), TimeBucket::Within6Hours))
+        .filter(|a| a.valid && a.active)
+        .filter(|a| {
+            if let Some(entry) = &a.matched_entry {
+                matches!(bucket_for(entry.dag, &entry.tid), TimeBucket::Within6Hours)
+            } else {
+                false
+            }
+        })
         .collect();
 
-    if addrs.is_empty() {
-        return rsx! {
-            div { class: "panel panel-6h",
-                h3 { "Om mindre än 6h" }
-                p { "Inga adresser" }
-            }
-        };
-    }
+    let count = addrs.len();
 
     rsx! {
-        div { class: "panel panel-6h",
-            h3 { "Om mindre än 6h" }
-            div { class: "address-list",
-                {addrs.into_iter().map(|addr| {
-                    let key = addr.adress.clone();
+        div { class: "category-container category-6h",
+            div { class: "category-title", "Inom 6 timmar" }
+            div { class: "category-content",
+                if count == 0 {
                     rsx! {
-                        CategorizedAddress {
-                            entry: addr,
-                            on_remove: move |_| on_remove_address.call(key.clone()),
+                        div { class: "empty-state",
+                            "Inga adresser"
                         }
                     }
-                })}
+                } else {
+                    rsx! {
+                        div { class: "address-list",
+                            {addrs.into_iter().enumerate().map(|(i, addr)| {
+                                rsx! {
+                                    AddressItem {
+                                        addr: addr.clone(),
+                                        index: i,
+                                        on_remove: move |_| { /* TODO: wire to parent */ },
+                                    }
+                                }
+                            })}
+                        }
+                    }
+                }
             }
         }
     }
@@ -108,34 +134,46 @@ pub fn Six(addresses: Vec<StaticAddressEntry>, on_remove_address: EventHandler<S
 
 /// Panel displaying addresses within 24 hours
 #[component]
-pub fn Day(addresses: Vec<StaticAddressEntry>, on_remove_address: EventHandler<String>) -> Element {
+pub fn Day(addresses: Vec<StoredAddress>) -> Element {
     let addrs: Vec<_> = addresses
         .into_iter()
-        .filter(|a| matches!(bucket_for(a.dag, &a.tid), TimeBucket::Within1Day))
+        .filter(|a| a.valid && a.active)
+        .filter(|a| {
+            if let Some(entry) = &a.matched_entry {
+                matches!(bucket_for(entry.dag, &entry.tid), TimeBucket::Within1Day)
+            } else {
+                false
+            }
+        })
         .collect();
 
-    if addrs.is_empty() {
-        return rsx! {
-            div { class: "panel panel-1d",
-                h3 { "Inom 24h" }
-                p { "Inga adresser" }
-            }
-        };
-    }
+    let count = addrs.len();
 
     rsx! {
-        div { class: "panel panel-1d",
-            h3 { "Inom 24h" }
-            div { class: "address-list",
-                {addrs.into_iter().map(|addr| {
-                    let key = addr.adress.clone();
+        div { class: "category-container category-24h",
+            div { class: "category-title", "Inom 1 dag" }
+            div { class: "category-content",
+                if count == 0 {
                     rsx! {
-                        CategorizedAddress {
-                            entry: addr,
-                            on_remove: move |_| on_remove_address.call(key.clone()),
+                        div { class: "empty-state",
+                            "Inga adresser"
                         }
                     }
-                })}
+                } else {
+                    rsx! {
+                        div { class: "address-list",
+                            {addrs.into_iter().enumerate().map(|(i, addr)| {
+                                rsx! {
+                                    AddressItem {
+                                        addr: addr.clone(),
+                                        index: i,
+                                        on_remove: move |_| { /* TODO: wire to parent */ },
+                                    }
+                                }
+                            })}
+                        }
+                    }
+                }
             }
         }
     }
@@ -143,37 +181,46 @@ pub fn Day(addresses: Vec<StaticAddressEntry>, on_remove_address: EventHandler<S
 
 /// Panel displaying addresses within 1 month
 #[component]
-pub fn Month(
-    addresses: Vec<StaticAddressEntry>,
-    on_remove_address: EventHandler<String>,
-) -> Element {
+pub fn Month(addresses: Vec<StoredAddress>) -> Element {
     let addrs: Vec<_> = addresses
         .into_iter()
-        .filter(|a| matches!(bucket_for(a.dag, &a.tid), TimeBucket::Within1Month))
+        .filter(|a| a.valid && a.active)
+        .filter(|a| {
+            if let Some(entry) = &a.matched_entry {
+                matches!(bucket_for(entry.dag, &entry.tid), TimeBucket::Within1Month)
+            } else {
+                false
+            }
+        })
         .collect();
 
-    if addrs.is_empty() {
-        return rsx! {
-            div { class: "panel panel-1m",
-                h3 { "Inom 1 månad" }
-                p { "Inga adresser" }
-            }
-        };
-    }
+    let count = addrs.len();
 
     rsx! {
-        div { class: "panel panel-1m",
-            h3 { "Inom 1 månad" }
-            div { class: "address-list",
-                {addrs.into_iter().map(|addr| {
-                    let key = addr.adress.clone();
+        div { class: "category-container category-month",
+            div { class: "category-title", "Inom 1 månad" }
+            div { class: "category-content",
+                if count == 0 {
                     rsx! {
-                        CategorizedAddress {
-                            entry: addr,
-                            on_remove: move |_| on_remove_address.call(key.clone()),
+                        div { class: "empty-state",
+                            "Inga adresser"
                         }
                     }
-                })}
+                } else {
+                    rsx! {
+                        div { class: "address-list",
+                            {addrs.into_iter().enumerate().map(|(i, addr)| {
+                                rsx! {
+                                    AddressItem {
+                                        addr: addr.clone(),
+                                        index: i,
+                                        on_remove: move |_| { /* TODO: wire to parent */ },
+                                    }
+                                }
+                            })}
+                        }
+                    }
+                }
             }
         }
     }
@@ -181,37 +228,39 @@ pub fn Month(
 
 /// Panel displaying addresses with no valid parking restriction data
 #[component]
-pub fn NotValid(
-    addresses: Vec<StaticAddressEntry>,
-    on_remove_address: EventHandler<String>,
-) -> Element {
+pub fn NotValid(addresses: Vec<StoredAddress>) -> Element {
     let addrs: Vec<_> = addresses
         .into_iter()
-        .filter(|a| matches!(bucket_for(a.dag, &a.tid), TimeBucket::Invalid))
+        .filter(|a| !a.valid || !a.active)
         .collect();
 
-    if addrs.is_empty() {
-        return rsx! {
-            div { class: "panel panel-invalid",
-                h3 { "Ingen städning här" }
-                p { "Inga adresser" }
-            }
-        };
-    }
+    let count = addrs.len();
 
     rsx! {
-        div { class: "panel panel-invalid",
-            h3 { "Ingen städning här" }
-            div { class: "address-list",
-                {addrs.into_iter().map(|addr| {
-                    let key = addr.adress.clone();
+        div { class: "category-container category-invalid",
+            div { class: "category-title", "Ingen städning" }
+            div { class: "category-content",
+                if count == 0 {
                     rsx! {
-                        CategorizedAddress {
-                            entry: addr,
-                            on_remove: move |_| on_remove_address.call(key.clone()),
+                        div { class: "empty-state",
+                            "Inga adresser"
                         }
                     }
-                })}
+                } else {
+                    rsx! {
+                        div { class: "address-list",
+                            {addrs.into_iter().enumerate().map(|(i, addr)| {
+                                rsx! {
+                                    AddressItem {
+                                        addr: addr.clone(),
+                                        index: i,
+                                        on_remove: move |_| { /* TODO: wire to parent */ },
+                                    }
+                                }
+                            })}
+                        }
+                    }
+                }
             }
         }
     }
