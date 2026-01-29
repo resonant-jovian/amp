@@ -2,11 +2,9 @@ pub mod adresser;
 pub mod paneler;
 pub mod topbar;
 
-use crate::countdown::bucket_for;
 use crate::matching::match_address;
 use crate::static_data::StaticAddressEntry;
 use dioxus::prelude::*;
-use std::collections::HashMap;
 
 static CSS: Asset = asset!("/assets/style.css");
 
