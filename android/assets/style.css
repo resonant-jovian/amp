@@ -4,7 +4,7 @@
     --shadow-lg: 6px 6px 12px #a3b1c6, -6px -6px 12px #ffffff;
     --shadow-xl: 9px 9px 16px #a3b1c6, -9px -9px 16px #ffffff;
     --shadow-inset: inset 2px 2px 5px #a3b1c6, inset -2px -2px 5px #ffffff;
-    --shadow-active: inset 2px 2px 5px #6ba3d4, inset -2px -2px 5px #a8d8f7;
+    --shadow-active: inset 2px 2px 5px #ffff00, inset -2px -2px 5px #ffeb3b;
     --color-bg: #e0e0e0;
     --color-text: #3d5a80;
     --color-text-secondary: #556b82;
@@ -64,6 +64,7 @@ input[type=number] {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    padding: 0;
 }
 
 .topbar-title-content {
@@ -71,13 +72,16 @@ input[type=number] {
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    padding: 16px;
+    padding: 20px 16px;
 }
 
 .topbar-title-text {
-    font-size: 16px;
+    font-size: 28px;
     font-weight: 800;
-    color: #000000;
+    background: linear-gradient(135deg, #ffff00 0%, #ffeb3b 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
     text-shadow: none;
 }
 
@@ -85,7 +89,7 @@ input[type=number] {
     background: none;
     border: none;
     cursor: pointer;
-    padding: 4px;
+    padding: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -106,11 +110,13 @@ input[type=number] {
 .topbar-settings-btn svg {
     display: block;
     stroke: #000000;
+    width: 24px;
+    height: 24px;
 }
 
 .topbar-content {
-    background: rgba(0, 0, 0, 0.08);
-    padding: 12px;
+    background: var(--color-bg);
+    padding: 16px;
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -184,6 +190,10 @@ input[type=number] {
     transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
     outline: none !important;
     -webkit-tap-highlight-color: transparent;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .topbar-btn:hover {
@@ -278,6 +288,10 @@ input[type=number] {
     transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
     outline: none !important;
     -webkit-tap-highlight-color: transparent;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .btn:focus,
@@ -306,7 +320,7 @@ input[type=number] {
 }
 
 .btn:active {
-    box-shadow: var(--shadow-inset);
+    box-shadow: var(--shadow-active);
     transform: translateY(0);
 }
 
@@ -371,6 +385,12 @@ input[type=number] {
     transition: box-shadow 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     outline: none !important;
     -webkit-tap-highlight-color: transparent;
+}
+
+.switch-container:focus,
+.switch-container:focus-visible {
+    outline: none !important;
+    box-shadow: inset 3px 3px 7px #a3b1c6, inset -3px -3px 7px #ffffff !important;
 }
 
 .switch-thumb {
