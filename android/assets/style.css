@@ -69,46 +69,14 @@ input[type=number] {
     100% { --c1-stop1: #FF6B6B; --c1-stop2: #FFE66D; --c1-stop3: #4ECDC4; }
 }
 
-@keyframes colorCycleSmoothL2 {
-    0% { --c2-stop1: #4ECDC4; --c2-stop2: #FF6B6B; --c2-stop3: #FFE66D; }
-    12.5% { --c2-stop1: #FF69B4; --c2-stop2: #1E90FF; --c2-stop3: #00CED1; }
-    25% { --c2-stop1: #558B2F; --c2-stop2: #00C853; --c2-stop3: #81C784; }
-    37.5% { --c2-stop1: #DDA0DD; --c2-stop2: #7B68EE; --c2-stop3: #BA55D3; }
-    50% { --c2-stop1: #FF6347; --c2-stop2: #FFA500; --c2-stop3: #FFD700; }
-    62.5% { --c2-stop1: #FF69B4; --c2-stop2: #FF4500; --c2-stop3: #FF8C00; }
-    75% { --c2-stop1: #E0FFFF; --c2-stop2: #00BFFF; --c2-stop3: #87CEEB; }
-    87.5% { --c2-stop1: #FFB6C1; --c2-stop2: #FF1493; --c2-stop3: #FF69B4; }
-    100% { --c2-stop1: #4ECDC4; --c2-stop2: #FF6B6B; --c2-stop3: #FFE66D; }
-}
-
-@keyframes colorCycleSmoothL3 {
-    0% { --c3-stop1: #FFE66D; --c3-stop2: #4ECDC4; --c3-stop3: #FF6B6B; }
-    12.5% { --c3-stop1: #00CED1; --c3-stop2: #FF69B4; --c3-stop3: #1E90FF; }
-    25% { --c3-stop1: #81C784; --c3-stop2: #558B2F; --c3-stop3: #00C853; }
-    37.5% { --c3-stop1: #BA55D3; --c3-stop2: #DDA0DD; --c3-stop3: #7B68EE; }
-    50% { --c3-stop1: #FFD700; --c3-stop2: #FF6347; --c3-stop3: #FFA500; }
-    62.5% { --c3-stop1: #FF8C00; --c3-stop2: #FF69B4; --c3-stop3: #FF4500; }
-    75% { --c3-stop1: #87CEEB; --c3-stop2: #E0FFFF; --c3-stop3: #00BFFF; }
-    87.5% { --c3-stop1: #FF69B4; --c3-stop2: #FFB6C1; --c3-stop3: #FF1493; }
-    100% { --c3-stop1: #FFE66D; --c3-stop2: #4ECDC4; --c3-stop3: #FF6B6B; }
-}
-
 :root {
     --c1-stop1: #FF6B6B;
     --c1-stop2: #FFE66D;
     --c1-stop3: #4ECDC4;
-    --c2-stop1: #4ECDC4;
-    --c2-stop2: #FF6B6B;
-    --c2-stop3: #FFE66D;
-    --c3-stop1: #FFE66D;
-    --c3-stop2: #4ECDC4;
-    --c3-stop3: #FF6B6B;
-    animation: colorCycleSmoothL1 128s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite,
-               colorCycleSmoothL2 140s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite,
-               colorCycleSmoothL3 152s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+    animation: colorCycleSmoothL1 128s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
 }
 
-/* TopBar Styling - Static Overlapping Radial Gradients */
+/* TopBar Styling - Single Radial Gradient in Top Right */
 .topbar-container {
     margin-bottom: 16px;
     border-radius: 16px;
@@ -119,20 +87,15 @@ input[type=number] {
 
 .topbar-title {
     background: 
-        radial-gradient(circle 45% at 50% 50%, var(--c3-stop1) 0%, transparent 65%),
-        radial-gradient(circle 55% at 70% 75%, var(--c2-stop1) 0%, transparent 70%),
-        radial-gradient(circle 50% at 25% 30%, var(--c1-stop1) 0%, transparent 60%),
+        radial-gradient(circle 60% at 85% 15%, var(--c1-stop1) 0%, transparent 70%),
         #2a2a4a;
-    background-blend-mode: screen, screen, screen, normal;
     position: relative;
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0;
     min-height: 80px;
-    box-shadow: 0 12px 32px rgba(255, 107, 107, 0.35), 
-                0 8px 24px rgba(78, 205, 196, 0.25),
-                inset 0 1px 2px rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15), inset 0 1px 2px rgba(255, 255, 255, 0.1);
 }
 
 .topbar-title-content {
@@ -575,10 +538,7 @@ input[type=number] {
     padding: 16px;
     min-height: 60px;
     background: var(--color-bg);
-    transition: background 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
-                box-shadow 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-    box-shadow: inset 0 8px 24px rgba(255, 107, 107, 0.12),
-                inset 0 4px 12px rgba(78, 205, 196, 0.1);
+    transition: background 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .empty-state {
@@ -597,8 +557,6 @@ input[type=number] {
 
 .category-active .category-content {
     background: rgba(243, 44, 37, 0.08);
-    box-shadow: inset 0 8px 24px rgba(243, 44, 37, 0.12),
-                inset 0 4px 12px rgba(255, 107, 107, 0.1);
 }
 
 .category-6h .category-title {
@@ -608,8 +566,6 @@ input[type=number] {
 
 .category-6h .category-content {
     background: rgba(255, 152, 0, 0.08);
-    box-shadow: inset 0 8px 24px rgba(255, 152, 0, 0.12),
-                inset 0 4px 12px rgba(255, 152, 0, 0.1);
 }
 
 .category-24h .category-title {
@@ -619,8 +575,6 @@ input[type=number] {
 
 .category-24h .category-content {
     background: rgba(33, 150, 243, 0.08);
-    box-shadow: inset 0 8px 24px rgba(33, 150, 243, 0.12),
-                inset 0 4px 12px rgba(33, 150, 243, 0.1);
 }
 
 .category-month .category-title {
@@ -630,8 +584,6 @@ input[type=number] {
 
 .category-month .category-content {
     background: rgba(156, 39, 176, 0.08);
-    box-shadow: inset 0 8px 24px rgba(156, 39, 176, 0.12),
-                inset 0 4px 12px rgba(156, 39, 176, 0.1);
 }
 
 .category-invalid .category-title {
@@ -641,8 +593,6 @@ input[type=number] {
 
 .category-invalid .category-content {
     background: rgba(117, 117, 117, 0.08);
-    box-shadow: inset 0 8px 24px rgba(117, 117, 117, 0.12),
-                inset 0 4px 12px rgba(117, 117, 117, 0.1);
 }
 
 .category-addresses .category-title {
@@ -652,8 +602,6 @@ input[type=number] {
 
 .category-addresses .category-content {
     background: rgba(0, 0, 0, 0.08);
-    box-shadow: inset 0 8px 24px rgba(0, 0, 0, 0.12),
-                inset 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .address-row {
