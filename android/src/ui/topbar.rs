@@ -1,20 +1,26 @@
 use dioxus::prelude::*;
+
 #[component]
 pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Element {
-    let mut adress_input = use_signal(String::new);
-    let mut gatunummer_input = use_signal(String::new);
-    let mut postnummer_input = use_signal(String::new);
+    let mut address_input = use_signal(String::new());
+    let mut postnummer_input = use_signal(String::new());
     let handle_add_click = move |_| {
-        let gata = adress_input.read().clone();
-        let gatunummer = gatunummer_input.read().clone();
+        let address_str = address_input.read().clone();
         let postnummer = postnummer_input.read().clone();
-        if !gata.trim().is_empty() && !gatunummer.trim().is_empty()
-            && !postnummer.trim().is_empty()
-        {
-            on_add_address.call((gata, gatunummer, postnummer));
-            adress_input.set(String::new());
-            gatunummer_input.set(String::new());
-            postnummer_input.set(String::new());
+        
+        if !address_str.trim().is_empty() && !postnummer.trim().is_empty() {
+            // Parse address: "Storgatan 10" -> (gata, gatunummer)
+            let street_words: Vec<&str> = address_str.trim().split_whitespace().collect();
+            if street_words.len() >= 2 {
+                // Last word is typically the street number
+                let gatunummer = street_words[street_words.len() - 1].to_string();
+                let gata = street_words[..street_words.len() - 1].join(" ");
+                
+                on_add_address.call((gata, gatunummer, postnummer));
+                address_input.set(String::new());
+                postnummer_input.set(String::new());
+                return;
+            }
         }
     };
     let handle_gps_click = move |_| {
@@ -24,12 +30,12 @@ pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Ele
         div { class: "top-bar",
             div { class: "input-column",
                 input {
-                    id: "streetInput",
-                    placeholder: "Adress",
+                    id: "addressInput",
+                    placeholder: "T.ex: Storgatan 10",
                     r#type: "text",
-                    value: "{adress_input.read()}",
+                    value: "{address_input.read()}",
                     onchange: move |evt: Event<FormData>| {
-                        adress_input.set(evt.value());
+                        address_input.set(evt.value());
                     },
                 }
                 input {
