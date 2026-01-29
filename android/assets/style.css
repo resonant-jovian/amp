@@ -55,6 +55,32 @@ input[type=number] {
     outline: none !important;
 }
 
+/* Dynamic Gradient Palette Animation */
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+@keyframes gradientCycle1 {
+    0% { --grad-c1: #FF6B6B; --grad-c2: #FFE66D; --grad-c3: #4ECDC4; }
+    12.5% { --grad-c1: #1E90FF; --grad-c2: #00CED1; --grad-c3: #FF69B4; }
+    25% { --grad-c1: #00C853; --grad-c2: #81C784; --grad-c3: #558B2F; }
+    37.5% { --grad-c1: #7B68EE; --grad-c2: #BA55D3; --grad-c3: #DDA0DD; }
+    50% { --grad-c1: #FFA500; --grad-c2: #FFD700; --grad-c3: #FF6347; }
+    62.5% { --grad-c1: #FF4500; --grad-c2: #FF8C00; --grad-c3: #FF69B4; }
+    75% { --grad-c1: #00BFFF; --grad-c2: #87CEEB; --grad-c3: #E0FFFF; }
+    87.5% { --grad-c1: #FF1493; --grad-c2: #FF69B4; --grad-c3: #FFB6C1; }
+    100% { --grad-c1: #FF6B6B; --grad-c2: #FFE66D; --grad-c3: #4ECDC4; }
+}
+
+:root {
+    --grad-c1: #FF6B6B;
+    --grad-c2: #FFE66D;
+    --grad-c3: #4ECDC4;
+    animation: gradientCycle1 64s infinite;
+}
+
 /* TopBar Styling - Category Box with Inverted Header */
 .topbar-container {
     margin-bottom: 16px;
@@ -65,7 +91,9 @@ input[type=number] {
 }
 
 .topbar-title {
-    background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 1000 100" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><defs><radialGradient id="grad1" cx="25%" cy="30%" r="60%"><stop offset="0%" style="stop-color:%23ffbe0b;stop-opacity:1" /><stop offset="100%" style="stop-color:%23fb5607;stop-opacity:0.8" /></radialGradient><radialGradient id="grad2" cx="75%" cy="70%" r="55%"><stop offset="0%" style="stop-color:%23ff006e;stop-opacity:1" /><stop offset="100%" style="stop-color:%238338ec;stop-opacity:0.7" /></radialGradient><radialGradient id="grad3" cx="50%" cy="50%" r="70%" fx="35%" fy="35%"><stop offset="0%" style="stop-color:%233a86ff;stop-opacity:0.9" /><stop offset="100%" style="stop-color:%23ffbe0b;stop-opacity:0.5" /></radialGradient></defs><rect width="1000" height="100" fill="%23fb5607"/><rect width="1000" height="100" fill="url(%23grad1)" opacity="0.85"/><rect width="1000" height="100" fill="url(%23grad2)" opacity="0.75" transform="translate(50, 10) scale(1.2)"/><rect width="1000" height="100" fill="url(%23grad3)" opacity="0.65" transform="rotate(15 500 50) translate(-20, 5)"/></svg>') center/cover;
+    background: linear-gradient(135deg, var(--grad-c1) 0%, var(--grad-c2) 50%, var(--grad-c3) 100%);
+    background-size: 200% 200%;
+    animation: gradientShift 4s ease infinite;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1), inset 0 2px 4px rgba(0, 0, 0, 0.05);
     display: flex;
     align-items: center;
