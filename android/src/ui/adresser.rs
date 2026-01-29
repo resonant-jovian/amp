@@ -34,9 +34,7 @@ pub fn Adresser(
                                                     class: "toggle-switch",
                                                     onclick: move |_| on_toggle_active.call(addr_id),
                                                     div { class: "switch-container",
-                                                        div {
-                                                            class: "switch-thumb",
-                                                            "data-active": "{is_active}",
+                                                        div { class: "switch-thumb", "data-active": "{is_active}",
                                                             div { class: "led" }
                                                         }
                                                     }

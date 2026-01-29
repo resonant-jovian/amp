@@ -6,7 +6,10 @@ pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Ele
     let handle_add_click = move |_| {
         let address_str = address_input();
         let postnummer = postnummer_input();
-        info!("Add button clicked: address='{}', postal='{}'", address_str, postnummer);
+        info!(
+            "Add button clicked: address='{}', postal='{}'",
+            address_str, postnummer
+        );
         if address_str.trim().is_empty() || postnummer.trim().is_empty() {
             warn!("Validation failed: empty fields");
             return;
@@ -19,8 +22,8 @@ pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Ele
         let gatunummer = street_words[street_words.len() - 1].to_string();
         let gata = street_words[..street_words.len() - 1].join(" ");
         info!(
-            "Parsed: gata='{}', gatunummer='{}', postnummer='{}'", gata, gatunummer,
-            postnummer
+            "Parsed: gata='{}', gatunummer='{}', postnummer='{}'",
+            gata, gatunummer, postnummer
         );
         on_add_address.call((gata, gatunummer, postnummer.to_string()));
         address_input.set(String::new());
@@ -39,8 +42,8 @@ pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Ele
                 div { class: "topbar-bg-wrap",
                     svg {
                         xmlns: "http://www.w3.org/2000/svg",
-                        attr:"view-box": "0 0 100 100",
-                        attr:"preserveAspectRatio": "xMidYMid slice",
+                        attr:"view-box", "0 0 100 100",
+                        attr:"preserveAspectRatio", "xMidYMid slice",
                         defs {
                             "radial-gradient" {
                                 attr:id: "Gradient1",
@@ -110,87 +113,87 @@ pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Ele
                             }
                         }
                         rect {
-                            attr:x: "13.744%",
-                            attr:y: "1.18473%",
-                            attr:width: "100%",
-                            attr:height: "100%",
-                            attr:fill: "url(#Gradient1)",
-                            attr:transform: "rotate(334.41 50 50)",
+                            attr:x, "13.744%",
+                            attr:y, "1.18473%",
+                            attr:width, "100%",
+                            attr:height, "100%",
+                            attr:fill, "url(#Gradient1)",
+                            attr:transform, "rotate(334.41 50 50)",
                             animate {
-                                attr:"attributeName": "x",
-                                attr:dur: "20s",
-                                attr:values: "25%;0%;25%",
-                                attr:"repeatCount": "indefinite",
+                                attr:"attributeName", "x",
+                                attr:dur, "20s",
+                                attr:values, "25%;0%;25%",
+                                attr:"repeatCount", "indefinite",
                             }
                             animate {
-                                attr:"attributeName": "y",
-                                attr:dur: "21s",
-                                attr:values: "0%;25%;0%",
-                                attr:"repeatCount": "indefinite",
+                                attr:"attributeName", "y",
+                                attr:dur, "21s",
+                                attr:values, "0%;25%;0%",
+                                attr:"repeatCount", "indefinite",
                             }
                             "animate-transform" {
-                                attr:"attributeName": "transform",
-                                attr:type: "rotate",
-                                attr:from: "0 50 50",
-                                attr:to: "360 50 50",
-                                attr:dur: "7s",
-                                attr:"repeatCount": "indefinite",
+                                attr:"attributeName", "transform",
+                                attr:type, "rotate",
+                                attr:from, "0 50 50",
+                                attr:to, "360 50 50",
+                                attr:dur, "7s",
+                                attr:"repeatCount", "indefinite",
                             }
                         }
                         rect {
-                            attr:x: "-2.17916%",
-                            attr:y: "35.4267%",
-                            attr:width: "100%",
-                            attr:height: "100%",
-                            attr:fill: "url(#Gradient2)",
-                            attr:transform: "rotate(255.072 50 50)",
+                            attr:x, "-2.17916%",
+                            attr:y, "35.4267%",
+                            attr:width, "100%",
+                            attr:height, "100%",
+                            attr:fill, "url(#Gradient2)",
+                            attr:transform, "rotate(255.072 50 50)",
                             animate {
-                                attr:"attributeName": "x",
-                                attr:dur: "23s",
-                                attr:values: "-25%;0%;-25%",
-                                attr:"repeatCount": "indefinite",
+                                attr:"attributeName", "x",
+                                attr:dur, "23s",
+                                attr:values, "-25%;0%;-25%",
+                                attr:"repeatCount", "indefinite",
                             }
                             animate {
-                                attr:"attributeName": "y",
-                                attr:dur: "24s",
-                                attr:values: "0%;50%;0%",
-                                attr:"repeatCount": "indefinite",
+                                attr:"attributeName", "y",
+                                attr:dur, "24s",
+                                attr:values, "0%;50%;0%",
+                                attr:"repeatCount", "indefinite",
                             }
                             "animate-transform" {
-                                attr:"attributeName": "transform",
-                                attr:type: "rotate",
-                                attr:from: "0 50 50",
-                                attr:to: "360 50 50",
-                                attr:dur: "12s",
-                                attr:"repeatCount": "indefinite",
+                                attr:"attributeName", "transform",
+                                attr:type, "rotate",
+                                attr:from, "0 50 50",
+                                attr:to, "360 50 50",
+                                attr:dur, "12s",
+                                attr:"repeatCount", "indefinite",
                             }
                         }
                         rect {
-                            attr:x: "9.00483%",
-                            attr:y: "14.5733%",
-                            attr:width: "100%",
-                            attr:height: "100%",
-                            attr:fill: "url(#Gradient3)",
-                            attr:transform: "rotate(139.903 50 50)",
+                            attr:x, "9.00483%",
+                            attr:y, "14.5733%",
+                            attr:width, "100%",
+                            attr:height, "100%",
+                            attr:fill, "url(#Gradient3)",
+                            attr:transform, "rotate(139.903 50 50)",
                             animate {
-                                attr:"attributeName": "x",
-                                attr:dur: "25s",
-                                attr:values: "0%;25%;0%",
-                                attr:"repeatCount": "indefinite",
+                                attr:"attributeName", "x",
+                                attr:dur, "25s",
+                                attr:values, "0%;25%;0%",
+                                attr:"repeatCount", "indefinite",
                             }
                             animate {
-                                attr:"attributeName": "y",
-                                attr:dur: "12s",
-                                attr:values: "0%;25%;0%",
-                                attr:"repeatCount": "indefinite",
+                                attr:"attributeName", "y",
+                                attr:dur, "12s",
+                                attr:values, "0%;25%;0%",
+                                attr:"repeatCount", "indefinite",
                             }
                             "animate-transform" {
-                                attr:"attributeName": "transform",
-                                attr:type: "rotate",
-                                attr:from: "360 50 50",
-                                attr:to: "0 50 50",
-                                attr:dur: "9s",
-                                attr:"repeatCount": "indefinite",
+                                attr:"attributeName", "transform",
+                                attr:type, "rotate",
+                                attr:from, "360 50 50",
+                                attr:to, "0 50 50",
+                                attr:dur, "9s",
+                                attr:"repeatCount", "indefinite",
                             }
                         }
                     }
@@ -205,12 +208,12 @@ pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Ele
                             xmlns: "http://www.w3.org/2000/svg",
                             width: "24",
                             height: "24",
-                            attr:"view-box": "0 0 24 24",
+                            attr:"view-box", "0 0 24 24",
                             fill: "none",
                             stroke: "white",
-                            attr:"stroke-width": "2",
-                            attr:"stroke-linecap": "round",
-                            attr:"stroke-linejoin": "round",
+                            attr:"stroke-width", "2",
+                            attr:"stroke-linecap", "round",
+                            attr:"stroke-linejoin", "round",
                             line {
                                 x1: "3",
                                 y1: "6",
