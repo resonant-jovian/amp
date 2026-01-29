@@ -17,8 +17,7 @@ pub fn Adresser(
                         {
                             stored_addresses
                                 .iter()
-                                .enumerate()
-                                .map(|(idx, addr)| {
+                                .map(|addr| {
                                     let address_display = format!(
                                         "{} {}, {}",
                                         addr.gata,
@@ -26,13 +25,14 @@ pub fn Adresser(
                                         addr.postnummer,
                                     );
                                     let is_active = addr.active;
+                                    let addr_id = addr.id;
                                     rsx! {
-                                        div { key: "{idx}", class: "address-item",
+                                        div { key: "{addr_id}", class: "address-item",
                                             div { class: "address-text", "{address_display}" }
                                             div { class: "address-actions",
                                                 div {
                                                     class: "toggle-switch",
-                                                    onclick: move |_| on_toggle_active.call(idx),
+                                                    onclick: move |_| on_toggle_active.call(addr_id),
                                                     div { class: "switch-container",
                                                         div {
                                                             class: "switch-thumb",
@@ -43,7 +43,7 @@ pub fn Adresser(
                                                 }
                                                 button {
                                                     class: "btn-remove",
-                                                    onclick: move |_| on_remove_address.call(idx),
+                                                    onclick: move |_| on_remove_address.call(addr_id),
                                                     "×"
                                                 }
                                             }
