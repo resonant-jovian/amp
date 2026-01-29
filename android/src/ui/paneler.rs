@@ -205,10 +205,7 @@ pub fn Month(addresses: Vec<StoredAddress>) -> Element {
 /// Panel displaying addresses with no valid parking restriction data
 #[component]
 pub fn NotValid(addresses: Vec<StoredAddress>) -> Element {
-    let addrs: Vec<_> = addresses
-        .into_iter()
-        .filter(|a| a.active && !a.valid)
-        .collect();
+    let addrs: Vec<_> = addresses.into_iter().filter(|a| a.active && !a.valid).collect();
     let count = addrs.len();
     rsx! {
         div { class: "category-container category-invalid",
