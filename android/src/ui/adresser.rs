@@ -25,6 +25,11 @@ pub fn Adresser(
                                         addr.gatunummer,
                                         addr.postnummer,
                                     );
+                                    let thumb_class = if addr.active {
+                                        "switch-thumb active"
+                                    } else {
+                                        "switch-thumb"
+                                    };
                                     rsx! {
                                         div { key: "{idx}", class: "address-item",
                                             div { class: "address-text", "{address_display}" }
@@ -33,7 +38,7 @@ pub fn Adresser(
                                                     class: "toggle-switch",
                                                     onclick: move |_| on_toggle_active.call(idx),
                                                     div { class: "switch-container",
-                                                        div { class: "switch-thumb",
+                                                        div { class: "{thumb_class}",
                                                             div { class: "led" }
                                                         }
                                                     }
