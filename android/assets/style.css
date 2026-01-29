@@ -35,33 +35,6 @@ body {
 
 }
 
-.stored-addresses-container {
-    margin-bottom: 16px;
-    border-radius: 16px;
-    overflow: hidden;
-    background: #e0e0e0;
-    box-shadow: 5px 5px 30px #c3c3c3, -5px -5px 30px #fdfdfd;
-    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.stored-addresses-header {
-    padding: 16px;
-    font-size: 15px;
-    font-weight: 800;
-    color: white;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    background: linear-gradient(135deg, #1a1a1a 0%, #424242 100%);
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.1);
-    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.stored-addresses-content {
-    padding: 16px;
-    min-height: 60px;
-    background: var(--color-bg);
-    transition: background 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
 .stored-addresses h2 {
     font-size: 16px;
     font-weight: 800;
@@ -96,6 +69,7 @@ body {
 .input-column input:focus {
     outline: none;
     box-shadow: var(--shadow-inset);
+    transform: scale(1.01);
 
 }
 
@@ -183,12 +157,6 @@ body {
 
 .address-item:last-child {
     margin-bottom: 0;
-}
-
-.address-info {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
 }
 
 .address-text {
