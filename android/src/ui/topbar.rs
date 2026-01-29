@@ -1,25 +1,19 @@
 use dioxus::prelude::*;
-
 #[component]
 pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Element {
-    let mut address_input = use_signal(String::new());
-    let mut postnummer_input = use_signal(String::new());
+    let mut address_input = use_signal(String::new);
+    let mut postnummer_input = use_signal(String::new);
     let handle_add_click = move |_| {
         let address_str = address_input.read().clone();
         let postnummer = postnummer_input.read().clone();
-        
         if !address_str.trim().is_empty() && !postnummer.trim().is_empty() {
-            // Parse address: "Storgatan 10" -> (gata, gatunummer)
-            let street_words: Vec<&str> = address_str.trim().split_whitespace().collect();
+            let street_words: Vec<&str> = address_str.split_whitespace().collect();
             if street_words.len() >= 2 {
-                // Last word is typically the street number
                 let gatunummer = street_words[street_words.len() - 1].to_string();
                 let gata = street_words[..street_words.len() - 1].join(" ");
-                
                 on_add_address.call((gata, gatunummer, postnummer));
                 address_input.set(String::new());
                 postnummer_input.set(String::new());
-                return;
             }
         }
     };
