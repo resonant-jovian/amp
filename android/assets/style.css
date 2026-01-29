@@ -59,7 +59,7 @@ input[type=number] {
 }
 
 .topbar-title {
-    background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%);
+    background: linear-gradient(135deg, #FF6B6B 0%, #FFA500 25%, #FFD700 50%, #00FF00 75%, #4169E1 100%);
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1), inset 0 2px 4px rgba(0, 0, 0, 0.05);
     display: flex;
     align-items: center;
@@ -78,11 +78,9 @@ input[type=number] {
 .topbar-title-text {
     font-size: 28px;
     font-weight: 800;
-    background: linear-gradient(135deg, #ffff00 0%, #ffeb3b 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    text-shadow: none;
+    color: #000000;
+    text-shadow: 0 2px 4px rgba(255, 255, 255, 0.3);
+    letter-spacing: 1px;
 }
 
 .topbar-settings-btn {
@@ -178,7 +176,7 @@ input[type=number] {
 .topbar-btn {
     flex: 1;
     padding: 12px 16px;
-    border: none;
+    border: none !important;
     border-radius: 20px;
     font-size: 13px;
     font-weight: 600;
@@ -203,6 +201,14 @@ input[type=number] {
 .topbar-btn:active {
     box-shadow: var(--shadow-active);
     transform: translateY(0);
+}
+
+.topbar-btn:focus,
+.topbar-btn:focus-visible,
+.topbar-btn:focus-within {
+    outline: none !important;
+    border: none !important;
+    box-shadow: inset 1px 1px 3px #a3b1c6, inset -1px -1px 20px #ffffff !important;
 }
 
 .topbar-btn:first-child {
@@ -276,7 +282,7 @@ input[type=number] {
 .btn {
     flex: 1;
     padding: 12px 16px;
-    border: none;
+    border: none !important;
     border-radius: 12px;
     font-size: 13px;
     font-weight: 600;
@@ -302,10 +308,6 @@ input[type=number] {
     box-shadow: var(--shadow-sm) !important;
 }
 
-.btn:focus-visible {
-    outline: none;
-}
-
 .btn:first-child {
     border-radius: 12px 0 0 12px;
 
@@ -322,11 +324,6 @@ input[type=number] {
 .btn:active {
     box-shadow: var(--shadow-active);
     transform: translateY(0);
-}
-
-.btn:focus {
-    outline: none;
-    box-shadow: var(--shadow-lg);
 }
 
 .address-item {
@@ -388,7 +385,8 @@ input[type=number] {
 }
 
 .switch-container:focus,
-.switch-container:focus-visible {
+.switch-container:focus-visible,
+.switch-container:focus-within {
     outline: none !important;
     box-shadow: inset 3px 3px 7px #a3b1c6, inset -3px -3px 7px #ffffff !important;
 }
