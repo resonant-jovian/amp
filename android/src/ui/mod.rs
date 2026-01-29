@@ -60,42 +60,37 @@ use crate::ui::{
 };
 #[component]
 pub fn App() -> Element {
-    let mut stored_addresses = use_signal::<Vec<StoredAddress>>(Vec::new);
+    let mut stored_addresses = use_signal::<Vec<StoredAddress>>(Vec::new());
     {
         let mut addrs = stored_addresses.write();
         if addrs.is_empty() {
-            addrs
-                .push(
-                    StoredAddress::new(
-                        "Storgatan".to_string(),
-                        "5".to_string(),
-                        "22100".to_string(),
-                    ),
-                );
-            addrs
-                .push(
-                    StoredAddress::new(
-                        "Flogatan".to_string(),
-                        "12".to_string(),
-                        "22220".to_string(),
-                    ),
-                );
-            addrs
-                .push(
-                    StoredAddress::new(
-                        "Järnvägsgatan".to_string(),
-                        "3".to_string(),
-                        "22100".to_string(),
-                    ),
-                );
-            addrs
-                .push(
-                    StoredAddress::new(
-                        "Fantasigatan".to_string(),
-                        "999".to_string(),
-                        "00000".to_string(),
-                    ),
-                );
+            // Add debug addresses for testing - multiple variations to increase database match probability
+            addrs.push(StoredAddress::new(
+                "Storgatan".to_string(),
+                "1".to_string(),
+                "22100".to_string(),
+            ));
+            addrs.push(StoredAddress::new(
+                "Storgatan".to_string(),
+                "10".to_string(),
+                "22100".to_string(),
+            ));
+            addrs.push(StoredAddress::new(
+                "Kyrkogården".to_string(),
+                "1".to_string(),
+                "22222".to_string(),
+            ));
+            addrs.push(StoredAddress::new(
+                "Klostergatan".to_string(),
+                "5".to_string(),
+                "22100".to_string(),
+            ));
+            // One obviously invalid for NotValid panel testing
+            addrs.push(StoredAddress::new(
+                "Fantasigatan".to_string(),
+                "999".to_string(),
+                "00000".to_string(),
+            ));
         }
     }
     let handle_add_address = move |args: (String, String, String)| {
