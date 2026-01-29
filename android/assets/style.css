@@ -14,6 +14,9 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    outline: none !important;
+    -webkit-tap-highlight-color: transparent;
+    caret-color: transparent;
 }
 
 body {
