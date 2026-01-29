@@ -53,11 +53,10 @@ input[type=number] {
 }
 
 /* ============================================================
-   SVG RADIAL GRADIENT ANIMATION SYSTEM
-   3 Layered animated radial gradients with focal point movement
+   PALETTE COLOR ANIMATIONS
+   Smooth transitions between 8 vibrant color palettes
    ============================================================ */
 
-/* Palette color keyframes - smooth transitions between palettes */
 @keyframes colorCycleSmoothL1 {
     0% { --c1-stop1: #FF6B6B; --c1-stop2: #FFE66D; --c1-stop3: #4ECDC4; }
     12.5% { --c1-stop1: #1E90FF; --c1-stop2: #00CED1; --c1-stop3: #FF69B4; }
@@ -94,33 +93,6 @@ input[type=number] {
     100% { --c3-stop1: #FFE66D; --c3-stop2: #4ECDC4; --c3-stop3: #FF6B6B; }
 }
 
-/* Layer 1 focal point animations */
-@keyframes radial1Movement {
-    0% { --r1-fx: 25%; --r1-fy: 30%; --r1-cx: 30%; --r1-cy: 35%; }
-    25% { --r1-fx: 75%; --r1-fy: 20%; --r1-cx: 70%; --r1-cy: 25%; }
-    50% { --r1-fx: 50%; --r1-fy: 70%; --r1-cx: 45%; --r1-cy: 65%; }
-    75% { --r1-fx: 15%; --r1-fy: 50%; --r1-cx: 20%; --r1-cy: 45%; }
-    100% { --r1-fx: 25%; --r1-fy: 30%; --r1-cx: 30%; --r1-cy: 35%; }
-}
-
-/* Layer 2 focal point animations */
-@keyframes radial2Movement {
-    0% { --r2-fx: 70%; --r2-fy: 75%; --r2-cx: 65%; --r2-cy: 70%; }
-    25% { --r2-fx: 30%; --r2-fy: 80%; --r2-cx: 35%; --r2-cy: 75%; }
-    50% { --r2-fx: 75%; --r2-fy: 25%; --r2-cx: 70%; --r2-cy: 30%; }
-    75% { --r2-fx: 85%; --r2-fy: 65%; --r2-cx: 80%; --r2-cy: 60%; }
-    100% { --r2-fx: 70%; --r2-fy: 75%; --r2-cx: 65%; --r2-cy: 70%; }
-}
-
-/* Layer 3 focal point animations */
-@keyframes radial3Movement {
-    0% { --r3-fx: 50%; --r3-fy: 50%; --r3-cx: 50%; --r3-cy: 50%; }
-    25% { --r3-fx: 60%; --r3-fy: 40%; --r3-cx: 55%; --r3-cy: 45%; }
-    50% { --r3-fx: 35%; --r3-fy: 65%; --r3-cx: 40%; --r3-cy: 60%; }
-    75% { --r3-fx: 70%; --r3-fy: 55%; --r3-cx: 65%; --r3-cy: 50%; }
-    100% { --r3-fx: 50%; --r3-fy: 50%; --r3-cx: 50%; --r3-cy: 50%; }
-}
-
 :root {
     --c1-stop1: #FF6B6B;
     --c1-stop2: #FFE66D;
@@ -131,38 +103,12 @@ input[type=number] {
     --c3-stop1: #FFE66D;
     --c3-stop2: #4ECDC4;
     --c3-stop3: #FF6B6B;
-    --r1-fx: 25%;
-    --r1-fy: 30%;
-    --r1-cx: 30%;
-    --r1-cy: 35%;
-    --r2-fx: 70%;
-    --r2-fy: 75%;
-    --r2-cx: 65%;
-    --r2-cy: 70%;
-    --r3-fx: 50%;
-    --r3-fy: 50%;
-    --r3-cx: 50%;
-    --r3-cy: 50%;
     animation: colorCycleSmoothL1 128s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite,
                colorCycleSmoothL2 140s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite,
-               colorCycleSmoothL3 152s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite,
-               radial1Movement 18s ease-in-out infinite,
-               radial2Movement 22s ease-in-out infinite,
-               radial3Movement 20s ease-in-out infinite;
+               colorCycleSmoothL3 152s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
 }
 
-/* Embedded SVG Gradient Container */
-.gradient-svg {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 0;
-    height: 0;
-    visibility: hidden;
-    pointer-events: none;
-}
-
-/* TopBar Styling - Category Box with SVG Gradient */
+/* TopBar Styling - Static Overlapping Radial Gradients */
 .topbar-container {
     margin-bottom: 16px;
     border-radius: 16px;
@@ -172,19 +118,20 @@ input[type=number] {
 }
 
 .topbar-title {
-    background: url(#radialGradient1), url(#radialGradient2), url(#radialGradient3), #1a1a2e;
+    background: 
+        radial-gradient(circle 45% at 50% 50%, var(--c3-stop1) 0%, transparent 65%),
+        radial-gradient(circle 55% at 70% 75%, var(--c2-stop1) 0%, transparent 70%),
+        radial-gradient(circle 50% at 25% 30%, var(--c1-stop1) 0%, transparent 60%),
+        #2a2a4a;
     background-blend-mode: screen, screen, screen, normal;
-    background-size: 100% 100%;
-    background-position: 0 0, 0 0, 0 0;
-    background-repeat: no-repeat;
     position: relative;
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0;
     min-height: 80px;
-    box-shadow: 0 12px 32px rgba(255, 107, 107, 0.25), 
-                0 8px 24px rgba(78, 205, 196, 0.2),
+    box-shadow: 0 12px 32px rgba(255, 107, 107, 0.35), 
+                0 8px 24px rgba(78, 205, 196, 0.25),
                 inset 0 1px 2px rgba(255, 255, 255, 0.1);
 }
 
@@ -630,8 +577,8 @@ input[type=number] {
     background: var(--color-bg);
     transition: background 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
                 box-shadow 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-    box-shadow: inset 0 8px 24px rgba(255, 107, 107, 0.08),
-                inset 0 4px 12px rgba(78, 205, 196, 0.06);
+    box-shadow: inset 0 8px 24px rgba(255, 107, 107, 0.12),
+                inset 0 4px 12px rgba(78, 205, 196, 0.1);
 }
 
 .empty-state {
