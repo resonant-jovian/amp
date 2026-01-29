@@ -4,10 +4,14 @@ pub mod topbar;
 use crate::matching::match_address;
 use crate::static_data::StaticAddressEntry;
 use dioxus::prelude::*;
+use std::sync::atomic::{AtomicUsize, Ordering};
 static CSS: Asset = asset!("/assets/style.css");
+static ADDRESS_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 /// Represents a locally stored address with validation and activation state
 #[derive(Clone, Debug, PartialEq)]
 pub struct StoredAddress {
+    /// Unique stable identifier for this address
+    pub id: usize,
     /// Street name (e.g., "Storgatan")
     pub gata: String,
     /// Street number (e.g., "10")
@@ -29,7 +33,9 @@ impl StoredAddress {
             Some(entry) => (true, Some(entry)),
             None => (false, None),
         };
+        let id = ADDRESS_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         StoredAddress {
+            id,
             gata,
             gatunummer,
             postnummer,
@@ -127,19 +133,19 @@ pub fn App() -> Element {
             warn!("Duplicate address detected, not adding");
         }
     };
-    let handle_toggle_active = move |index: usize| {
-        info!("toggle_active called for index {}", index);
+    let handle_toggle_active = move |id: usize| {
+        info!("toggle_active called for id {}", id);
         let mut addrs = stored_addresses.write();
-        if let Some(addr) = addrs.get_mut(index) {
+        if let Some(addr) = addrs.iter_mut().find(|a| a.id == id) {
             addr.active = !addr.active;
-            info!("Address {} now active: {}", index, addr.active);
+            info!("Address {} now active: {}", id, addr.active);
         }
     };
-    let handle_remove_address = move |index: usize| {
-        info!("remove_address called for index {}", index);
+    let handle_remove_address = move |id: usize| {
+        info!("remove_address called for id {}", id);
         let mut addrs = stored_addresses.write();
-        if index < addrs.len() {
-            let removed = addrs.remove(index);
+        if let Some(pos) = addrs.iter().position(|a| a.id == id) {
+            let removed = addrs.remove(pos);
             info!(
                 "Removed address: {} {}, {}", removed.gata, removed.gatunummer, removed
                 .postnummer
