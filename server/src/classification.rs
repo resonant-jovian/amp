@@ -108,8 +108,8 @@ pub fn _undo_classification(_category: &str, _address: &str) -> Result<String, S
         .map_err(|e| format!("Failed to read classification file: {}", e))?;
     let mut _json: Value = serde_json::from_str(&_content)
         .map_err(|e| format!("Failed to parse classification file: {}", e))?;
-    if let Some(_entries) = _json["entries"].as_array_mut() {
-        if let Some(_last_index) = _entries
+    if let Some(_entries) = _json["entries"].as_array_mut()
+        && let Some(_last_index) = _entries
             .iter()
             .rposition(|e| {
                 e.get("address")
@@ -117,20 +117,19 @@ pub fn _undo_classification(_category: &str, _address: &str) -> Result<String, S
                     .map(|addr| addr == _address)
                     .unwrap_or(false)
             })
-        {
-            _entries.remove(_last_index);
-            let _json_str = serde_json::to_string_pretty(&_json)
-                .map_err(|e| format!("Failed to serialize JSON: {}", e))?;
-            fs::write(&_file_path, _json_str)
-                .map_err(|e| format!("Failed to write classification file: {}", e))?;
-            return Ok(
-                format!(
-                    "Undid last classification for '{}' in category '{}'",
-                    _address,
-                    _category,
-                ),
-            );
-        }
+    {
+        _entries.remove(_last_index);
+        let _json_str = serde_json::to_string_pretty(&_json)
+            .map_err(|e| format!("Failed to serialize JSON: {}", e))?;
+        fs::write(&_file_path, _json_str)
+            .map_err(|e| format!("Failed to write classification file: {}", e))?;
+        return Ok(
+            format!(
+                "Undid last classification for '{}' in category '{}'",
+                _address,
+                _category,
+            ),
+        );
     }
     Err(
         format!(

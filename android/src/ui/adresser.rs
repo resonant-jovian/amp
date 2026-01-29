@@ -1,6 +1,5 @@
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
-
 #[component]
 pub fn Adresser(
     stored_addresses: Vec<StoredAddress>,
@@ -8,11 +7,8 @@ pub fn Adresser(
     on_remove_address: EventHandler<usize>,
 ) -> Element {
     rsx! {
-
         div { class: "stored-addresses-container",
-            div { class: "stored-addresses-header",
-                "Adresser"
-            }
+            div { class: "stored-addresses-header", "Adresser" }
             div { class: "stored-addresses-content",
                 div { id: "addressList",
                     {

@@ -624,24 +624,21 @@ fn run_output(
         println!("\n🔄 Generating Android local storage format...");
         let mut android_addresses = Vec::new();
         for result in merged {
-            if let Some((_distance, info)) = result.miljo_match {
-                if let Some(restriction) = extract_restriction_from_info(&info) {
-                    let gata_parts: Vec<&str> = result
-                        .address
-                        .split_whitespace()
-                        .collect();
-                    if gata_parts.len() >= 2 {
-                        android_addresses
-                            .push(ParkingRestriction {
-                                gata: gata_parts[0].to_string(),
-                                gatunummer: gata_parts[1].to_string(),
-                                postnummer: parse_postnummer(&result.postnummer),
-                                adress: result.address.clone(),
-                                dag: restriction.dag,
-                                tid: restriction.tid,
-                                info,
-                            });
-                    }
+            if let Some((_distance, info)) = result.miljo_match
+                && let Some(restriction) = extract_restriction_from_info(&info)
+            {
+                let gata_parts: Vec<&str> = result.address.split_whitespace().collect();
+                if gata_parts.len() >= 2 {
+                    android_addresses
+                        .push(ParkingRestriction {
+                            gata: gata_parts[0].to_string(),
+                            gatunummer: gata_parts[1].to_string(),
+                            postnummer: parse_postnummer(&result.postnummer),
+                            adress: result.address.clone(),
+                            dag: restriction.dag,
+                            tid: restriction.tid,
+                            info,
+                        });
                 }
             }
         }

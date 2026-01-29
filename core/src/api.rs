@@ -95,32 +95,30 @@ impl DataLoader {
     }
     fn extract_time_from_taxa(taxa_str: &str) -> String {
         let parts: Vec<&str> = taxa_str.split('–').collect();
-        if parts.len() >= 2 {
-            if let Some(before_dash) = parts.first() {
-                let start_time = before_dash
-                    .split_whitespace()
-                    .last()
-                    .and_then(|s| {
-                        s.chars()
-                            .rev()
-                            .take_while(|c| c.is_ascii_digit())
-                            .collect::<String>()
-                            .chars()
-                            .rev()
-                            .collect::<String>()
-                            .parse::<u32>()
-                            .ok()
-                    });
-                if let Some(start) = start_time && let Some(after_dash) = parts.get(1) {
-                    let end_time = after_dash
-                        .chars()
+        if parts.len() >= 2 && let Some(before_dash) = parts.first() {
+            let start_time = before_dash
+                .split_whitespace()
+                .last()
+                .and_then(|s| {
+                    s.chars()
+                        .rev()
                         .take_while(|c| c.is_ascii_digit())
                         .collect::<String>()
+                        .chars()
+                        .rev()
+                        .collect::<String>()
                         .parse::<u32>()
-                        .ok();
-                    if let Some(end) = end_time {
-                        return format!("{:02}:00–{:02}:00", start, end);
-                    }
+                        .ok()
+                });
+            if let Some(start) = start_time && let Some(after_dash) = parts.get(1) {
+                let end_time = after_dash
+                    .chars()
+                    .take_while(|c| c.is_ascii_digit())
+                    .collect::<String>()
+                    .parse::<u32>()
+                    .ok();
+                if let Some(end) = end_time {
+                    return format!("{:02}:00–{:02}:00", start, end);
                 }
             }
         }
