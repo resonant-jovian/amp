@@ -11,7 +11,9 @@ pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Ele
         let gatunummer = gatunummer_input.read().clone();
         let postnummer = postnummer_input.read().clone();
 
-        if !gata.trim().is_empty() && !gatunummer.trim().is_empty() && !postnummer.trim().is_empty()
+        if !gata.trim().is_empty()
+            && !gatunummer.trim().is_empty()
+            && !postnummer.trim().is_empty()
         {
             on_add_address.call((gata, gatunummer, postnummer));
             // Clear inputs after adding
@@ -39,6 +41,15 @@ pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Ele
                         value: "{gata_input.read()}",
                         onchange: move |evt: Event<FormData>| {
                             gata_input.set(evt.value());
+                        },
+                    }
+                    input {
+                        r#type: "text",
+                        id: "streetNumberInput",
+                        placeholder: "Gatunummer",
+                        value: "{gatunummer_input.read()}",
+                        onchange: move |evt: Event<FormData>| {
+                            gatunummer_input.set(evt.value());
                         },
                     }
                     input {
