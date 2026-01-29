@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Zen+Dots&display=swap');
+
 :root {
     --shadow-sm: 2px 2px 4px #a3b1c6, -2px -2px 4px #ffffff;
     --shadow-md: 4px 4px 8px #a3b1c6, -4px -4px 8px #ffffff;
@@ -78,8 +80,24 @@ input[type=number] {
     justify-content: space-between;
     padding: 0;
     min-height: 80px;
-    background: linear-gradient(90deg, var(--strawberry-red) 0%, var(--strawberry-red) 10%, var(--atomic-tangerine) 10%, var(--atomic-tangerine) 20%, var(--carrot-orange) 20%, var(--carrot-orange) 30%, var(--coral-glow) 30%, var(--coral-glow) 40%, var(--tuscan-sun) 40%, var(--tuscan-sun) 50%, var(--willow-green) 50%, var(--willow-green) 60%, var(--seagrass) 60%, var(--seagrass) 70%, var(--dark-cyan) 70%, var(--dark-cyan) 80%, var(--blue-slate) 80%, var(--blue-slate) 90%, var(--cerulean) 90%);
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15), inset 0 1px 2px rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+}
+
+.topbar-bg-wrap {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+.topbar-bg-wrap svg {
+    width: 100%;
+    height: 100%;
+    display: block;
 }
 
 .topbar-title-content {
@@ -93,11 +111,13 @@ input[type=number] {
 }
 
 .topbar-title-text {
+    font-family: 'Zen Dots', cursive;
     font-size: 48px;
-    font-weight: 800;
+    font-weight: 400;
     color: #ffffff;
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(255, 255, 255, 0.2);
-    letter-spacing: 1px;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4);
+    letter-spacing: 2px;
+    font-variant: small-caps;
 }
 
 .topbar-settings-btn {
