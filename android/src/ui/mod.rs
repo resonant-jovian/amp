@@ -92,9 +92,9 @@ use crate::ui::{
 
 #[component]
 pub fn App() -> Element {
-    let mut stored_addresses = use_signal::<Vec<StoredAddress>>(Vec::new);
+    let stored_addresses = use_signal::<Vec<StoredAddress>>(Vec::new);
     let mut bucketed =
-        use_signal::<HashMap<paneler::PanelBucket, Vec<StoredAddress>>>(HashMap::new());
+        use_signal::<HashMap<paneler::PanelBucket, Vec<StoredAddress>>>(HashMap::new);
 
     // Update buckets whenever addresses change
     use_effect(move || {
