@@ -1,25 +1,19 @@
 pub mod adresser;
 pub mod paneler;
 pub mod topbar;
-
 use crate::ui::{
-    adresser::Adresser,
-    paneler::{Active, Day, Month, NotValid, Six},
+    adresser::Adresser, paneler::{Active, Day, Month, NotValid, Six},
     topbar::TopBar,
 };
-
 use dioxus::prelude::*;
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
-
 static CSS: Asset = asset!("/assets/style.css");
-
 #[derive(Clone, Debug, PartialEq)]
 struct Address {
     street: String,
     postal: String,
 }
-
 #[derive(Clone, Debug, PartialEq)]
 enum ScheduleType {
     Now,
@@ -28,18 +22,15 @@ enum ScheduleType {
     Month,
     None,
 }
-
 #[derive(Clone, Debug, PartialEq)]
 struct Schedule {
     kind: ScheduleType,
     deadline: Option<SystemTime>,
     active: bool,
 }
-
 fn schedule_key(addr: &Address) -> String {
     format!("{}-{}", addr.street, addr.postal)
 }
-
 fn format_postal_code(postal: &str) -> String {
     let digits: String = postal.chars().filter(|c| c.is_ascii_digit()).collect();
     let mut padded = digits;
@@ -47,7 +38,6 @@ fn format_postal_code(postal: &str) -> String {
     let padded = &padded[..5];
     format!("{} {}", &padded[0..3], &padded[3..5])
 }
-
 fn compute_deadline(kind: &ScheduleType) -> Option<SystemTime> {
     let now = SystemTime::now();
     match kind {
@@ -58,32 +48,25 @@ fn compute_deadline(kind: &ScheduleType) -> Option<SystemTime> {
         ScheduleType::Month => Some(now + Duration::from_secs(30 * 24 * 60 * 60)),
     }
 }
-
 fn get_time_until(deadline: SystemTime) -> Option<Duration> {
     deadline.duration_since(SystemTime::now()).ok()
 }
-
 fn format_time(ms: u128) -> String {
     let total_seconds = (ms / 1000) as u64;
     let days = total_seconds / 86_400;
     let hours = (total_seconds % 86_400) / 3_600;
     let minutes = (total_seconds % 3_600) / 60;
     let seconds = total_seconds % 60;
-
     format!("{:02}:{:02}:{:02}:{:02}", days, hours, minutes, seconds)
 }
-
 #[component]
 pub fn App() -> Element {
     let mut addresses = use_signal::<Vec<Address>>(Vec::new);
     let mut schedules = use_signal::<HashMap<String, Schedule>>(HashMap::new);
-
-    // initializeSampleData equivalent (runs once)
     use_effect(move || {
         if !addresses.read().is_empty() {
             return;
         }
-
         let sample = vec![
             Address {
                 street: "Storgatan 10".to_string(),
@@ -106,7 +89,6 @@ pub fn App() -> Element {
                 postal: "22500".to_string(),
             },
         ];
-
         let sched_types = vec![
             ScheduleType::Now,
             ScheduleType::SixHours,
@@ -114,9 +96,7 @@ pub fn App() -> Element {
             ScheduleType::Month,
             ScheduleType::None,
         ];
-
         addresses.set(sample.clone());
-
         let mut map = HashMap::new();
         for (addr, kind) in sample.into_iter().zip(sched_types.into_iter()) {
             let key = schedule_key(&addr);
@@ -130,45 +110,37 @@ pub fn App() -> Element {
                 },
             );
         }
-
         schedules.set(map);
     });
-
-    // addAddressManual equivalent (without DOM, using callbacks)
     let _add_address_manual = {
         let mut addresses = addresses.to_owned();
         let mut schedules = schedules.to_owned();
         move |street: String, postal_input: String| {
             if street.trim().is_empty() || postal_input.trim().is_empty() {
-                // in UI, show alert/toast instead
                 return;
             }
-
             let postal = format_postal_code(&postal_input);
             let addr = Address {
                 street: street.trim().to_string(),
                 postal: postal.clone(),
             };
             let key = schedule_key(&addr);
-
             if schedules.read().contains_key(&key) {
-                // address exists; show UI warning
                 return;
             }
-
             addresses.write().push(addr.clone());
-            schedules.write().insert(
-                key,
-                Schedule {
-                    kind: ScheduleType::None,
-                    deadline: None,
-                    active: true,
-                },
-            );
+            schedules
+                .write()
+                .insert(
+                    key,
+                    Schedule {
+                        kind: ScheduleType::None,
+                        deadline: None,
+                        active: true,
+                    },
+                );
         }
     };
-
-    // removeAddress equivalent
     let _remove_address = {
         let mut addresses = addresses.to_owned();
         let mut schedules = schedules.to_owned();
@@ -182,8 +154,6 @@ pub fn App() -> Element {
             schedules.write().remove(&key);
         }
     };
-
-    // toggleAddress equivalent
     let _toggle_address = {
         let addresses = addresses.to_owned();
         let mut schedules = schedules.to_owned();
@@ -199,8 +169,6 @@ pub fn App() -> Element {
             }
         }
     };
-
-    // updateSchedule equivalent
     let _update_schedule = {
         let addresses = addresses.to_owned();
         let mut schedules = schedules.to_owned();
@@ -217,8 +185,6 @@ pub fn App() -> Element {
             }
         }
     };
-
-    // updateTimers equivalent: derive formatted time for each active scheduled address
     let _timers: Vec<(Address, Option<String>)> = {
         let addrs = addresses.read();
         let scheds = schedules.read();
@@ -238,22 +204,18 @@ pub fn App() -> Element {
             })
             .collect()
     };
-
     rsx! {
         Stylesheet { href: CSS }
-        div {
-            class: "app-wrapper",
-            TopBar {  },
-            div {
-                class: "app-container",
-                Adresser {  }
-                div {
-                    class: "categories-section",
-                    Active {  },
-                    Six {  },
-                    Day {  },
-                    Month {  },
-                    NotValid {  },
+        div { class: "app-wrapper",
+            TopBar {}
+            div { class: "app-container",
+                Adresser {}
+                div { class: "categories-section",
+                    Active {}
+                    Six {}
+                    Day {}
+                    Month {}
+                    NotValid {}
                 }
             }
         }

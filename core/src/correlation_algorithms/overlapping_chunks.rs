@@ -1,20 +1,16 @@
 //! Overlapping chunks (spatial grid) algorithm
 //! Divides world into grid cells with overlap to handle edge cases
-
 use crate::correlation_algorithms::CorrelationAlgo;
 use crate::structs::{AdressClean, MiljoeDataClean};
 use rust_decimal::prelude::ToPrimitive;
 use std::collections::HashMap;
-
-const CHUNK_SIZE: f64 = 0.001; // ~100m in degrees at Malmö latitude
-const OVERLAP: f64 = 0.0005; // ~50m overlap
+const CHUNK_SIZE: f64 = 0.001;
+const OVERLAP: f64 = 0.0005;
 const MAX_DISTANCE_METERS: f64 = 50.0;
 const EARTH_RADIUS_M: f64 = 6371000.0;
-
 pub struct OverlappingChunksAlgo {
     grid: SpatialGrid,
 }
-
 impl OverlappingChunksAlgo {
     pub fn new(parking_lines: &[MiljoeDataClean]) -> Self {
         Self {
@@ -22,16 +18,13 @@ impl OverlappingChunksAlgo {
         }
     }
 }
-
 pub struct SpatialGrid {
     chunks: HashMap<(i32, i32), Vec<usize>>,
     cell_size: f64,
 }
-
 impl SpatialGrid {
     pub fn new(parking_lines: &[MiljoeDataClean]) -> Self {
         let mut chunks: HashMap<_, Vec<usize>> = HashMap::new();
-
         for (idx, line) in parking_lines.iter().enumerate() {
             if let (Some(min_x), Some(min_y), Some(max_x), Some(max_y)) = (
                 line.coordinates[0][0].min(line.coordinates[1][0]).to_f64(),
@@ -39,13 +32,10 @@ impl SpatialGrid {
                 line.coordinates[0][0].max(line.coordinates[1][0]).to_f64(),
                 line.coordinates[0][1].max(line.coordinates[1][1]).to_f64(),
             ) {
-                // Calculate which chunks this line touches (with overlap)
                 let start_cell_x = ((min_x - OVERLAP) / CHUNK_SIZE).floor() as i32;
                 let start_cell_y = ((min_y - OVERLAP) / CHUNK_SIZE).floor() as i32;
                 let end_cell_x = ((max_x + OVERLAP) / CHUNK_SIZE).ceil() as i32;
                 let end_cell_y = ((max_y + OVERLAP) / CHUNK_SIZE).ceil() as i32;
-
-                // Add to all overlapping chunks
                 for cx in start_cell_x..=end_cell_x {
                     for cy in start_cell_y..=end_cell_y {
                         chunks.entry((cx, cy)).or_default().push(idx);
@@ -53,20 +43,15 @@ impl SpatialGrid {
                 }
             }
         }
-
         SpatialGrid {
             chunks,
             cell_size: CHUNK_SIZE,
         }
     }
-
     pub fn query_nearby(&self, point: [f64; 2]) -> Vec<usize> {
         let cell_x = (point[0] / self.cell_size).floor() as i32;
         let cell_y = (point[1] / self.cell_size).floor() as i32;
-
         let mut candidates = Vec::new();
-
-        // Check this cell and all 8 neighbors
         for dx in -1..=1 {
             for dy in -1..=1 {
                 if let Some(indices) = self.chunks.get(&(cell_x + dx, cell_y + dy)) {
@@ -74,26 +59,17 @@ impl SpatialGrid {
                 }
             }
         }
-
         candidates
     }
 }
-
 impl CorrelationAlgo for OverlappingChunksAlgo {
     fn correlate(
         &self,
         address: &AdressClean,
         parking_lines: &[MiljoeDataClean],
     ) -> Option<(usize, f64)> {
-        let point = [
-            address.coordinates[0].to_f64()?,
-            address.coordinates[1].to_f64()?,
-        ];
-
-        // Get candidates from spatial grid
+        let point = [address.coordinates[0].to_f64()?, address.coordinates[1].to_f64()?];
         let candidates = self.grid.query_nearby(point);
-
-        // Find closest among candidates using distance calculation
         candidates
             .into_iter()
             .filter_map(|idx| {
@@ -106,60 +82,45 @@ impl CorrelationAlgo for OverlappingChunksAlgo {
                     line.coordinates[1][0].to_f64()?,
                     line.coordinates[1][1].to_f64()?,
                 ];
-
                 let dist = distance_point_to_line(point, line_start, line_end);
-
-                // Only include if within threshold
                 (dist <= MAX_DISTANCE_METERS).then_some((idx, dist))
             })
             .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
     }
-
     fn name(&self) -> &'static str {
         "Overlapping Chunks"
     }
 }
-
 /// Calculate perpendicular distance from point to line segment using Haversine
-fn distance_point_to_line(point: [f64; 2], line_start: [f64; 2], line_end: [f64; 2]) -> f64 {
+fn distance_point_to_line(
+    point: [f64; 2],
+    line_start: [f64; 2],
+    line_end: [f64; 2],
+) -> f64 {
     let line_vec = [line_end[0] - line_start[0], line_end[1] - line_start[1]];
     let point_vec = [point[0] - line_start[0], point[1] - line_start[1]];
-
     let line_len_sq = line_vec[0] * line_vec[0] + line_vec[1] * line_vec[1];
-
     if line_len_sq == 0.0 {
         return haversine_distance(point, line_start);
     }
-
-    let t =
-        ((point_vec[0] * line_vec[0] + point_vec[1] * line_vec[1]) / line_len_sq).clamp(0.0, 1.0);
-
-    let closest = [
-        line_start[0] + t * line_vec[0],
-        line_start[1] + t * line_vec[1],
-    ];
-
+    let t = ((point_vec[0] * line_vec[0] + point_vec[1] * line_vec[1]) / line_len_sq)
+        .clamp(0.0, 1.0);
+    let closest = [line_start[0] + t * line_vec[0], line_start[1] + t * line_vec[1]];
     haversine_distance(point, closest)
 }
-
 fn haversine_distance(point1: [f64; 2], point2: [f64; 2]) -> f64 {
     let lat1 = point1[1].to_radians();
     let lat2 = point2[1].to_radians();
     let delta_lat = (point2[1] - point1[1]).to_radians();
     let delta_lon = (point2[0] - point1[0]).to_radians();
-
-    let a =
-        (delta_lat / 2.0).sin().powi(2) + lat1.cos() * lat2.cos() * (delta_lon / 2.0).sin().powi(2);
-
+    let a = (delta_lat / 2.0).sin().powi(2)
+        + lat1.cos() * lat2.cos() * (delta_lon / 2.0).sin().powi(2);
     let c = 2.0 * a.sqrt().atan2((1.0 - a).sqrt());
-
     EARTH_RADIUS_M * c
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn test_spatial_grid_cell_calculation() {
         let point = [13.15, 55.25];

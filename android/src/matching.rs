@@ -1,20 +1,15 @@
 use crate::static_data::{StaticAddressEntry, load_parquet_data};
 use std::collections::HashMap;
 use std::sync::OnceLock;
-
-// Lazy-load the parking data once on first use
 static PARKING_DATA: OnceLock<HashMap<String, StaticAddressEntry>> = OnceLock::new();
-
 fn get_parking_data() -> &'static HashMap<String, StaticAddressEntry> {
     PARKING_DATA.get_or_init(load_parquet_data)
 }
-
 #[derive(Clone, Debug, PartialEq)]
 pub enum MatchResult {
     Valid(StaticAddressEntry),
     Invalid,
 }
-
 /// Match user input address against static correlations from server
 ///
 /// This checks if the provided address (gata, gatunummer, postnummer) exists
@@ -29,31 +24,23 @@ pub enum MatchResult {
 /// # Returns
 /// MatchResult::Valid with address data if found, MatchResult::Invalid otherwise
 pub fn match_address(gata: &str, gatunummer: &str, postnummer: &str) -> MatchResult {
-    let key = format!(
-        "{} {}-{}",
-        gata.trim(),
-        gatunummer.trim(),
-        postnummer.trim()
-    );
+    let key = format!("{} {}-{}", gata.trim(), gatunummer.trim(), postnummer.trim());
     let data = get_parking_data();
-
     match data.get(&key) {
         Some(restriction) => MatchResult::Valid(restriction.clone()),
         None => MatchResult::Invalid,
     }
 }
-
 /// Validate address input fields
 ///
 /// Checks that all fields contain non-empty values
 pub fn validate_input(gata: &str, gatunummer: &str, postnummer: &str) -> bool {
-    !gata.trim().is_empty() && !gatunummer.trim().is_empty() && !postnummer.trim().is_empty()
+    !gata.trim().is_empty() && !gatunummer.trim().is_empty()
+        && !postnummer.trim().is_empty()
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn test_validate_input() {
         assert!(validate_input("Storgatan", "10", "22100"));
@@ -61,7 +48,6 @@ mod tests {
         assert!(!validate_input("Storgatan", "", "22100"));
         assert!(!validate_input("Storgatan", "10", ""));
     }
-
     #[test]
     fn test_match_address_invalid() {
         let result = match_address("NonExistent", "999", "00000");

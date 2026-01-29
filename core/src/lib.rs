@@ -6,6 +6,5 @@ pub mod correlation_algorithms;
 pub mod error;
 pub mod parquet;
 pub mod structs;
-
 #[cfg(test)]
 mod correlation_tests;

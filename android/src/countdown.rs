@@ -1,12 +1,10 @@
 use chrono::{Datelike, Duration, Local as ChronoLocal, NaiveDate, NaiveTime};
-
 /// Parse time interval string (e.g., "0800-1000" → (08:00, 10:00))
 fn parse_tid_interval(tid: &str) -> Option<(NaiveTime, NaiveTime)> {
     let parts: Vec<_> = tid.split('-').collect();
     if parts.len() != 2 {
         return None;
     }
-
     let parse_hm = |s: &str| -> Option<NaiveTime> {
         let s = s.trim();
         if s.len() != 4 {
@@ -16,23 +14,18 @@ fn parse_tid_interval(tid: &str) -> Option<(NaiveTime, NaiveTime)> {
         let minute: u32 = s[2..4].parse().ok()?;
         NaiveTime::from_hms_opt(hour, minute, 0)
     };
-
     Some((parse_hm(parts[0])?, parse_hm(parts[1])?))
 }
-
 /// Add one month to a date, handling month/year wraparound
 fn add_one_month(date: NaiveDate) -> Option<NaiveDate> {
     let mut year = date.year();
     let mut month = date.month() + 1;
-
     if month == 13 {
         month = 1;
         year += 1;
     }
-
     NaiveDate::from_ymd_opt(year, month, date.day())
 }
-
 /// Calculate remaining duration until next parking restriction deadline
 ///
 /// # Arguments
@@ -43,62 +36,47 @@ fn add_one_month(date: NaiveDate) -> Option<NaiveDate> {
 /// Duration until the next occurrence of the restriction deadline, or None if invalid
 pub fn remaining_duration(dag: u8, tid: &str) -> Option<Duration> {
     let (_start, end) = parse_tid_interval(tid)?;
-
     let now = ChronoLocal::now().naive_local();
     let today = now.date();
-
-    // Try to create this month's date
-    let this_month_date = NaiveDate::from_ymd_opt(today.year(), today.month(), dag as u32)?;
+    let this_month_date = NaiveDate::from_ymd_opt(
+        today.year(),
+        today.month(),
+        dag as u32,
+    )?;
     let this_end = this_month_date.and_time(end);
-
-    // Case 1: still upcoming this month
     if this_end >= now {
         return Some(this_end - now);
     }
-
-    // Case 2: already passed this month → roll to next month
     let next_month_date = add_one_month(this_month_date)?;
     let next_end = next_month_date.and_time(end);
-
-    if next_end >= now {
-        Some(next_end - now)
-    } else {
-        None
-    }
+    if next_end >= now { Some(next_end - now) } else { None }
 }
-
 /// Format countdown as human-readable string
 ///
 /// # Returns
 /// Formatted string like "5d 02h 30m" or None if calculation fails
 pub fn format_countdown(dag: u8, tid: &str) -> Option<String> {
     let remaining = remaining_duration(dag, tid)?;
-
     let days = remaining.num_days();
     let hours = remaining.num_hours() % 24;
     let minutes = remaining.num_minutes() % 60;
-
     Some(format!("{}d {:02}h {:02}m", days, hours, minutes))
 }
-
 /// Time bucket categories for grouping parking restrictions
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TimeBucket {
-    Now,          // ≤ 4 hours remaining
-    Within6Hours, // 4-6 hours
-    Within1Day,   // 6 hours - 1 day
-    Within1Month, // 1 day - 31 days
-    Invalid,      // No valid deadline or invalid input
+    Now,
+    Within6Hours,
+    Within1Day,
+    Within1Month,
+    Invalid,
 }
-
 /// Categorize address by time remaining until parking restriction deadline
 pub fn bucket_for(dag: u8, tid: &str) -> TimeBucket {
     let remaining = match remaining_duration(dag, tid) {
         Some(d) => d,
         None => return TimeBucket::Invalid,
     };
-
-    // Treat everything ending within 4h as "Now" (more urgent)
     if remaining <= Duration::hours(4) {
         TimeBucket::Now
     } else if remaining <= Duration::hours(6) {
@@ -111,12 +89,10 @@ pub fn bucket_for(dag: u8, tid: &str) -> TimeBucket {
         TimeBucket::Invalid
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use chrono::Timelike;
-
     #[test]
     fn test_parse_tid_interval() {
         let (start, end) = parse_tid_interval("0800-1000").unwrap();
@@ -125,17 +101,14 @@ mod tests {
         assert_eq!(end.hour(), 10);
         assert_eq!(end.minute(), 0);
     }
-
     #[test]
     fn test_parse_tid_invalid() {
-        assert!(parse_tid_interval("08:00-10:00").is_none()); // Wrong format
-        assert!(parse_tid_interval("0800").is_none()); // Missing interval
+        assert!(parse_tid_interval("08:00-10:00").is_none());
+        assert!(parse_tid_interval("0800").is_none());
     }
-
     #[test]
     fn test_format_countdown() {
-        // This test is relative to current time, so we just verify it doesn't crash
         let result = format_countdown(1, "0800-1000");
-        assert!(result.is_some() || result.is_none()); // Just verify it returns a Result
+        assert!(result.is_some() || result.is_none());
     }
 }

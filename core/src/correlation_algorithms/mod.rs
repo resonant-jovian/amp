@@ -1,15 +1,12 @@
 //! Correlation algorithms module
 //! Provides multiple algorithms for correlating addresses with parking data
-
 pub mod distance_based;
 pub mod grid_nearest;
 pub mod kdtree_spatial;
 pub mod overlapping_chunks;
 pub mod raycasting;
 pub mod rtree_spatial;
-
 use crate::structs::{AdressClean, MiljoeDataClean};
-
 /// Trait for correlation algorithms
 /// All algorithms must implement this trait to be compatible with the benchmarking system
 pub trait CorrelationAlgo {
@@ -20,11 +17,9 @@ pub trait CorrelationAlgo {
         address: &AdressClean,
         parking_lines: &[MiljoeDataClean],
     ) -> Option<(usize, f64)>;
-
     /// Get the name of this algorithm for display purposes
     fn name(&self) -> &'static str;
 }
-
 pub use distance_based::DistanceBasedAlgo;
 pub use grid_nearest::GridNearestAlgo;
 pub use kdtree_spatial::KDTreeSpatialAlgo;
