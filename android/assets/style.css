@@ -59,7 +59,7 @@ input[type=number] {
 }
 
 .topbar-title {
-    background: linear-gradient(135deg, #FF6B6B 0%, #FFA500 25%, #FFD700 50%, #00FF00 75%, #4169E1 100%);
+    background: conic-gradient(from 0deg, #ffbe0b, #fb5607, #ff006e, #8338ec, #3a86ff, #ffbe0b);
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1), inset 0 2px 4px rgba(0, 0, 0, 0.05);
     display: flex;
     align-items: center;
@@ -76,7 +76,7 @@ input[type=number] {
 }
 
 .topbar-title-text {
-    font-size: 28px;
+    font-size: 48px;
     font-weight: 800;
     color: #000000;
     text-shadow: 0 2px 4px rgba(255, 255, 255, 0.3);
@@ -377,11 +377,14 @@ input[type=number] {
     background: var(--color-bg);
     border-radius: 16px;
     padding: 0 2px;
-    box-shadow: inset 3px 3px 7px #a3b1c6, inset -3px -3px 7px #ffffff;
+    box-shadow: inset 3px 3px 7px #a3b1c6, inset -3px -3px 7px #ffffff !important;
     cursor: pointer;
     transition: box-shadow 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     outline: none !important;
     -webkit-tap-highlight-color: transparent;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    -moz-appearance: none !important;
 }
 
 .switch-container:focus,
