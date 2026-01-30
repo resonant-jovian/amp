@@ -104,6 +104,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Module Guides
 - **[Core Library](core/README.md)** — Library API and usage
 - **[Server/CLI](server/README.md)** — CLI tool guide
+- **[Scripts](scripts/README.md)** — Build and deployment scripts
 
 ## Project Structure
 
@@ -123,8 +124,21 @@ amp/
 │   ├── README.md          # Server guide
 │   └── src/
 ├── android/               # Android app (Dioxus)
+│   ├── src/
+│   │   ├── matching.rs     # Address validation
+│   │   ├── countdown.rs    # Parking deadline logic
+│   │   └── ui/
+│   │       ├── addresses.rs # Address list component
+│   │       ├── panels.rs    # Category panels
+│   │       └── top_bar.rs   # Navigation bar
+│   └── assets/
 ├── ios/                   # iOS app (Dioxus)
-└── build.sh              # Build script
+└── scripts/               # Build and deployment scripts
+    ├── README.md          # Scripts documentation
+    ├── build.sh           # Android release build
+    ├── serve.sh           # Development hot-reload
+    ├── adb-install.sh     # APK installation
+    └── fmt_fix_clippy.sh  # Code formatting/linting
 ```
 
 ## Building
@@ -132,6 +146,7 @@ amp/
 ### Prerequisites
 - Rust 1.70+ ([rustup](https://rustup.rs))
 - For mobile: Dioxus CLI (`cargo install dioxus-cli`)
+- For Android: Android SDK and Java 21
 
 ### Build Commands
 
@@ -143,12 +158,20 @@ cargo build --release -p amp_server
 # Run tests
 cargo test --release
 
-# Android
-cd android && dx build --release
+# Format and lint code
+./scripts/fmt_fix_clippy.sh
+
+# Android (signed release APK)
+./scripts/build.sh
+
+# Android (development with hot-reload)
+./scripts/serve.sh
 
 # iOS
 cd ios && dx build --release
 ```
+
+**Note:** Android build requires `keystore.properties` file in repository root. See [scripts/README.md](scripts/README.md) for details.
 
 ## Dependencies
 
@@ -160,6 +183,7 @@ Core dependencies:
 - `rstar` — R-tree spatial indexing
 - `kiddo` — KD-tree spatial indexing
 - `dioxus` — UI framework (mobile)
+- `parquet` — Data storage format
 
 See `Cargo.toml` files for complete lists.
 
@@ -171,6 +195,14 @@ AMP fetches parking zone data from official Malmö Open Data:
 - **Adresser** — Address coordinates
 
 Data is verified using checksums. Run `check-updates` to detect new data.
+
+## Code Organization
+
+The codebase follows English naming conventions for maintainability:
+- **Variables and functions:** English (`street`, `postal_code`, `match_address`)
+- **Types and structs:** English (`StoredAddress`, `StaticAddressEntry`)
+- **UI text:** Swedish (user-facing strings remain in Swedish)
+- **Documentation:** English (all doc comments)
 
 ## Testing
 
@@ -227,3 +259,4 @@ For detailed information, see:
 - [API Integration](docs/api-integration.md) — Data fetching from ArcGIS
 - [Core Library](core/README.md) — Library API documentation
 - [Server Tool](server/README.md) — CLI tool documentation
+- [Build Scripts](scripts/README.md) — Build and deployment automation
