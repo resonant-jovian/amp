@@ -1,8 +1,23 @@
 use dioxus::prelude::*;
+use dioxus_free_icons::icons::fa_solid_icons::FaBlurb;
+use dioxus_free_icons::Icon;
+
 #[component]
 pub fn TopBar() -> Element {
     rsx! {
         div { class: "top-bar",
+            div { class: "top-bar-header",
+                h1 { class: "top-bar-title", "AMP" }
+                button {
+                    class: "menu-icon-btn",
+                    onclick: move |_| (),
+                    Icon {
+                        icon: FaBlurb,
+                        width: 24,
+                        height: 24,
+                    }
+                }
+            }
             div { class: "input-section",
                 div { class: "input-group",
                     input {
