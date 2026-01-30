@@ -1,7 +1,7 @@
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
-use dioxus_free_icons::icons::fa_solid_icons::FaCircleInfo;
+use dioxus_free_icons::icons::md_device_icons::MdGraphicEq;
 /// Address list component displaying all stored addresses with toggle and remove controls
 ///
 /// # Props
@@ -38,7 +38,7 @@ pub fn Addresses(
                                         div { key: "{addr_id}", class: "address-item",
                                             div { class: "address-text",
                                                 button { class: "address-info-icon", onclick: move |_| {},
-                                                    Icon { icon: FaCircleInfo, width: 16, height: 16 }
+                                                    Icon { icon: MdGraphicEq, width: 16, height: 16 }
                                                 }
                                                 span { "{address_display}" }
                                             }

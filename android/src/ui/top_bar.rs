@@ -1,6 +1,7 @@
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::md_image_icons::MdBlurOn;
+use dioxus_free_icons::icons::md_maps_icons::MdAddLocationAlt;
 /// Top navigation bar with address input and controls
 ///
 /// Provides input fields for adding new addresses and buttons for GPS and settings.
@@ -95,7 +96,7 @@ pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Ele
                         class: "topbar-btn",
                         id: "gpsBtn",
                         onclick: handle_gps_click,
-                        "GPS"
+                        Icon { icon: MdAddLocationAlt, width: 20, height: 20 }
                     }
                 }
             }

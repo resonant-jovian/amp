@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
-use dioxus_free_icons::icons::fa_solid_icons::FaCircleInfo;
+use dioxus_free_icons::icons::md_device_icons::MdGraphicEq;
 #[component]
 pub fn Adresser() -> Element {
     rsx! {
@@ -10,7 +10,7 @@ pub fn Adresser() -> Element {
                 div { class: "address-item",
                     div { class: "address-text",
                         button { class: "address-info-icon", onclick: move |_| (),
-                            Icon { icon: FaCircleInfo, width: 16, height: 16 }
+                            Icon { icon: MdGraphicEq, width: 16, height: 16 }
                         }
                         span { "Example Address 1" }
                     }

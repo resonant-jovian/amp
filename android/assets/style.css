@@ -122,8 +122,8 @@ input[type=number] {
     font-size: 52px;
     font-weight: 400;
     color: #000000;
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4);
     text-transform: lowercase;
+    text-shadow: 0 0 0.5rem #bb4ea0;
 }
 
 .topbar-settings-btn {
@@ -152,10 +152,10 @@ input[type=number] {
 
 .topbar-settings-btn svg {
     display: block;
-    color: #ffffff;
-    width: 20px;
-    height: 20px;
-    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6)) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
+    color: #000000;
+    width: 40px;
+    height: 40px;
+    filter: drop-shadow(0 0 0.5rem #bb4ea0);
 }
 
 .topbar-content {
@@ -216,8 +216,9 @@ input[type=number] {
 }
 
 .topbar-buttons-row {
-    display: flex;
+    display: inline-flex;
     flex-direction: row;
+    flex-wrap: wrap;
     gap: 8px;
 }
 
@@ -230,7 +231,6 @@ input[type=number] {
     font-weight: 600;
     cursor: pointer;
     background: var(--color-bg);
-    color: var(--color-text);
     box-shadow: inset 1px 1px 3px #a3b1c6, inset -1px -1px 20px #ffffff;
     white-space: nowrap;
     transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
@@ -260,11 +260,18 @@ input[type=number] {
 }
 
 .topbar-btn:first-child {
-    border-radius: 20px 0 0 20px;
+    border-radius: 20px 20px 20px 20px;
+    flex-wrap: wrap-reverse;
+    flex-shrink: 0;
+    color: var(--color-text);
 }
 
 .topbar-btn:last-child {
-    border-radius: 0 20px 20px 0;
+    border-radius: 50%;
+    flex-wrap: wrap;
+    flex-grow: 0;
+    max-width: 100%;
+    color: #bb4ea0;
 }
 
 .topbar-btn:not(:first-child):not(:last-child) {
@@ -401,7 +408,7 @@ input[type=number] {
     min-height: 32px;
     border-radius: 50%;
     background: var(--color-bg);
-    color: var(--cerulean);
+    color: #bb4ea0;
     border: none;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
@@ -409,23 +416,31 @@ input[type=number] {
     align-items: center;
     justify-content: center;
     padding: 0;
-    box-shadow: 3px 3px 6px #a3b1c6, -3px -3px 6px #ffffff;
+    box-shadow: inset 1px 1px 3px #a3b1c6, inset -1px -1px 5px #ffffff;
     outline: none !important;
     -webkit-tap-highlight-color: transparent;
 }
 
 .address-info-icon:hover {
-    box-shadow: 2px 2px 4px #a3b1c6, -2px -2px 4px #ffffff;
-    color: #1e5f85;
+    box-shadow: inset 1px 1px 3px #a3b1c6, inset -1px -1px 5px #ffffff;
 }
 
 .address-info-icon:active {
-    box-shadow: var(--shadow-inset);
+    box-shadow: var(--shadow-active);
+    transform: translateY(0);
 }
 
 .address-info-icon svg {
     width: 16px;
     height: 16px;
+}
+
+.address-info-icon:focus,
+.address-info-icon:focus-visible,
+.address-info-icon:focus-within {
+    outline: none !important;
+    border: none !important;
+    box-shadow: inset 1px 1px 3px #a3b1c6, inset -1px -1px 5px #ffffff !important;
 }
 
 .address-actions {
@@ -548,8 +563,9 @@ input[type=number] {
     cursor: pointer;
     background: var(--color-bg);
     color: #bb4ea0;
-    box-shadow: 3px 3px 6px #a3b1c6, -3px -3px 6px #ffffff;
-    transition: all 0.3s ease;
+    box-shadow: inset 1px 1px 3px #a3b1c6, inset -1px -1px 5px #ffffff;
+    white-space: nowrap;
+    transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
     outline: none !important;
     -webkit-tap-highlight-color: transparent;
     display: flex;
@@ -558,13 +574,21 @@ input[type=number] {
     padding: 0;
 }
 
+.btn-remove:focus,
+.btn-remove:focus-visible,
+.btn-remove:focus-within {
+    outline: none !important;
+    border: none !important;
+    box-shadow: inset 1px 1px 3px #a3b1c6, inset -1px -1px 5px #ffffff !important;
+}
+
 .btn-remove:hover {
-    color: #b71c1c;
-    box-shadow: 2px 2px 4px #a3b1c6, -2px -2px 4px #ffffff;
+    box-shadow: inset 1px 1px 3px #a3b1c6, inset -1px -1px 5px #ffffff;
 }
 
 .btn-remove:active {
-    box-shadow: var(--shadow-inset);
+    box-shadow: var(--shadow-active);
+    transform: translateY(0);
 }
 
 .category-container {
@@ -581,7 +605,7 @@ input[type=number] {
     font-size: 15px;
     font-weight: 800;
     color: white;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    text-shadow: 0 0 0.5rem #bb4ea0;
     transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
