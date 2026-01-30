@@ -34,3 +34,8 @@ pub use kdtree_spatial::KDTreeSpatialAlgo;
 pub use overlapping_chunks::OverlappingChunksAlgo;
 pub use raycasting::RaycastingAlgo;
 pub use rtree_spatial::RTreeSpatialAlgo;
+pub use distance_based::DistanceBasedParkeringAlgo;
+pub use raycasting::RaycastingParkeringAlgo;
+pub use overlapping_chunks::OverlappingChunksParkeringAlgo;
+pub use kdtree_spatial::KDTreeParkeringAlgo;
+pub use grid_nearest::GridNearestParkeringAlgo;

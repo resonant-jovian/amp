@@ -5,15 +5,16 @@ use amp_core::benchmark::Benchmarker;
 use amp_core::checksum::DataChecksum;
 use amp_core::correlation_algorithms::rtree_spatial::RTreeParkeringAlgo;
 use amp_core::correlation_algorithms::{
-    CorrelationAlgo, DistanceBasedAlgo, GridNearestAlgo, KDTreeSpatialAlgo, OverlappingChunksAlgo,
-    ParkeringCorrelationAlgo, RTreeSpatialAlgo, RaycastingAlgo,
+    CorrelationAlgo, DistanceBasedAlgo, DistanceBasedParkeringAlgo, GridNearestAlgo,
+    GridNearestParkeringAlgo, KDTreeParkeringAlgo, KDTreeSpatialAlgo,
+    OverlappingChunksAlgo, OverlappingChunksParkeringAlgo, ParkeringCorrelationAlgo,
+    RTreeParkeringAlgo, RTreeSpatialAlgo, RaycastingAlgo, RaycastingParkeringAlgo,
 };
+
 use amp_core::parquet::{
     ParkingRestriction, write_android_local_addresses, write_correlation_parquet,
 };
-use amp_core::structs::{
-    AdressClean, CorrelationResult, MiljoeDataClean, OutputData, ParkeringsDataClean,
-};
+use amp_core::structs::{AdressClean, CorrelationResult, MiljoeDataClean, OutputData, OutputDataWithDistance, ParkeringsDataClean};
 use clap::{Parser, Subcommand};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use rand::seq::SliceRandom;
@@ -367,7 +368,62 @@ fn correlate_parkering_dataset(
     pb: &ProgressBar,
 ) -> Result<Vec<(String, f64, ParkeringsDataClean)>, Box<dyn std::error::Error>> {
     let counter = Arc::new(AtomicUsize::new(0));
+
     let results: Vec<_> = match algorithm {
+        AlgorithmChoice::DistanceBased => {
+            let algo = DistanceBasedParkeringAlgo;
+            addresses
+                .par_iter()
+                .filter_map(|addr| {
+                    let (idx, dist) = algo.correlate(addr, zones)?;
+                    if dist > cutoff {
+                        return None;
+                    }
+                    let data = zones.get(idx)?.clone();
+                    let count = counter.fetch_add(1, Ordering::Relaxed) + 1;
+                    if count.is_multiple_of(100) || count == addresses.len() {
+                        pb.set_position(count as u64);
+                    }
+                    Some((addr.adress.clone(), dist, data))
+                })
+                .collect()
+        }
+        AlgorithmChoice::Raycasting => {
+            let algo = RaycastingParkeringAlgo;
+            addresses
+                .par_iter()
+                .filter_map(|addr| {
+                    let (idx, dist) = algo.correlate(addr, zones)?;
+                    if dist > cutoff {
+                        return None;
+                    }
+                    let data = zones.get(idx)?.clone();
+                    let count = counter.fetch_add(1, Ordering::Relaxed) + 1;
+                    if count.is_multiple_of(100) || count == addresses.len() {
+                        pb.set_position(count as u64);
+                    }
+                    Some((addr.adress.clone(), dist, data))
+                })
+                .collect()
+        }
+        AlgorithmChoice::OverlappingChunks => {
+            let algo = OverlappingChunksParkeringAlgo::new(zones);
+            addresses
+                .par_iter()
+                .filter_map(|addr| {
+                    let (idx, dist) = algo.correlate(addr, zones)?;
+                    if dist > cutoff {
+                        return None;
+                    }
+                    let data = zones.get(idx)?.clone();
+                    let count = counter.fetch_add(1, Ordering::Relaxed) + 1;
+                    if count.is_multiple_of(100) || count == addresses.len() {
+                        pb.set_position(count as u64);
+                    }
+                    Some((addr.adress.clone(), dist, data))
+                })
+                .collect()
+        }
         AlgorithmChoice::RTree => {
             let algo = RTreeParkeringAlgo::new(zones);
             addresses
@@ -386,58 +442,108 @@ fn correlate_parkering_dataset(
                 })
                 .collect()
         }
+        AlgorithmChoice::KDTree => {
+            let algo = KDTreeParkeringAlgo::new(zones);
+            addresses
+                .par_iter()
+                .filter_map(|addr| {
+                    let (idx, dist) = algo.correlate(addr, zones)?;
+                    if dist > cutoff {
+                        return None;
+                    }
+                    let data = zones.get(idx)?.clone();
+                    let count = counter.fetch_add(1, Ordering::Relaxed) + 1;
+                    if count.is_multiple_of(100) || count == addresses.len() {
+                        pb.set_position(count as u64);
+                    }
+                    Some((addr.adress.clone(), dist, data))
+                })
+                .collect()
+        }
+        AlgorithmChoice::Grid => {
+            let algo = GridNearestParkeringAlgo::new(zones);
+            addresses
+                .par_iter()
+                .filter_map(|addr| {
+                    let (idx, dist) = algo.correlate(addr, zones)?;
+                    if dist > cutoff {
+                        return None;
+                    }
+                    let data = zones.get(idx)?.clone();
+                    let count = counter.fetch_add(1, Ordering::Relaxed) + 1;
+                    if count.is_multiple_of(100) || count == addresses.len() {
+                        pb.set_position(count as u64);
+                    }
+                    Some((addr.adress.clone(), dist, data))
+                })
+                .collect()
+        }
     };
+
     pb.set_position(addresses.len() as u64);
     Ok(results)
 }
+
 /// Merge correlate results from two datasets
 fn merge_results(
     addresses: &[AdressClean],
     miljo_results: &[(String, f64, String)],
     parkering_results: &[(String, f64, ParkeringsDataClean)],
-) -> Vec<OutputData> {
+) -> Vec<OutputDataWithDistance> {
     let miljo_map: std::collections::HashMap<_, _> = miljo_results
         .iter()
-        .map(|(addr, _dist, info)| (addr.clone(), info.clone()))
+        .map(|(addr, dist, info)| (addr.clone(), (*dist, info.clone())))
         .collect();
+
     let parkering_map: std::collections::HashMap<_, _> = parkering_results
         .iter()
-        .map(|(addr, _dist, data)| (addr.clone(), data.clone()))
+        .map(|(addr, dist, data)| (addr.clone(), (*dist, data.clone())))
         .collect();
+
     addresses
         .iter()
         .map(|addr| {
             let miljo_data = miljo_map.get(&addr.adress);
             let parkering_data = parkering_map.get(&addr.adress);
-            let (info, tid, dag) = if let Some(info_str) = miljo_data {
+
+            let (info, tid, dag, miljo_distance) = if let Some((dist, info_str)) = miljo_data {
                 (
                     Some(info_str.clone()),
                     Some("00:00-23:59".to_string()),
                     Some(0u8),
+                    Some(*dist),
                 )
             } else {
-                (None, None, None)
+                (None, None, None, None)
             };
-            let (taxa, antal_platser, typ_av_parkering) = if let Some(p_data) = parkering_data {
-                (
-                    Some(p_data.taxa.clone()),
-                    Some(p_data.antal_platser),
-                    Some(p_data.typ_av_parkering.clone()),
-                )
-            } else {
-                (None, None, None)
-            };
-            OutputData {
-                postnummer: addr.postnummer.clone(),
-                adress: addr.adress.clone(),
-                gata: addr.gata.clone(),
-                gatunummer: addr.gatunummer.clone(),
-                info,
-                tid,
-                dag,
-                taxa,
-                antal_platser,
-                typ_av_parkering,
+
+            let (taxa, antal_platser, typ_av_parkering, parkering_distance) =
+                if let Some((dist, p_data)) = parkering_data {
+                    (
+                        Some(p_data.taxa.clone()),
+                        Some(p_data.antal_platser),
+                        Some(p_data.typ_av_parkering.clone()),
+                        Some(*dist),
+                    )
+                } else {
+                    (None, None, None, None)
+                };
+
+            OutputDataWithDistance {
+                data: OutputData {
+                    postnummer: addr.postnummer.clone(),
+                    adress: addr.adress.clone(),
+                    gata: addr.gata.clone(),
+                    gatunummer: addr.gatunummer.clone(),
+                    info,
+                    tid,
+                    dag,
+                    taxa,
+                    antal_platser,
+                    typ_av_parkering,
+                },
+                miljo_distance,
+                parkering_distance,
             }
         })
         .collect()
