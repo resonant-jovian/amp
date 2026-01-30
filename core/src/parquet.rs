@@ -33,6 +33,22 @@ pub struct ParkingRestriction {
     /// Additional information about the restriction
     pub info: String,
 }
+
+pub fn output_data_schema() -> Arc<Schema> {
+    Arc::new(Schema::new(vec![
+        Field::new("postnummer", DataType::Utf8, true),
+        Field::new("adress", DataType::Utf8, false),
+        Field::new("gata", DataType::Utf8, false),
+        Field::new("gatunummer", DataType::Utf8, false),
+        Field::new("info", DataType::Utf8, true),
+        Field::new("tid", DataType::Utf8, true),
+        Field::new("dag", DataType::UInt8, true),
+        Field::new("taxa", DataType::Utf8, true),
+        Field::new("antal_platser", DataType::UInt64, true),
+        Field::new("typ_av_parkering", DataType::Utf8, true),
+    ]))
+}
+
 /// Read correlation results from parquet file
 pub fn read_correlation_parquet() -> anyhow::Result<Vec<CorrelationResult>> {
     let file = File::open("correlation_results.parquet")
@@ -389,5 +405,112 @@ pub fn write_android_local_addresses(
     writer
         .close()
         .map_err(|e| anyhow::anyhow!("Failed to close writer: {}", e))?;
+    Ok(())
+}
+pub fn write_output_data(
+    path: &str,
+    data: Vec<OutputData>,
+) -> anyhow::Result<()> {
+    if data.is_empty() {
+        return Err(anyhow::anyhow!("Empty output data"));
+    }
+
+    let schema = output_data_schema();
+
+    // Group by postnummer
+    let mut grouped: BTreeMap<Option<String>, Vec<OutputData>> = BTreeMap::new();
+    for item in data {
+        grouped.entry(item.postnummer.clone()).or_default().push(item);
+    }
+
+    let file = File::create(path)
+        .map_err(|e| anyhow::anyhow!("Failed to create file {}: {}", path, e))?;
+
+    let props = WriterProperties::builder()
+        .set_statistics_enabled(EnabledStatistics::None)
+        .build();
+
+    let mut writer = ArrowWriter::try_new(file, schema.clone(), Some(props))
+        .map_err(|e| anyhow::anyhow!("Failed to create ArrowWriter: {}", e))?;
+
+    for (_, rows) in grouped {
+        let mut postnummer_builder = StringBuilder::new();
+        let mut adress_builder = StringBuilder::new();
+        let mut gata_builder = StringBuilder::new();
+        let mut gatunummer_builder = StringBuilder::new();
+        let mut info_builder = StringBuilder::new();
+        let mut tid_builder = StringBuilder::new();
+        let mut dag_builder = UInt8Builder::new();
+        let mut taxa_builder = StringBuilder::new();
+        let mut antal_platser_builder = arrow::array::UInt64Builder::new();
+        let mut typ_av_parkering_builder = StringBuilder::new();
+
+        for item in rows {
+            // postnummer
+            match &item.postnummer {
+                Some(v) => postnummer_builder.append_value(v),
+                None => postnummer_builder.append_null(),
+            }
+
+            // Required fields
+            adress_builder.append_value(&item.adress);
+            gata_builder.append_value(&item.gata);
+            gatunummer_builder.append_value(&item.gatunummer);
+
+            // Optional miljö fields
+            match &item.info {
+                Some(v) => info_builder.append_value(v),
+                None => info_builder.append_null(),
+            }
+            match &item.tid {
+                Some(v) => tid_builder.append_value(v),
+                None => tid_builder.append_null(),
+            }
+            match item.dag {
+                Some(v) => dag_builder.append_value(v),
+                None => dag_builder.append_null(),
+            }
+
+            // Optional parkering fields
+            match &item.taxa {
+                Some(v) => taxa_builder.append_value(v),
+                None => taxa_builder.append_null(),
+            }
+            match item.antal_platser {
+                Some(v) => antal_platser_builder.append_value(v),
+                None => antal_platser_builder.append_null(),
+            }
+            match &item.typ_av_parkering {
+                Some(v) => typ_av_parkering_builder.append_value(v),
+                None => typ_av_parkering_builder.append_null(),
+            }
+        }
+
+        let batch = RecordBatch::try_new(
+            schema.clone(),
+            vec![
+                Arc::new(postnummer_builder.finish()),
+                Arc::new(adress_builder.finish()),
+                Arc::new(gata_builder.finish()),
+                Arc::new(gatunummer_builder.finish()),
+                Arc::new(info_builder.finish()),
+                Arc::new(tid_builder.finish()),
+                Arc::new(dag_builder.finish()),
+                Arc::new(taxa_builder.finish()),
+                Arc::new(antal_platser_builder.finish()),
+                Arc::new(typ_av_parkering_builder.finish()),
+            ],
+        )
+            .map_err(|e| anyhow::anyhow!("Failed to create record batch: {}", e))?;
+
+        writer
+            .write(&batch)
+            .map_err(|e| anyhow::anyhow!("Failed to write batch: {}", e))?;
+    }
+
+    writer
+        .close()
+        .map_err(|e| anyhow::anyhow!("Failed to close writer: {}", e))?;
+
     Ok(())
 }

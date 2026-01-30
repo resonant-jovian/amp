@@ -2,7 +2,7 @@ use rust_decimal::Decimal;
 #[derive(Debug, Clone)]
 pub struct AdressClean {
     pub coordinates: [Decimal; 2],
-    pub postnummer: String,
+    pub postnummer: Option<String>,
     pub adress: String,
     pub gata: String,
     pub gatunummer: String,
@@ -60,6 +60,16 @@ impl CorrelationResult {
             (Some((d, _)), None) => Some(*d),
             (None, Some((d, _))) => Some(*d),
             (None, None) => None,
+        }
+    }
+}
+impl OutputData {
+    pub fn dataset_source(&self) -> String {
+        match (self.info.is_some(), self.taxa.is_some()) {
+            (true, true) => "Both (Miljödata + Parkering)".to_string(),
+            (true, false) => "Miljödata only".to_string(),
+            (false, true) => "Parkering only".to_string(),
+            (false, false) => "No match".to_string(),
         }
     }
 }

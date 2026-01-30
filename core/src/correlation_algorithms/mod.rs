@@ -6,7 +6,7 @@ pub mod kdtree_spatial;
 pub mod overlapping_chunks;
 pub mod raycasting;
 pub mod rtree_spatial;
-use crate::structs::{AdressClean, MiljoeDataClean};
+use crate::structs::{AdressClean, MiljoeDataClean, ParkeringsDataClean};
 /// Trait for correlation algorithms
 /// All algorithms must implement this trait to be compatible with the benchmarking system
 pub trait CorrelationAlgo {
@@ -18,6 +18,15 @@ pub trait CorrelationAlgo {
         parking_lines: &[MiljoeDataClean],
     ) -> Option<(usize, f64)>;
     /// Get the name of this algorithm for display purposes
+    fn name(&self) -> &'static str;
+}
+pub trait ParkeringCorrelationAlgo: Send + Sync {
+    fn correlate(
+        &self,
+        address: &AdressClean,
+        parking_lines: &[ParkeringsDataClean],
+    ) -> Option<(usize, f64)>;
+
     fn name(&self) -> &'static str;
 }
 pub use distance_based::DistanceBasedAlgo;

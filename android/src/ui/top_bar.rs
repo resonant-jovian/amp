@@ -63,7 +63,7 @@ pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Ele
                     div { class: "address-item topbar-input-item",
                         input {
                             id: "addressInput",
-                            placeholder: "T.ex: Storgatan 10",
+                            placeholder: "Adress",
                             r#type: "text",
                             class: "topbar-input",
                             value: "{address_input}",

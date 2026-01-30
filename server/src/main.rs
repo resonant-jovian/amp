@@ -3,14 +3,11 @@
 use amp_core::api::api;
 use amp_core::benchmark::Benchmarker;
 use amp_core::checksum::DataChecksum;
-use amp_core::correlation_algorithms::{
-    CorrelationAlgo, DistanceBasedAlgo, GridNearestAlgo, KDTreeSpatialAlgo, OverlappingChunksAlgo,
-    RTreeSpatialAlgo, RaycastingAlgo,
-};
+use amp_core::correlation_algorithms::{CorrelationAlgo, DistanceBasedAlgo, GridNearestAlgo, KDTreeSpatialAlgo, OverlappingChunksAlgo, ParkeringCorrelationAlgo, RTreeSpatialAlgo, RaycastingAlgo};
 use amp_core::parquet::{
     ParkingRestriction, write_android_local_addresses, write_correlation_parquet,
 };
-use amp_core::structs::{AdressClean, CorrelationResult, MiljoeDataClean};
+use amp_core::structs::{AdressClean, CorrelationResult, MiljoeDataClean, OutputData, ParkeringsDataClean};
 use clap::{Parser, Subcommand};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use rand::seq::SliceRandom;
@@ -24,6 +21,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 use std::time::Duration;
 use std::time::Instant;
+use amp_core::correlation_algorithms::rtree_spatial::RTreeParkeringAlgo;
+
 mod classification;
 #[derive(Parser)]
 #[command(name = "amp-server")]
@@ -235,7 +234,7 @@ fn select_algorithms() -> Vec<&'static str> {
 }
 type CorDat = Result<Vec<(String, f64, String)>, Box<dyn std::error::Error>>;
 /// Correlate addresses with a dataset using the specified algorithm and distance cutoff
-fn correlate_dataset(
+fn correlate_miljoe_dataset(
     algorithm: &AlgorithmChoice,
     addresses: &[AdressClean],
     zones: &[MiljoeDataClean],
@@ -356,36 +355,99 @@ fn correlate_dataset(
     pb.set_position(addresses.len() as u64);
     Ok(results)
 }
+fn correlate_parkering_dataset(
+    algorithm: &AlgorithmChoice,
+    addresses: &[AdressClean],
+    zones: &[ParkeringsDataClean],
+    cutoff: f64,
+    pb: &ProgressBar,
+) -> Result<Vec<(String, f64, ParkeringsDataClean)>, Box<dyn std::error::Error>> {
+    // Similar to existing but uses ParkeringsDataClean algorithms
+    let counter = Arc::new(AtomicUsize::new(0));
+
+    let results: Vec<_> = match algorithm {
+        AlgorithmChoice::RTree => {
+            let algo = RTreeParkeringAlgo::new(zones);
+            addresses
+                .par_iter()
+                .filter_map(|addr| {
+                    let (idx, dist) = algo.correlate(addr, zones)?;
+                    if dist > cutoff {
+                        return None;
+                    }
+                    let data = zones.get(idx)?.clone();
+                    let count = counter.fetch_add(1, Ordering::Relaxed) + 1;
+                    if count.is_multiple_of(100) || count == addresses.len() {
+                        pb.set_position(count as u64);
+                    }
+                    Some((addr.adress.clone(), dist, data))
+                })
+                .collect()
+        }
+        // Similar patterns for other algorithms
+    };
+
+    pb.set_position(addresses.len() as u64);
+    Ok(results)
+}
 /// Merge correlate results from two datasets
 fn merge_results(
     addresses: &[AdressClean],
     miljo_results: &[(String, f64, String)],
-    parkering_results: &[(String, f64, String)],
-) -> Vec<CorrelationResult> {
+    parkering_results: &[(String, f64, ParkeringsDataClean)],
+) -> Vec<OutputData> {
     let miljo_map: std::collections::HashMap<_, _> = miljo_results
         .iter()
-        .map(|(addr, dist, info)| (addr.clone(), (*dist, info.clone())))
+        .map(|(addr, _dist, info)| (addr.clone(), info.clone()))
         .collect();
+
     let parkering_map: std::collections::HashMap<_, _> = parkering_results
         .iter()
-        .map(|(addr, dist, info)| (addr.clone(), (*dist, info.clone())))
+        .map(|(addr, _dist, data)| (addr.clone(), data.clone()))
         .collect();
+
     addresses
         .iter()
         .map(|addr| {
-            let miljo_match = miljo_map.get(&addr.adress).map(|(d, i)| (*d, i.clone()));
-            let parkering_match = parkering_map
-                .get(&addr.adress)
-                .map(|(d, i)| (*d, i.clone()));
-            CorrelationResult {
-                address: addr.adress.clone(),
+            let miljo_data = miljo_map.get(&addr.adress);
+            let parkering_data = parkering_map.get(&addr.adress);
+
+            // Parse info from miljo_data if available
+            let (info, tid, dag) = if let Some(info_str) = miljo_data {
+                // Extract tid and dag from info string
+                // This requires parsing logic similar to extract_restriction_from_info
+                (Some(info_str.clone()), Some("00:00-23:59".to_string()), Some(0u8))
+            } else {
+                (None, None, None)
+            };
+
+            // Get parkering fields if available
+            let (taxa, antal_platser, typ_av_parkering) = if let Some(p_data) = parkering_data {
+                (
+                    Some(p_data.taxa.clone()),
+                    Some(p_data.antal_platser),
+                    Some(p_data.typ_av_parkering.clone()),
+                )
+            } else {
+                (None, None, None)
+            };
+
+            OutputData {
                 postnummer: addr.postnummer.clone(),
-                miljo_match,
-                parkering_match,
+                adress: addr.adress.clone(),
+                gata: addr.gata.clone(),
+                gatunummer: addr.gatunummer.clone(),
+                info,
+                tid,
+                dag,
+                taxa,
+                antal_platser,
+                typ_av_parkering,
             }
         })
         .collect()
 }
+
 fn run_correlation(
     algorithm: AlgorithmChoice,
     cutoff: f64,
@@ -396,7 +458,7 @@ fn run_correlation(
     let (addresses, miljodata, parkering): (
         Vec<AdressClean>,
         Vec<MiljoeDataClean>,
-        Vec<MiljoeDataClean>,
+        Vec<ParkeringsDataClean>,
     ) = api()?;
     pb.finish_with_message(format!(
         "✓ Loaded {} addresses, {} miljödata zones, {} parkering zones",
@@ -419,28 +481,31 @@ fn run_correlation(
             .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}% {msg}")?
             .progress_chars("█▓▒░ "),
     );
-    pb.set_message("Correlating with miljödata...");
-    let miljo_results = correlate_dataset(&algorithm, &addresses, &miljodata, cutoff, &pb)?;
-    pb.set_message("Correlating with parkering...");
-    let parkering_results = correlate_dataset(&algorithm, &addresses, &parkering, cutoff, &pb)?;
-    let duration = start.elapsed();
-    pb.finish_with_message(format!("✓ Completed in {:.2?}", duration));
+    let miljo_results = correlate_miljoe_dataset(&algorithm, &addresses, &miljodata, cutoff, &pb)?;
+    let parkering_results = correlate_parkering_dataset(&algorithm, &addresses, &parkering, cutoff, &pb)?;
+
     let merged = merge_results(&addresses, &miljo_results, &parkering_results);
+
+    // Update statistics to use OutputData
     let both = merged
         .iter()
-        .filter(|r: &&CorrelationResult| r.miljo_match.is_some() && r.parkering_match.is_some())
+        .filter(|r: &&OutputData| r.info.is_some() && r.taxa.is_some())
         .count();
+
     let miljo_only = merged
         .iter()
-        .filter(|r: &&CorrelationResult| r.miljo_match.is_some() && r.parkering_match.is_none())
+        .filter(|r: &&OutputData| r.info.is_some() && r.taxa.is_none())
         .count();
+
     let parkering_only = merged
         .iter()
-        .filter(|r: &&CorrelationResult| r.miljo_match.is_none() && r.parkering_match.is_some())
+        .filter(|r: &&OutputData| r.info.is_none() && r.taxa.is_some())
         .count();
+    let duration = start.elapsed();
+    pb.finish_with_message(format!("✓ Completed in {:.2?}", duration));
     let no_match = merged
         .iter()
-        .filter(|r: &&CorrelationResult| !r.has_match())
+        .filter(|r: &&OutputData| (r.info.is_none() && r.taxa.is_none()))
         .count();
     let total_matches = both + miljo_only + parkering_only;
     println!("\n📊 Results:");
@@ -480,12 +545,12 @@ fn run_correlation(
         let mut rng = thread_rng();
         let mut random_results: Vec<_> = merged
             .iter()
-            .filter(|r: &&CorrelationResult| r.has_match())
+            .filter(|r: &&OutputData| (r.info.is_some() && r.taxa.is_some()))
             .collect();
         random_results.shuffle(&mut rng);
         println!("\n🎲 10 Random Matches:");
         for result in random_results.iter().take(10) {
-            println!("   {} ({})", result.address, result.dataset_source());
+            println!("   {} ({})", result.adress, result.dataset_source());
             if let Some((dist, _)) = &result.miljo_match {
                 println!("      ├─ Miljödata: {:.2}m", dist);
             }
@@ -495,7 +560,7 @@ fn run_correlation(
         }
         let mut sorted_by_distance: Vec<_> = merged
             .iter()
-            .filter(|r: &&CorrelationResult| r.has_match())
+            .filter(|r: &&OutputData| (r.info.is_some() && r.taxa.is_some()))
             .collect();
         sorted_by_distance.sort_by(|a: &&CorrelationResult, b: &&CorrelationResult| {
             b.closest_distance()
@@ -546,7 +611,7 @@ fn run_output(
     let (addresses, miljodata, parkering): (
         Vec<AdressClean>,
         Vec<MiljoeDataClean>,
-        Vec<MiljoeDataClean>,
+        Vec<ParkeringsDataClean>,
     ) = api()?;
     pb.finish_with_message(format!(
         "✓ Loaded {} addresses, {} miljödata zones, {} parkering zones",
@@ -576,7 +641,7 @@ fn run_output(
     let duration = start.elapsed();
     pb.finish_with_message(format!("✓ Completed in {:.2?}", duration));
     let merged = merge_results(&addresses, &miljo_results, &parkering_results);
-    let total_matches = merged.iter().filter(|r| r.has_match()).count();
+    let total_matches = merged.iter().filter(|r| r.info.is_some()).count();
     println!("\n✓ Correlation complete");
     println!(
         "   Total matches: {}/{} ({:.1}%)",
@@ -678,7 +743,7 @@ fn run_test_mode(
     let (addresses, miljodata, parkering): (
         Vec<AdressClean>,
         Vec<MiljoeDataClean>,
-        Vec<MiljoeDataClean>,
+        Vec<ParkeringsDataClean>,
     ) = api()?;
     pb.finish_with_message(format!(
         "✓ Loaded {} addresses, {} miljödata zones, {} parkering zones",

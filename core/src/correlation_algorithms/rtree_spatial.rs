@@ -1,8 +1,8 @@
 //! R-tree spatial indexing algorithm
 //! Uses rstar crate for O(log n) nearest-neighbor queries
 //! Best performance for large datasets (1000+ parking zones)
-use crate::correlation_algorithms::CorrelationAlgo;
-use crate::structs::{AdressClean, MiljoeDataClean};
+use crate::correlation_algorithms::{CorrelationAlgo, ParkeringCorrelationAlgo};
+use crate::structs::{AdressClean, MiljoeDataClean, ParkeringsDataClean};
 use rstar::{AABB, PointDistance, RTree};
 use rust_decimal::prelude::ToPrimitive;
 const MAX_DISTANCE_METERS: f64 = 50.0;
@@ -76,6 +76,59 @@ impl CorrelationAlgo for RTreeSpatialAlgo {
         "R-Tree Spatial Index"
     }
 }
+pub struct RTreeParkeringAlgo {
+    rtree: RTree<IndexedLineSegment>,
+}
+
+impl RTreeParkeringAlgo {
+    pub fn new(parking_lines: &[ParkeringsDataClean]) -> Self {
+        let segments: Vec<IndexedLineSegment> = parking_lines
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, line)| {
+                let start = [
+                    line.coordinates[0][0].to_f64()?,
+                    line.coordinates[0][1].to_f64()?,
+                ];
+                let end = [
+                    line.coordinates[1][0].to_f64()?,
+                    line.coordinates[1][1].to_f64()?,
+                ];
+                Some(IndexedLineSegment {
+                    index: idx,
+                    start,
+                    end,
+                })
+            })
+            .collect();
+
+        Self {
+            rtree: RTree::bulk_load(segments),
+        }
+    }
+}
+
+impl ParkeringCorrelationAlgo for RTreeParkeringAlgo {
+    fn correlate(
+        &self,
+        address: &AdressClean,
+        _parking_lines: &[ParkeringsDataClean],
+    ) -> Option<(usize, f64)> {
+        let point = [
+            address.coordinates[0].to_f64()?,
+            address.coordinates[1].to_f64()?,
+        ];
+
+        let nearest = self.rtree.nearest_neighbor(&point)?;
+        let dist = distance_point_to_line_segment(point, nearest.start, nearest.end);
+        (dist <= MAX_DISTANCE_METERS).then_some((nearest.index, dist))
+    }
+
+    fn name(&self) -> &'static str {
+        "R-Tree Spatial Index (Parkering)"
+    }
+}
+
 /// Calculate perpendicular distance from point to line segment using Haversine
 fn distance_point_to_line_segment(
     point: [f64; 2],
