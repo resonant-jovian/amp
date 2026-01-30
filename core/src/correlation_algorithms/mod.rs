@@ -26,7 +26,6 @@ pub trait ParkeringCorrelationAlgo: Send + Sync {
         address: &AdressClean,
         parking_lines: &[ParkeringsDataClean],
     ) -> Option<(usize, f64)>;
-
     fn name(&self) -> &'static str;
 }
 pub use distance_based::DistanceBasedAlgo;

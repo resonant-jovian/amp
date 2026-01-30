@@ -2,7 +2,11 @@ use crate::structs::{AdressClean, MiljoeDataClean, ParkeringsDataClean};
 use geojson::{Feature, GeoJson};
 use rust_decimal::Decimal;
 use std::fs;
-pub type ApiResult = (Vec<AdressClean>, Vec<MiljoeDataClean>, Vec<ParkeringsDataClean>);
+pub type ApiResult = (
+    Vec<AdressClean>,
+    Vec<MiljoeDataClean>,
+    Vec<ParkeringsDataClean>,
+);
 pub struct DataLoader;
 impl Default for DataLoader {
     fn default() -> Self {
@@ -85,17 +89,13 @@ impl DataLoader {
     fn parse_address_feature(feature: Feature) -> Option<AdressClean> {
         let props = feature.clone().properties?;
         let coordinates = Self::extract_point_coordinates(&feature)?;
-
-        // Handle optional postnummer
         let postnummer = props
             .get("POSTNR")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
-
         let adress = props.get("BELADRESS")?.as_str()?.to_string();
         let gata = props.get("ADRESSOMR")?.as_str()?.to_string();
         let gatunummer = props.get("ADRESSPLAT")?.as_str()?.to_string();
-
         Some(AdressClean {
             coordinates,
             postnummer,
@@ -104,7 +104,6 @@ impl DataLoader {
             gatunummer,
         })
     }
-
     fn extract_time_from_taxa(taxa_str: &str) -> String {
         let parts: Vec<&str> = taxa_str.split('–').collect();
         if parts.len() >= 2
@@ -213,30 +212,24 @@ impl DataLoader {
             Some(p) => p,
             None => return results,
         };
-
         let segments = match Self::extract_all_line_segments(&feature) {
             Some(s) => s,
             None => return results,
         };
-
-        // Extract parkering-specific fields
         let taxa = props
             .get("taxa")
             .and_then(|v| v.as_str())
             .unwrap_or("Unknown")
             .to_string();
-
         let antal_platser = props
             .get("antal_platser")
             .and_then(|v| v.as_u64())
             .unwrap_or(0);
-
         let typ_av_parkering = props
             .get("typ_av_parkering")
             .and_then(|v| v.as_str())
             .unwrap_or("Unknown")
             .to_string();
-
         for coordinates in segments {
             results.push(ParkeringsDataClean {
                 coordinates,
@@ -245,7 +238,6 @@ impl DataLoader {
                 typ_av_parkering: typ_av_parkering.clone(),
             });
         }
-
         results
     }
     pub fn load_addresses(path: &str) -> Result<Vec<AdressClean>, Box<dyn std::error::Error>> {
@@ -267,46 +259,39 @@ impl DataLoader {
         }
         Ok(addresses)
     }
-    // Rename to load_miljodata
-    pub fn load_miljodata(
-        path: &str,
-    ) -> Result<Vec<MiljoeDataClean>, Box<dyn std::error::Error>> {
+    pub fn load_miljodata(path: &str) -> Result<Vec<MiljoeDataClean>, Box<dyn std::error::Error>> {
         println!("Loading miljödata from: {}", path);
         let content = fs::read_to_string(path)?;
         let geojson: GeoJson = content.parse()?;
-
-        let miljodata: Vec<MiljoeDataClean> = if let GeoJson::FeatureCollection(collection) = geojson {
-            collection
-                .features
-                .into_iter()
-                .flat_map(|f| Self::parse_miljoedata_feature(f, false)) // Keep existing logic for miljödata
-                .collect()
-        } else {
-            return Err("Invalid GeoJSON format for miljödata".into());
-        };
-
+        let miljodata: Vec<MiljoeDataClean> =
+            if let GeoJson::FeatureCollection(collection) = geojson {
+                collection
+                    .features
+                    .into_iter()
+                    .flat_map(|f| Self::parse_miljoedata_feature(f, false))
+                    .collect()
+            } else {
+                return Err("Invalid GeoJSON format for miljödata".into());
+            };
         println!("Loaded {} miljödata segments", miljodata.len());
         Ok(miljodata)
     }
-
-    // Add new method for parkering
     pub fn load_parkering(
         path: &str,
     ) -> Result<Vec<ParkeringsDataClean>, Box<dyn std::error::Error>> {
         println!("Loading parkeringsavgifter from: {}", path);
         let content = fs::read_to_string(path)?;
         let geojson: GeoJson = content.parse()?;
-
-        let parkering: Vec<ParkeringsDataClean> = if let GeoJson::FeatureCollection(collection) = geojson {
-            collection
-                .features
-                .into_iter()
-                .flat_map(Self::parse_parkering_feature)
-                .collect()
-        } else {
-            return Err("Invalid GeoJSON format for parkeringsavgifter".into());
-        };
-
+        let parkering: Vec<ParkeringsDataClean> =
+            if let GeoJson::FeatureCollection(collection) = geojson {
+                collection
+                    .features
+                    .into_iter()
+                    .flat_map(Self::parse_parkering_feature)
+                    .collect()
+            } else {
+                return Err("Invalid GeoJSON format for parkeringsavgifter".into());
+            };
         println!("Loaded {} parkering segments", parkering.len());
         Ok(parkering)
     }
@@ -315,12 +300,10 @@ pub fn api() -> Result<ApiResult, Box<dyn std::error::Error>> {
     let addresses = DataLoader::load_addresses("data/adresser.json")?;
     let miljodata = DataLoader::load_miljodata("data/miljoparkeringar.json")?;
     let parkering = DataLoader::load_parkering("data/parkeringsavgifter.json")?;
-
     println!("\n✓ Data loading complete");
     println!("  Total addresses: {}", addresses.len());
     println!("  Total miljödata segments: {}", miljodata.len());
     println!("  Total parkering segments: {}", parkering.len());
-
     Ok((addresses, miljodata, parkering))
 }
 pub fn api_miljo_only()

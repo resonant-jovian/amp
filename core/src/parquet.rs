@@ -33,7 +33,6 @@ pub struct ParkingRestriction {
     /// Additional information about the restriction
     pub info: String,
 }
-
 pub fn output_data_schema() -> Arc<Schema> {
     Arc::new(Schema::new(vec![
         Field::new("postnummer", DataType::Utf8, true),
@@ -48,7 +47,6 @@ pub fn output_data_schema() -> Arc<Schema> {
         Field::new("typ_av_parkering", DataType::Utf8, true),
     ]))
 }
-
 /// Read correlation results from parquet file
 pub fn read_correlation_parquet() -> anyhow::Result<Vec<CorrelationResult>> {
     let file = File::open("correlation_results.parquet")
@@ -407,32 +405,25 @@ pub fn write_android_local_addresses(
         .map_err(|e| anyhow::anyhow!("Failed to close writer: {}", e))?;
     Ok(())
 }
-pub fn write_output_data(
-    path: &str,
-    data: Vec<OutputData>,
-) -> anyhow::Result<()> {
+pub fn write_output_data(path: &str, data: Vec<OutputData>) -> anyhow::Result<()> {
     if data.is_empty() {
         return Err(anyhow::anyhow!("Empty output data"));
     }
-
     let schema = output_data_schema();
-
-    // Group by postnummer
     let mut grouped: BTreeMap<Option<String>, Vec<OutputData>> = BTreeMap::new();
     for item in data {
-        grouped.entry(item.postnummer.clone()).or_default().push(item);
+        grouped
+            .entry(item.postnummer.clone())
+            .or_default()
+            .push(item);
     }
-
-    let file = File::create(path)
-        .map_err(|e| anyhow::anyhow!("Failed to create file {}: {}", path, e))?;
-
+    let file =
+        File::create(path).map_err(|e| anyhow::anyhow!("Failed to create file {}: {}", path, e))?;
     let props = WriterProperties::builder()
         .set_statistics_enabled(EnabledStatistics::None)
         .build();
-
     let mut writer = ArrowWriter::try_new(file, schema.clone(), Some(props))
         .map_err(|e| anyhow::anyhow!("Failed to create ArrowWriter: {}", e))?;
-
     for (_, rows) in grouped {
         let mut postnummer_builder = StringBuilder::new();
         let mut adress_builder = StringBuilder::new();
@@ -444,20 +435,14 @@ pub fn write_output_data(
         let mut taxa_builder = StringBuilder::new();
         let mut antal_platser_builder = arrow::array::UInt64Builder::new();
         let mut typ_av_parkering_builder = StringBuilder::new();
-
         for item in rows {
-            // postnummer
             match &item.postnummer {
                 Some(v) => postnummer_builder.append_value(v),
                 None => postnummer_builder.append_null(),
             }
-
-            // Required fields
             adress_builder.append_value(&item.adress);
             gata_builder.append_value(&item.gata);
             gatunummer_builder.append_value(&item.gatunummer);
-
-            // Optional miljö fields
             match &item.info {
                 Some(v) => info_builder.append_value(v),
                 None => info_builder.append_null(),
@@ -470,8 +455,6 @@ pub fn write_output_data(
                 Some(v) => dag_builder.append_value(v),
                 None => dag_builder.append_null(),
             }
-
-            // Optional parkering fields
             match &item.taxa {
                 Some(v) => taxa_builder.append_value(v),
                 None => taxa_builder.append_null(),
@@ -485,7 +468,6 @@ pub fn write_output_data(
                 None => typ_av_parkering_builder.append_null(),
             }
         }
-
         let batch = RecordBatch::try_new(
             schema.clone(),
             vec![
@@ -501,16 +483,13 @@ pub fn write_output_data(
                 Arc::new(typ_av_parkering_builder.finish()),
             ],
         )
-            .map_err(|e| anyhow::anyhow!("Failed to create record batch: {}", e))?;
-
+        .map_err(|e| anyhow::anyhow!("Failed to create record batch: {}", e))?;
         writer
             .write(&batch)
             .map_err(|e| anyhow::anyhow!("Failed to write batch: {}", e))?;
     }
-
     writer
         .close()
         .map_err(|e| anyhow::anyhow!("Failed to close writer: {}", e))?;
-
     Ok(())
 }

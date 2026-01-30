@@ -79,7 +79,6 @@ impl CorrelationAlgo for RTreeSpatialAlgo {
 pub struct RTreeParkeringAlgo {
     rtree: RTree<IndexedLineSegment>,
 }
-
 impl RTreeParkeringAlgo {
     pub fn new(parking_lines: &[ParkeringsDataClean]) -> Self {
         let segments: Vec<IndexedLineSegment> = parking_lines
@@ -101,13 +100,11 @@ impl RTreeParkeringAlgo {
                 })
             })
             .collect();
-
         Self {
             rtree: RTree::bulk_load(segments),
         }
     }
 }
-
 impl ParkeringCorrelationAlgo for RTreeParkeringAlgo {
     fn correlate(
         &self,
@@ -118,17 +115,14 @@ impl ParkeringCorrelationAlgo for RTreeParkeringAlgo {
             address.coordinates[0].to_f64()?,
             address.coordinates[1].to_f64()?,
         ];
-
         let nearest = self.rtree.nearest_neighbor(&point)?;
         let dist = distance_point_to_line_segment(point, nearest.start, nearest.end);
         (dist <= MAX_DISTANCE_METERS).then_some((nearest.index, dist))
     }
-
     fn name(&self) -> &'static str {
         "R-Tree Spatial Index (Parkering)"
     }
 }
-
 /// Calculate perpendicular distance from point to line segment using Haversine
 fn distance_point_to_line_segment(
     point: [f64; 2],

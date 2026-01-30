@@ -3,11 +3,17 @@
 use amp_core::api::api;
 use amp_core::benchmark::Benchmarker;
 use amp_core::checksum::DataChecksum;
-use amp_core::correlation_algorithms::{CorrelationAlgo, DistanceBasedAlgo, GridNearestAlgo, KDTreeSpatialAlgo, OverlappingChunksAlgo, ParkeringCorrelationAlgo, RTreeSpatialAlgo, RaycastingAlgo};
+use amp_core::correlation_algorithms::rtree_spatial::RTreeParkeringAlgo;
+use amp_core::correlation_algorithms::{
+    CorrelationAlgo, DistanceBasedAlgo, GridNearestAlgo, KDTreeSpatialAlgo, OverlappingChunksAlgo,
+    ParkeringCorrelationAlgo, RTreeSpatialAlgo, RaycastingAlgo,
+};
 use amp_core::parquet::{
     ParkingRestriction, write_android_local_addresses, write_correlation_parquet,
 };
-use amp_core::structs::{AdressClean, CorrelationResult, MiljoeDataClean, OutputData, ParkeringsDataClean};
+use amp_core::structs::{
+    AdressClean, CorrelationResult, MiljoeDataClean, OutputData, ParkeringsDataClean,
+};
 use clap::{Parser, Subcommand};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use rand::seq::SliceRandom;
@@ -21,8 +27,6 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 use std::time::Duration;
 use std::time::Instant;
-use amp_core::correlation_algorithms::rtree_spatial::RTreeParkeringAlgo;
-
 mod classification;
 #[derive(Parser)]
 #[command(name = "amp-server")]
@@ -362,9 +366,7 @@ fn correlate_parkering_dataset(
     cutoff: f64,
     pb: &ProgressBar,
 ) -> Result<Vec<(String, f64, ParkeringsDataClean)>, Box<dyn std::error::Error>> {
-    // Similar to existing but uses ParkeringsDataClean algorithms
     let counter = Arc::new(AtomicUsize::new(0));
-
     let results: Vec<_> = match algorithm {
         AlgorithmChoice::RTree => {
             let algo = RTreeParkeringAlgo::new(zones);
@@ -384,9 +386,7 @@ fn correlate_parkering_dataset(
                 })
                 .collect()
         }
-        // Similar patterns for other algorithms
     };
-
     pb.set_position(addresses.len() as u64);
     Ok(results)
 }
@@ -400,28 +400,24 @@ fn merge_results(
         .iter()
         .map(|(addr, _dist, info)| (addr.clone(), info.clone()))
         .collect();
-
     let parkering_map: std::collections::HashMap<_, _> = parkering_results
         .iter()
         .map(|(addr, _dist, data)| (addr.clone(), data.clone()))
         .collect();
-
     addresses
         .iter()
         .map(|addr| {
             let miljo_data = miljo_map.get(&addr.adress);
             let parkering_data = parkering_map.get(&addr.adress);
-
-            // Parse info from miljo_data if available
             let (info, tid, dag) = if let Some(info_str) = miljo_data {
-                // Extract tid and dag from info string
-                // This requires parsing logic similar to extract_restriction_from_info
-                (Some(info_str.clone()), Some("00:00-23:59".to_string()), Some(0u8))
+                (
+                    Some(info_str.clone()),
+                    Some("00:00-23:59".to_string()),
+                    Some(0u8),
+                )
             } else {
                 (None, None, None)
             };
-
-            // Get parkering fields if available
             let (taxa, antal_platser, typ_av_parkering) = if let Some(p_data) = parkering_data {
                 (
                     Some(p_data.taxa.clone()),
@@ -431,7 +427,6 @@ fn merge_results(
             } else {
                 (None, None, None)
             };
-
             OutputData {
                 postnummer: addr.postnummer.clone(),
                 adress: addr.adress.clone(),
@@ -447,7 +442,6 @@ fn merge_results(
         })
         .collect()
 }
-
 fn run_correlation(
     algorithm: AlgorithmChoice,
     cutoff: f64,
@@ -482,21 +476,17 @@ fn run_correlation(
             .progress_chars("█▓▒░ "),
     );
     let miljo_results = correlate_miljoe_dataset(&algorithm, &addresses, &miljodata, cutoff, &pb)?;
-    let parkering_results = correlate_parkering_dataset(&algorithm, &addresses, &parkering, cutoff, &pb)?;
-
+    let parkering_results =
+        correlate_parkering_dataset(&algorithm, &addresses, &parkering, cutoff, &pb)?;
     let merged = merge_results(&addresses, &miljo_results, &parkering_results);
-
-    // Update statistics to use OutputData
     let both = merged
         .iter()
         .filter(|r: &&OutputData| r.info.is_some() && r.taxa.is_some())
         .count();
-
     let miljo_only = merged
         .iter()
         .filter(|r: &&OutputData| r.info.is_some() && r.taxa.is_none())
         .count();
-
     let parkering_only = merged
         .iter()
         .filter(|r: &&OutputData| r.info.is_none() && r.taxa.is_some())
