@@ -14,17 +14,29 @@ use parquet::{
     file::properties::{EnabledStatistics, WriterProperties},
 };
 use std::{collections::BTreeMap, fs::File, sync::Arc};
-/// Parking restriction info extracted from parquet data
+
+/// Parking restriction information extracted from parquet data
+/// 
+/// Represents a single parking restriction entry with address details,
+/// day of week, time period, and additional information.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ParkingRestriction {
-    pub gata: String,
-    pub gatunummer: String,
-    pub postnummer: u16,
-    pub adress: String,
-    pub dag: u8,
-    pub tid: String,
+    /// Street name (e.g., "Storgatan")
+    pub street: String,
+    /// Street number (e.g., "10")
+    pub street_number: String,
+    /// Postal code (e.g., 22100)
+    pub postal_code: u16,
+    /// Full address string
+    pub address: String,
+    /// Day of week (0-6, where 0 is Monday)
+    pub day: u8,
+    /// Time period (e.g., "08:00-12:00")
+    pub time: String,
+    /// Additional information about the restriction
     pub info: String,
 }
+
 /// Read correlation results from parquet file
 pub fn read_correlation_parquet() -> anyhow::Result<Vec<CorrelationResult>> {
     let file = File::open("correlation_results.parquet")
@@ -132,6 +144,7 @@ pub fn read_correlation_parquet() -> anyhow::Result<Vec<CorrelationResult>> {
     }
     Ok(result)
 }
+
 /// Write correlation results to parquet file
 pub fn write_correlation_parquet(data: Vec<CorrelationResult>) -> anyhow::Result<()> {
     if data.is_empty() {
@@ -212,7 +225,12 @@ pub fn write_correlation_parquet(data: Vec<CorrelationResult>) -> anyhow::Result
     writer.close().map_err(|e| anyhow::anyhow!("Failed to close writer: {}", e))?;
     Ok(())
 }
+
 /// Schema for Android local address storage (parquet format)
+/// 
+/// Defines the structure for persisting parking restriction data.
+/// Note: Column names in parquet use Swedish for backwards compatibility
+/// with existing data files, but struct fields use English.
 pub fn android_local_schema() -> Arc<Schema> {
     Arc::new(
         Schema::new(
@@ -229,7 +247,14 @@ pub fn android_local_schema() -> Arc<Schema> {
         ),
     )
 }
+
 /// Read Android local addresses from parquet file
+/// 
+/// # Arguments
+/// * `path` - Path to the parquet file
+/// 
+/// # Returns
+/// Vector of ParkingRestriction entries with translated field names
 pub fn read_android_local_addresses(
     path: &str,
 ) -> anyhow::Result<Vec<ParkingRestriction>> {
@@ -245,6 +270,7 @@ pub fn read_android_local_addresses(
     let mut result = Vec::new();
     while let Some(batch) = reader.next().transpose()? {
         let batch: RecordBatch = batch;
+        // Read from Swedish column names, map to English struct fields
         let gata = batch
             .column(batch.schema().index_of("gata")?)
             .as_any()
@@ -289,27 +315,27 @@ pub fn read_android_local_addresses(
             .iter();
         for i in 0..batch.num_rows() {
             let entry = ParkingRestriction {
-                gata: gata
+                street: gata
                     .clone()
                     .nth(i)
                     .flatten()
                     .map(|s| s.to_string())
                     .unwrap_or_default(),
-                gatunummer: gatunummer
+                street_number: gatunummer
                     .clone()
                     .nth(i)
                     .flatten()
                     .map(|s| s.to_string())
                     .unwrap_or_default(),
-                postnummer: postnummer.clone().nth(i).flatten().unwrap_or(0),
-                adress: adress
+                postal_code: postnummer.clone().nth(i).flatten().unwrap_or(0),
+                address: adress
                     .clone()
                     .nth(i)
                     .flatten()
                     .map(|s| s.to_string())
                     .unwrap_or_default(),
-                dag: dag.clone().nth(i).flatten().unwrap_or(0),
-                tid: tid
+                day: dag.clone().nth(i).flatten().unwrap_or(0),
+                time: tid
                     .clone()
                     .nth(i)
                     .flatten()
@@ -327,7 +353,15 @@ pub fn read_android_local_addresses(
     }
     Ok(result)
 }
+
 /// Write Android local addresses to parquet file
+/// 
+/// # Arguments
+/// * `path` - Output path for the parquet file
+/// * `addresses` - Vector of ParkingRestriction entries to write
+/// 
+/// # Returns
+/// Result indicating success or failure
 pub fn write_android_local_addresses(
     path: &str,
     addresses: Vec<ParkingRestriction>,
@@ -338,7 +372,7 @@ pub fn write_android_local_addresses(
     let schema = android_local_schema();
     let mut grouped: BTreeMap<u16, Vec<ParkingRestriction>> = BTreeMap::new();
     for addr in addresses {
-        grouped.entry(addr.postnummer).or_default().push(addr);
+        grouped.entry(addr.postal_code).or_default().push(addr);
     }
     let file = File::create(path)
         .map_err(|e| anyhow::anyhow!("Failed to create file {}: {}", path, e))?;
@@ -356,13 +390,14 @@ pub fn write_android_local_addresses(
         let mut tid_builder = StringBuilder::new();
         let mut info_builder = StringBuilder::new();
         let mut distance_builder = Float64Builder::new();
+        // Write using Swedish column names for backwards compatibility
         for addr in rows {
-            gata_builder.append_value(&addr.gata);
-            gatunummer_builder.append_value(&addr.gatunummer);
-            postnummer_builder.append_value(addr.postnummer);
-            adress_builder.append_value(&addr.adress);
-            dag_builder.append_value(addr.dag);
-            tid_builder.append_value(&addr.tid);
+            gata_builder.append_value(&addr.street);
+            gatunummer_builder.append_value(&addr.street_number);
+            postnummer_builder.append_value(addr.postal_code);
+            adress_builder.append_value(&addr.address);
+            dag_builder.append_value(addr.day);
+            tid_builder.append_value(&addr.time);
             info_builder.append_value(&addr.info);
             distance_builder.append_value(0.0);
         }
