@@ -1,5 +1,12 @@
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
+
+/// Address list component displaying all stored addresses with toggle and remove controls
+/// 
+/// # Props
+/// * `stored_addresses` - Vector of StoredAddress entries to display
+/// * `on_toggle_active` - Event handler for toggling address active state
+/// * `on_remove_address` - Event handler for removing an address
 #[component]
 pub fn Adresser(
     stored_addresses: Vec<StoredAddress>,
@@ -20,9 +27,9 @@ pub fn Adresser(
                                 .map(|addr| {
                                     let address_display = format!(
                                         "{} {}, {}",
-                                        addr.gata,
-                                        addr.gatunummer,
-                                        addr.postnummer,
+                                        addr.street,
+                                        addr.street_number,
+                                        addr.postal_code,
                                     );
                                     let is_active = addr.active;
                                     let addr_id = addr.id;
