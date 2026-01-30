@@ -13,8 +13,13 @@ use serde::{Deserialize, Serialize};
 #[allow(unused_variables)]
 pub fn save_data<T: Serialize>(key: &str, data: &T) -> Result<(), String> {
     #[cfg(target_os = "ios")]
-    { unimplemented!("iOS UserDefaults storage not yet implemented") }
-    #[cfg(not(target_os = "ios"))] { Ok(()) }
+    {
+        unimplemented!("iOS UserDefaults storage not yet implemented")
+    }
+    #[cfg(not(target_os = "ios"))]
+    {
+        Ok(())
+    }
 }
 /// Load data from UserDefaults
 ///
@@ -26,8 +31,13 @@ pub fn save_data<T: Serialize>(key: &str, data: &T) -> Result<(), String> {
 #[allow(unused_variables)]
 pub fn load_data<T: for<'de> Deserialize<'de>>(key: &str) -> Result<T, String> {
     #[cfg(target_os = "ios")]
-    { unimplemented!("iOS UserDefaults storage not yet implemented") }
-    #[cfg(not(target_os = "ios"))] { Err("Not on iOS platform".to_string()) }
+    {
+        unimplemented!("iOS UserDefaults storage not yet implemented")
+    }
+    #[cfg(not(target_os = "ios"))]
+    {
+        Err("Not on iOS platform".to_string())
+    }
 }
 /// Clear all stored data
 ///
@@ -36,6 +46,11 @@ pub fn load_data<T: for<'de> Deserialize<'de>>(key: &str) -> Result<T, String> {
 #[allow(unused_variables)]
 pub fn clear_all() -> Result<(), String> {
     #[cfg(target_os = "ios")]
-    { unimplemented!("iOS UserDefaults clear not yet implemented") }
-    #[cfg(not(target_os = "ios"))] { Ok(()) }
+    {
+        unimplemented!("iOS UserDefaults clear not yet implemented")
+    }
+    #[cfg(not(target_os = "ios"))]
+    {
+        Ok(())
+    }
 }

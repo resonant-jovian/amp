@@ -1,7 +1,7 @@
 //! Performance benchmarking for correlation algorithms
 use crate::correlation_algorithms::{
-    CorrelationAlgo, DistanceBasedAlgo, GridNearestAlgo, KDTreeSpatialAlgo,
-    OverlappingChunksAlgo, RTreeSpatialAlgo, RaycastingAlgo,
+    CorrelationAlgo, DistanceBasedAlgo, GridNearestAlgo, KDTreeSpatialAlgo, OverlappingChunksAlgo,
+    RTreeSpatialAlgo, RaycastingAlgo,
 };
 use crate::structs::{AdressClean, MiljoeDataClean};
 use rayon::prelude::*;
@@ -20,11 +20,11 @@ pub struct Benchmarker {
     pub parking_lines: Vec<MiljoeDataClean>,
 }
 impl Benchmarker {
-    pub fn new(
-        addresses: Vec<AdressClean>,
-        parking_lines: Vec<MiljoeDataClean>,
-    ) -> Self {
-        Self { addresses, parking_lines }
+    pub fn new(addresses: Vec<AdressClean>, parking_lines: Vec<MiljoeDataClean>) -> Self {
+        Self {
+            addresses,
+            parking_lines,
+        }
     }
     /// Run benchmark for a specific algorithm (parallelized)
     pub fn benchmark_algorithm<A: CorrelationAlgo + Sync>(
@@ -36,13 +36,11 @@ impl Benchmarker {
         let addresses_to_test = &self.addresses[..sample_size.min(self.addresses.len())];
         let start = Instant::now();
         let matches = AtomicUsize::new(0);
-        addresses_to_test
-            .par_iter()
-            .for_each(|address| {
-                if algo.correlate(address, &self.parking_lines).is_some() {
-                    matches.fetch_add(1, Ordering::Relaxed);
-                }
-            });
+        addresses_to_test.par_iter().for_each(|address| {
+            if algo.correlate(address, &self.parking_lines).is_some() {
+                matches.fetch_add(1, Ordering::Relaxed);
+            }
+        });
         let total_duration = start.elapsed();
         let avg_per_address = total_duration / addresses_to_test.len() as u32;
         BenchmarkResult {
@@ -74,11 +72,7 @@ impl Benchmarker {
     pub fn print_results(results: &[BenchmarkResult]) {
         println!(
             "\n{:<25} {:<15} {:<20} {:<15} {:<15}",
-            "Algorithm",
-            "Total Time",
-            "Avg per Address",
-            "Processed",
-            "Matches",
+            "Algorithm", "Total Time", "Avg per Address", "Processed", "Matches",
         );
         println!("{}", "-".repeat(95));
         for result in results {
@@ -94,8 +88,7 @@ impl Benchmarker {
         if let Some(fastest) = results.iter().min_by_key(|r| r.total_duration) {
             println!(
                 "\n✓ Fastest: {} ({:.2?})",
-                fastest.algorithm_name,
-                fastest.total_duration,
+                fastest.algorithm_name, fastest.total_duration,
             );
         }
     }

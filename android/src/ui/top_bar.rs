@@ -13,8 +13,8 @@ pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Ele
         let address_str = address_input();
         let postal_code = postal_code_input();
         info!(
-            "Add button clicked: address='{}', postal_code='{}'", address_str,
-            postal_code
+            "Add button clicked: address='{}', postal_code='{}'",
+            address_str, postal_code
         );
         if address_str.trim().is_empty() || postal_code.trim().is_empty() {
             warn!("Validation failed: empty fields");
@@ -28,8 +28,8 @@ pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Ele
         let street_number = street_words[street_words.len() - 1].to_string();
         let street = street_words[..street_words.len() - 1].join(" ");
         info!(
-            "Parsed: street='{}', street_number='{}', postal_code='{}'", street,
-            street_number, postal_code
+            "Parsed: street='{}', street_number='{}', postal_code='{}'",
+            street, street_number, postal_code
         );
         on_add_address.call((street, street_number, postal_code.to_string()));
         address_input.set(String::new());

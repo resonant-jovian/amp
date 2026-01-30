@@ -30,11 +30,7 @@ pub enum MatchResult {
 ///
 /// # Returns
 /// MatchResult::Valid with address data if found, MatchResult::Invalid otherwise
-pub fn match_address(
-    street: &str,
-    street_number: &str,
-    postal_code: &str,
-) -> MatchResult {
+pub fn match_address(street: &str, street_number: &str, postal_code: &str) -> MatchResult {
     let key = format!(
         "{} {}-{}",
         street.trim(),
@@ -59,8 +55,7 @@ pub fn match_address(
 /// # Returns
 /// true if all fields are non-empty, false otherwise
 pub fn validate_input(street: &str, street_number: &str, postal_code: &str) -> bool {
-    !street.trim().is_empty() && !street_number.trim().is_empty()
-        && !postal_code.trim().is_empty()
+    !street.trim().is_empty() && !street_number.trim().is_empty() && !postal_code.trim().is_empty()
 }
 #[cfg(test)]
 mod tests {

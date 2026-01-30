@@ -9,6 +9,9 @@ set -e
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
+echo "📦 Running dx format..."
+dx fmt --all-code
+
 echo "📦 Running rustfmt..."
 cargo fmt --all
 
@@ -19,7 +22,3 @@ echo "🔍 Final clippy check..."
 cargo clippy --all-targets --all-features -- -D warnings
 
 echo "✅ All checks passed!"
-
-echo "📦 Running dx format..."
-
-dx fmt --all-code

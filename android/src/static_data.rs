@@ -27,8 +27,6 @@ pub fn load_parquet_data() -> HashMap<String, StaticAddressEntry> {
     }
     eprintln!("⚠️  Warning: Could not load parquet database, using empty dataset");
     eprintln!("   Run: cd server && cargo run --release -- output --android");
-    eprintln!(
-        "   Then copy .app_addresses.parquet to android/assets/parking_db.parquet",
-    );
+    eprintln!("   Then copy .app_addresses.parquet to android/assets/parking_db.parquet",);
     HashMap::new()
 }

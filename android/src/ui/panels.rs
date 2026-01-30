@@ -8,11 +8,7 @@ use dioxus::prelude::*;
 /// * `index` - Position in list (for keying)
 /// * `on_remove` - Event handler for remove button (currently unused)
 #[component]
-fn AddressItem(
-    addr: StoredAddress,
-    index: usize,
-    on_remove: EventHandler<usize>,
-) -> Element {
+fn AddressItem(addr: StoredAddress, index: usize, on_remove: EventHandler<usize>) -> Element {
     let matched = &addr.matched_entry;
     let countdown = matched
         .as_ref()
@@ -20,9 +16,7 @@ fn AddressItem(
         .unwrap_or_else(|| "...".to_string());
     let address_display = format!(
         "{} {}, {}",
-        addr.street,
-        addr.street_number,
-        addr.postal_code,
+        addr.street, addr.street_number, addr.postal_code,
     );
     rsx! {
         div { class: "address-item",
@@ -225,7 +219,10 @@ pub fn OneMonthPanel(addresses: Vec<StoredAddress>) -> Element {
 /// * `addresses` - Vector of all StoredAddress entries (will be filtered)
 #[component]
 pub fn InvalidPanel(addresses: Vec<StoredAddress>) -> Element {
-    let addrs: Vec<_> = addresses.into_iter().filter(|a| a.active && !a.valid).collect();
+    let addrs: Vec<_> = addresses
+        .into_iter()
+        .filter(|a| a.active && !a.valid)
+        .collect();
     let count = addrs.len();
     rsx! {
         div { class: "category-container category-invalid",

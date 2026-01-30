@@ -39,11 +39,7 @@ impl StoredAddress {
     /// # Returns
     /// StoredAddress with unique ID, validation result, and matched data (if found)
     pub fn new(street: String, street_number: String, postal_code: String) -> Self {
-        let fuzzy_match_result = fuzzy_match_address(
-            &street,
-            &street_number,
-            &postal_code,
-        );
+        let fuzzy_match_result = fuzzy_match_address(&street, &street_number, &postal_code);
         let (valid, matched_entry) = match fuzzy_match_result {
             Some(entry) => (true, Some(entry)),
             None => (false, None),
@@ -101,46 +97,31 @@ pub fn App() -> Element {
     {
         let mut addrs = stored_addresses.write();
         if addrs.is_empty() {
-            addrs
-                .push(
-                    StoredAddress::new(
-                        "Storgatan".to_string(),
-                        "1".to_string(),
-                        "22100".to_string(),
-                    ),
-                );
-            addrs
-                .push(
-                    StoredAddress::new(
-                        "Storgatan".to_string(),
-                        "10".to_string(),
-                        "22100".to_string(),
-                    ),
-                );
-            addrs
-                .push(
-                    StoredAddress::new(
-                        "Kyrkogården".to_string(),
-                        "1".to_string(),
-                        "22222".to_string(),
-                    ),
-                );
-            addrs
-                .push(
-                    StoredAddress::new(
-                        "Klostergatan".to_string(),
-                        "5".to_string(),
-                        "22100".to_string(),
-                    ),
-                );
-            addrs
-                .push(
-                    StoredAddress::new(
-                        "Fantasigatan".to_string(),
-                        "999".to_string(),
-                        "00000".to_string(),
-                    ),
-                );
+            addrs.push(StoredAddress::new(
+                "Storgatan".to_string(),
+                "1".to_string(),
+                "22100".to_string(),
+            ));
+            addrs.push(StoredAddress::new(
+                "Storgatan".to_string(),
+                "10".to_string(),
+                "22100".to_string(),
+            ));
+            addrs.push(StoredAddress::new(
+                "Kyrkogården".to_string(),
+                "1".to_string(),
+                "22222".to_string(),
+            ));
+            addrs.push(StoredAddress::new(
+                "Klostergatan".to_string(),
+                "5".to_string(),
+                "22100".to_string(),
+            ));
+            addrs.push(StoredAddress::new(
+                "Fantasigatan".to_string(),
+                "999".to_string(),
+                "00000".to_string(),
+            ));
         }
     }
     let handle_add_address = move |args: (String, String, String)| {
@@ -151,13 +132,11 @@ pub fn App() -> Element {
         );
         let new_addr = StoredAddress::new(street, street_number, postal_code);
         let mut addrs = stored_addresses.write();
-        if !addrs
-            .iter()
-            .any(|a| {
-                a.street == new_addr.street && a.street_number == new_addr.street_number
-                    && a.postal_code == new_addr.postal_code
-            })
-        {
+        if !addrs.iter().any(|a| {
+            a.street == new_addr.street
+                && a.street_number == new_addr.street_number
+                && a.postal_code == new_addr.postal_code
+        }) {
             info!("Adding new address, total now: {}", addrs.len() + 1);
             addrs.push(new_addr);
         } else {
@@ -178,8 +157,8 @@ pub fn App() -> Element {
         if let Some(pos) = addrs.iter().position(|a| a.id == id) {
             let removed = addrs.remove(pos);
             info!(
-                "Removed address: {} {}, {}", removed.street, removed.street_number,
-                removed.postal_code
+                "Removed address: {} {}, {}",
+                removed.street, removed.street_number, removed.postal_code
             );
         }
     };

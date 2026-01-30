@@ -18,8 +18,11 @@ pub struct Coordinate {
 /// ```
 pub fn request_location_permission() {
     #[cfg(target_os = "ios")]
-    { unimplemented!("iOS location permission not yet implemented") }
-    #[cfg(not(target_os = "ios"))] {}
+    {
+        unimplemented!("iOS location permission not yet implemented")
+    }
+    #[cfg(not(target_os = "ios"))]
+    {}
 }
 /// Get current device location
 ///
@@ -31,8 +34,13 @@ pub fn request_location_permission() {
 /// ```
 pub fn get_current_location() -> Result<Coordinate, String> {
     #[cfg(target_os = "ios")]
-    { unimplemented!("iOS location fetching not yet implemented") }
-    #[cfg(not(target_os = "ios"))] { Err("Not on iOS platform".to_string()) }
+    {
+        unimplemented!("iOS location fetching not yet implemented")
+    }
+    #[cfg(not(target_os = "ios"))]
+    {
+        Err("Not on iOS platform".to_string())
+    }
 }
 /// Start continuous location updates
 ///
@@ -40,8 +48,11 @@ pub fn get_current_location() -> Result<Coordinate, String> {
 /// Implement using objc bindings with delegate pattern
 pub fn start_location_updates() {
     #[cfg(target_os = "ios")]
-    { unimplemented!("iOS location updates not yet implemented") }
-    #[cfg(not(target_os = "ios"))] {}
+    {
+        unimplemented!("iOS location updates not yet implemented")
+    }
+    #[cfg(not(target_os = "ios"))]
+    {}
 }
 /// Stop continuous location updates
 ///
@@ -49,6 +60,9 @@ pub fn start_location_updates() {
 /// Implement using objc bindings
 pub fn stop_location_updates() {
     #[cfg(target_os = "ios")]
-    { unimplemented!("iOS location updates stop not yet implemented") }
-    #[cfg(not(target_os = "ios"))] {}
+    {
+        unimplemented!("iOS location updates stop not yet implemented")
+    }
+    #[cfg(not(target_os = "ios"))]
+    {}
 }

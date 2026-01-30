@@ -50,18 +50,18 @@ pub fn remaining_duration(day: u8, time: &str) -> Option<Duration> {
     let (_start, end) = parse_time_interval(time)?;
     let now = ChronoLocal::now().naive_local();
     let today = now.date();
-    let this_month_date = NaiveDate::from_ymd_opt(
-        today.year(),
-        today.month(),
-        day as u32,
-    )?;
+    let this_month_date = NaiveDate::from_ymd_opt(today.year(), today.month(), day as u32)?;
     let this_end = this_month_date.and_time(end);
     if this_end >= now {
         return Some(this_end - now);
     }
     let next_month_date = add_one_month(this_month_date)?;
     let next_end = next_month_date.and_time(end);
-    if next_end >= now { Some(next_end - now) } else { None }
+    if next_end >= now {
+        Some(next_end - now)
+    } else {
+        None
+    }
 }
 /// Format countdown as human-readable string
 ///

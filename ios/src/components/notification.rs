@@ -11,8 +11,11 @@
 /// ```
 pub fn request_notification_permission() {
     #[cfg(target_os = "ios")]
-    { unimplemented!("iOS notification permission not yet implemented") }
-    #[cfg(not(target_os = "ios"))] {}
+    {
+        unimplemented!("iOS notification permission not yet implemented")
+    }
+    #[cfg(not(target_os = "ios"))]
+    {}
 }
 /// Schedule a local notification
 ///
@@ -34,8 +37,11 @@ pub fn request_notification_permission() {
 #[allow(unused_variables)]
 pub fn schedule_notification(title: &str, body: &str, time_seconds: u64) {
     #[cfg(target_os = "ios")]
-    { unimplemented!("iOS notification scheduling not yet implemented") }
-    #[cfg(not(target_os = "ios"))] {}
+    {
+        unimplemented!("iOS notification scheduling not yet implemented")
+    }
+    #[cfg(not(target_os = "ios"))]
+    {}
 }
 /// Cancel all pending notifications
 ///
@@ -43,6 +49,9 @@ pub fn schedule_notification(title: &str, body: &str, time_seconds: u64) {
 /// Implement using objc bindings to UNUserNotificationCenter
 pub fn cancel_all_notifications() {
     #[cfg(target_os = "ios")]
-    { unimplemented!("iOS notification cancellation not yet implemented") }
-    #[cfg(not(target_os = "ios"))] {}
+    {
+        unimplemented!("iOS notification cancellation not yet implemented")
+    }
+    #[cfg(not(target_os = "ios"))]
+    {}
 }
