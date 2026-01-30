@@ -34,6 +34,21 @@ pub struct OutputData {
     pub antal_platser: Option<u64>,
     pub typ_av_parkering: Option<String>,
 }
+#[derive(Debug, Clone)]
+pub struct LocalData {
+    pub valid: bool,
+    pub active: bool,
+    pub postnummer: Option<String>,
+    pub adress: String,
+    pub gata: Option<String>,
+    pub gatunummer: Option<String>,
+    pub info: Option<String>,
+    pub tid: Option<String>,
+    pub dag: Option<u8>,
+    pub taxa: Option<String>,
+    pub antal_platser: Option<u64>,
+    pub typ_av_parkering: Option<String>,
+}
 /// Result of correlation for a single address
 #[derive(Debug, Clone)]
 pub struct CorrelationResult {
@@ -41,27 +56,6 @@ pub struct CorrelationResult {
     pub postnummer: String,
     pub miljo_match: Option<(f64, String)>,
     pub parkering_match: Option<(f64, String)>,
-}
-impl CorrelationResult {
-    pub fn has_match(&self) -> bool {
-        self.miljo_match.is_some() || self.parkering_match.is_some()
-    }
-    pub fn dataset_source(&self) -> String {
-        match (self.miljo_match.is_some(), self.parkering_match.is_some()) {
-            (true, true) => "Both (Miljödata + Parkering)".to_string(),
-            (true, false) => "Miljödata only".to_string(),
-            (false, true) => "Parkering only".to_string(),
-            (false, false) => "No match".to_string(),
-        }
-    }
-    pub fn closest_distance(&self) -> Option<f64> {
-        match (self.miljo_match.as_ref(), self.parkering_match.as_ref()) {
-            (Some((d1, _)), Some((d2, _))) => Some(d1.min(*d2)),
-            (Some((d, _)), None) => Some(*d),
-            (None, Some((d, _))) => Some(*d),
-            (None, None) => None,
-        }
-    }
 }
 impl OutputData {
     /// Check if this address has any matches

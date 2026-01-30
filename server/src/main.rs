@@ -10,7 +10,7 @@ use amp_core::correlation_algorithms::{
     OverlappingChunksParkeringAlgo, ParkeringCorrelationAlgo, RTreeSpatialAlgo, RaycastingAlgo,
     RaycastingParkeringAlgo,
 };
-use amp_core::parquet::{ParkingRestriction, write_android_local_addresses, write_output_data};
+use amp_core::parquet::{ParkingRestriction};
 use amp_core::structs::{
     AdressClean, CorrelationResult, MiljoeDataClean, OutputData, OutputDataWithDistance,
     ParkeringsDataClean,
@@ -779,8 +779,8 @@ fn run_output(
                     .unwrap_or_else(|| std::path::Path::new("."))
                     .display(),
             );
-            write_android_local_addresses(&android_output, android_addresses.clone())
-                .map_err(|e| format!("Failed to write Android parquet: {}", e))?;
+            //write_android_local_addresses(&android_output, android_addresses.clone())
+            //    .map_err(|e| format!("Failed to write Android parquet: {}", e))?;
             println!("   ✓ Saved to {}", android_output);
             println!(
                 "   ✓ Extracted {} parking restrictions for Android app",

@@ -10,6 +10,10 @@ amp-core = { path = "../core" }
 dioxus.workspace = true
 dioxus-free-icons.workspace = true
 chrono.workspace = true
+jni.workspace = true
+anyhow = "1.0.100"
+serde_json = "1.0.149"
+serde = { version = "1.0.228", features = ["derive"] }
 
 [features]
 default = ["mobile"]
