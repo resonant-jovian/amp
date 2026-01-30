@@ -8,6 +8,8 @@ license.workspace = true
 [dependencies]
 amp-core = { path = "../core" }
 dioxus.workspace = true
+dioxus-free-icons.workspace = true
+serde.workspace = true
 
 [features]
 default = ["mobile"]

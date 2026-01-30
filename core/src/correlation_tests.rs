@@ -47,11 +47,14 @@ mod tests {
             "55.5946495",
             "Test Zone",
         );
-        let addresses = vec![address];
+        let addresses = [address];
         let zones = vec![zone];
         let db_algo = DistanceBasedAlgo;
         let db_result = db_algo.correlate(&addresses[0], &zones);
-        assert!(db_result.is_some(), "Distance-Based: Should find match within 50m");
+        assert!(
+            db_result.is_some(),
+            "Distance-Based: Should find match within 50m"
+        );
         let (_, db_dist) = db_result.unwrap();
         assert!(db_dist > 0.0, "Distance-Based: Distance should be positive");
         assert!(
@@ -60,10 +63,16 @@ mod tests {
         );
         let ray_algo = RaycastingAlgo;
         let ray_result = ray_algo.correlate(&addresses[0], &zones);
-        assert!(ray_result.is_some(), "Raycasting: Should find match within 50m");
+        assert!(
+            ray_result.is_some(),
+            "Raycasting: Should find match within 50m"
+        );
         let (_, ray_dist) = ray_result.unwrap();
         assert!(ray_dist > 0.0, "Raycasting: Distance should be positive");
-        assert!(ray_dist <= 50.0, "Raycasting: Distance should be within 50m threshold");
+        assert!(
+            ray_dist <= 50.0,
+            "Raycasting: Distance should be within 50m threshold"
+        );
     }
     #[test]
     fn test_50m_threshold_enforcement() {
@@ -75,7 +84,7 @@ mod tests {
             "13.1926245",
             "Far Zone",
         );
-        let addresses = vec![address];
+        let addresses = [address];
         let zones = vec![far_zone];
         let algo = DistanceBasedAlgo;
         let result = algo.correlate(&addresses[0], &zones);
@@ -91,7 +100,7 @@ mod tests {
             "13.1946245",
             "Test Zone",
         );
-        let addresses = vec![address];
+        let addresses = [address];
         let zones = vec![zone];
         let db_algo = DistanceBasedAlgo;
         let db_result = db_algo.correlate(&addresses[0], &zones);
@@ -101,7 +110,10 @@ mod tests {
         assert!(ray_result.is_some(), "Raycasting should find match");
         let chunk_algo = OverlappingChunksAlgo::new(&zones);
         let chunk_result = chunk_algo.correlate(&addresses[0], &zones);
-        assert!(chunk_result.is_some(), "Overlapping Chunks should find match");
+        assert!(
+            chunk_result.is_some(),
+            "Overlapping Chunks should find match"
+        );
         let rtree_algo = RTreeSpatialAlgo::new(&zones);
         let rtree_result = rtree_algo.correlate(&addresses[0], &zones);
         assert!(rtree_result.is_some(), "R-Tree should find match");
@@ -296,7 +308,10 @@ mod tests {
         ];
         let algo = GridNearestAlgo::new(&zones);
         let result = algo.correlate(&address, &zones);
-        assert!(result.is_none(), "Should not match zones beyond 50m threshold");
+        assert!(
+            result.is_none(),
+            "Should not match zones beyond 50m threshold"
+        );
     }
     #[test]
     fn test_deterministic_results() {
@@ -333,31 +348,26 @@ mod tests {
         let mut addresses = Vec::new();
         for i in 0..100 {
             let lat_offset = Decimal::from(i) * decimal("0.0001");
-            addresses
-                .push(AdressClean {
-                    coordinates: [
-                        decimal("13.1945945") + lat_offset,
-                        decimal("55.5932645"),
-                    ],
-                    postnummer: "200 00".to_string(),
-                    adress: format!("Address {}", i),
-                    gata: "Test Street".to_string(),
-                    gatunummer: format!("{}", i),
-                });
+            addresses.push(AdressClean {
+                coordinates: [decimal("13.1945945") + lat_offset, decimal("55.5932645")],
+                postnummer: "200 00".to_string(),
+                adress: format!("Address {}", i),
+                gata: "Test Street".to_string(),
+                gatunummer: format!("{}", i),
+            });
         }
         let mut zones = Vec::new();
         for i in 0..50 {
             let lat_offset = Decimal::from(i) * decimal("0.0002");
-            zones
-                .push(MiljoeDataClean {
-                    coordinates: [
-                        [decimal("13.1945945") + lat_offset, decimal("55.5932645")],
-                        [decimal("13.1946245") + lat_offset, decimal("55.5932945")],
-                    ],
-                    info: format!("Zone {}", i),
-                    tid: "08:00-18:00".to_string(),
-                    dag: ((i % 7) as u8) + 1,
-                });
+            zones.push(MiljoeDataClean {
+                coordinates: [
+                    [decimal("13.1945945") + lat_offset, decimal("55.5932645")],
+                    [decimal("13.1946245") + lat_offset, decimal("55.5932945")],
+                ],
+                info: format!("Zone {}", i),
+                tid: "08:00-18:00".to_string(),
+                dag: ((i % 7) as u8) + 1,
+            });
         }
         let db_algo = DistanceBasedAlgo;
         let mut db_matches = 0;
@@ -401,7 +411,7 @@ mod tests {
             dag: 1,
         };
         let algo = DistanceBasedAlgo;
-        let result = algo.correlate(&address, &vec![zone]);
+        let result = algo.correlate(&address, &[zone]);
         assert!(result.is_some(), "Should find exact match");
         let (_, dist) = result.unwrap();
         assert!(dist < 1.0, "Distance should be very small for exact match");
@@ -419,7 +429,7 @@ mod tests {
             dag: 1,
         };
         let algo = DistanceBasedAlgo;
-        let result = algo.correlate(&address, &vec![degenerate_zone]);
+        let result = algo.correlate(&address, &[degenerate_zone]);
         assert!(result.is_some(), "Should handle degenerate zone");
     }
     #[test]

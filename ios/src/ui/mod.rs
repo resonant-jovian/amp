@@ -2,7 +2,8 @@ pub mod adresser;
 pub mod paneler;
 pub mod topbar;
 use crate::ui::{
-    adresser::Adresser, paneler::{Active, Day, Month, NotValid, Six},
+    adresser::Adresser,
+    paneler::{Active, Day, Month, NotValid, Six},
     topbar::TopBar,
 };
 use dioxus::prelude::*;
@@ -129,16 +130,14 @@ pub fn App() -> Element {
                 return;
             }
             addresses.write().push(addr.clone());
-            schedules
-                .write()
-                .insert(
-                    key,
-                    Schedule {
-                        kind: ScheduleType::None,
-                        deadline: None,
-                        active: true,
-                    },
-                );
+            schedules.write().insert(
+                key,
+                Schedule {
+                    kind: ScheduleType::None,
+                    deadline: None,
+                    active: true,
+                },
+            );
         }
     };
     let _remove_address = {

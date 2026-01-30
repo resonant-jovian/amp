@@ -1,7 +1,15 @@
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
+use dioxus_free_icons::Icon;
+use dioxus_free_icons::icons::md_device_icons::MdGraphicEq;
+/// Address list component displaying all stored addresses with toggle and remove controls
+///
+/// # Props
+/// * `stored_addresses` - Vector of StoredAddress entries to display
+/// * `on_toggle_active` - Event handler for toggling address active state
+/// * `on_remove_address` - Event handler for removing an address
 #[component]
-pub fn Adresser(
+pub fn Addresses(
     stored_addresses: Vec<StoredAddress>,
     on_toggle_active: EventHandler<usize>,
     on_remove_address: EventHandler<usize>,
@@ -20,15 +28,20 @@ pub fn Adresser(
                                 .map(|addr| {
                                     let address_display = format!(
                                         "{} {}, {}",
-                                        addr.gata,
-                                        addr.gatunummer,
-                                        addr.postnummer,
+                                        addr.street,
+                                        addr.street_number,
+                                        addr.postal_code,
                                     );
                                     let is_active = addr.active;
                                     let addr_id = addr.id;
                                     rsx! {
                                         div { key: "{addr_id}", class: "address-item",
-                                            div { class: "address-text", "{address_display}" }
+                                            div { class: "address-text",
+                                                button { class: "address-info-icon", onclick: move |_| {},
+                                                    Icon { icon: MdGraphicEq, width: 16, height: 16 }
+                                                }
+                                                span { "{address_display}" }
+                                            }
                                             div { class: "address-actions",
                                                 div {
                                                     class: "toggle-switch",

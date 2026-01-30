@@ -61,7 +61,11 @@ impl DataLoader {
                 _ => return None,
             }
         }
-        if segments.is_empty() { None } else { Some(segments) }
+        if segments.is_empty() {
+            None
+        } else {
+            Some(segments)
+        }
     }
     fn _extract_point_coordinates_legacy(feature: &Feature) -> Option<[Decimal; 2]> {
         if let Some(ref geom) = feature.geometry {
@@ -95,22 +99,23 @@ impl DataLoader {
     }
     fn extract_time_from_taxa(taxa_str: &str) -> String {
         let parts: Vec<&str> = taxa_str.split('–').collect();
-        if parts.len() >= 2 && let Some(before_dash) = parts.first() {
-            let start_time = before_dash
-                .split_whitespace()
-                .last()
-                .and_then(|s| {
-                    s.chars()
-                        .rev()
-                        .take_while(|c| c.is_ascii_digit())
-                        .collect::<String>()
-                        .chars()
-                        .rev()
-                        .collect::<String>()
-                        .parse::<u32>()
-                        .ok()
-                });
-            if let Some(start) = start_time && let Some(after_dash) = parts.get(1) {
+        if parts.len() >= 2
+            && let Some(before_dash) = parts.first()
+        {
+            let start_time = before_dash.split_whitespace().last().and_then(|s| {
+                s.chars()
+                    .rev()
+                    .take_while(|c| c.is_ascii_digit())
+                    .collect::<String>()
+                    .chars()
+                    .rev()
+                    .collect::<String>()
+                    .parse::<u32>()
+                    .ok()
+            });
+            if let Some(start) = start_time
+                && let Some(after_dash) = parts.get(1)
+            {
                 let end_time = after_dash
                     .chars()
                     .take_while(|c| c.is_ascii_digit())
@@ -126,10 +131,7 @@ impl DataLoader {
     }
     /// Parse a parking feature and return all its segments as separate MiljoeDataClean entries
     /// For MultiLineString features with N segments, returns Vec with N entries, one per segment
-    fn parse_parking_feature(
-        feature: Feature,
-        is_avgifter: bool,
-    ) -> Vec<MiljoeDataClean> {
+    fn parse_parking_feature(feature: Feature, is_avgifter: bool) -> Vec<MiljoeDataClean> {
         let mut results = Vec::new();
         let props = match feature.clone().properties {
             Some(p) => p,
@@ -187,25 +189,20 @@ impl DataLoader {
                 .unwrap_or(0)
         };
         for coordinates in segments {
-            results
-                .push(MiljoeDataClean {
-                    coordinates,
-                    info: info.clone(),
-                    tid: tid.clone(),
-                    dag,
-                });
+            results.push(MiljoeDataClean {
+                coordinates,
+                info: info.clone(),
+                tid: tid.clone(),
+                dag,
+            });
         }
         results
     }
-    pub fn load_addresses(
-        path: &str,
-    ) -> Result<Vec<AdressClean>, Box<dyn std::error::Error>> {
+    pub fn load_addresses(path: &str) -> Result<Vec<AdressClean>, Box<dyn std::error::Error>> {
         println!("Loading addresses from: {}", path);
         let content = fs::read_to_string(path)?;
         let geojson: GeoJson = content.parse()?;
-        let addresses: Vec<AdressClean> = if let GeoJson::FeatureCollection(
-            collection,
-        ) = geojson {
+        let addresses: Vec<AdressClean> = if let GeoJson::FeatureCollection(collection) = geojson {
             collection
                 .features
                 .into_iter()
@@ -228,9 +225,8 @@ impl DataLoader {
         let content = fs::read_to_string(path)?;
         let geojson: GeoJson = content.parse()?;
         let is_avgifter = dataset_name.to_lowercase().contains("avgift");
-        let parking: Vec<MiljoeDataClean> = if let GeoJson::FeatureCollection(
-            collection,
-        ) = geojson {
+        let parking: Vec<MiljoeDataClean> = if let GeoJson::FeatureCollection(collection) = geojson
+        {
             collection
                 .features
                 .into_iter()
@@ -252,28 +248,17 @@ impl DataLoader {
 }
 pub fn api() -> Result<ApiResult, Box<dyn std::error::Error>> {
     let addresses = DataLoader::load_addresses("data/adresser.json")?;
-    let miljodata = DataLoader::load_parking(
-        "data/miljoparkeringar.json",
-        "Miljödata",
-    )?;
-    let parkering = DataLoader::load_parking(
-        "data/parkeringsavgifter.json",
-        "Parkering avgifter",
-    )?;
+    let miljodata = DataLoader::load_parking("data/miljoparkeringar.json", "Miljödata")?;
+    let parkering = DataLoader::load_parking("data/parkeringsavgifter.json", "Parkering avgifter")?;
     println!("\n✓ Data loading complete");
     println!("  Total addresses: {}", addresses.len());
     println!("  Total miljödata segments: {}", miljodata.len());
     println!("  Total parkering segments: {}", parkering.len());
     Ok((addresses, miljodata, parkering))
 }
-pub fn api_miljo_only() -> Result<
-    (Vec<AdressClean>, Vec<MiljoeDataClean>),
-    Box<dyn std::error::Error>,
-> {
+pub fn api_miljo_only()
+-> Result<(Vec<AdressClean>, Vec<MiljoeDataClean>), Box<dyn std::error::Error>> {
     let addresses = DataLoader::load_addresses("data/adresser.json")?;
-    let miljodata = DataLoader::load_parking(
-        "data/miljoparkeringar.json",
-        "Miljödata",
-    )?;
+    let miljodata = DataLoader::load_parking("data/miljoparkeringar.json", "Miljödata")?;
     Ok((addresses, miljodata))
 }

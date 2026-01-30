@@ -28,16 +28,13 @@ impl GridNearestAlgo {
                 }
             }
         }
-        Self { grid, cell_size: CELL_SIZE }
+        Self {
+            grid,
+            cell_size: CELL_SIZE,
+        }
     }
     /// Get all grid cells a line segment passes through using DDA algorithm
-    fn line_cells(
-        x1: f64,
-        y1: f64,
-        x2: f64,
-        y2: f64,
-        cell_size: f64,
-    ) -> Vec<(i32, i32)> {
+    fn line_cells(x1: f64, y1: f64, x2: f64, y2: f64, cell_size: f64) -> Vec<(i32, i32)> {
         let mut cells = Vec::new();
         let cell_x1 = (x1 / cell_size).floor() as i32;
         let cell_y1 = (y1 / cell_size).floor() as i32;
@@ -66,7 +63,10 @@ impl GridNearestAlgo {
         cells
     }
     fn get_cell(point: [f64; 2], cell_size: f64) -> (i32, i32) {
-        ((point[0] / cell_size).floor() as i32, (point[1] / cell_size).floor() as i32)
+        (
+            (point[0] / cell_size).floor() as i32,
+            (point[1] / cell_size).floor() as i32,
+        )
     }
     fn get_nearby_cells(cell: (i32, i32)) -> Vec<(i32, i32)> {
         let mut cells = Vec::with_capacity(9);
@@ -84,7 +84,10 @@ impl CorrelationAlgo for GridNearestAlgo {
         address: &AdressClean,
         parking_lines: &[MiljoeDataClean],
     ) -> Option<(usize, f64)> {
-        let point = [address.coordinates[0].to_f64()?, address.coordinates[1].to_f64()?];
+        let point = [
+            address.coordinates[0].to_f64()?,
+            address.coordinates[1].to_f64()?,
+        ];
         let cell = Self::get_cell(point, self.cell_size);
         let nearby_cells = Self::get_nearby_cells(cell);
         let mut best: Option<(usize, f64)> = None;
@@ -101,9 +104,7 @@ impl CorrelationAlgo for GridNearestAlgo {
                         line.coordinates[1][1].to_f64()?,
                     ];
                     let dist = distance_point_to_line(point, start, end);
-                    if dist <= MAX_DISTANCE_METERS
-                        && (best.is_none() || dist < best.unwrap().1)
-                    {
+                    if dist <= MAX_DISTANCE_METERS && (best.is_none() || dist < best.unwrap().1) {
                         best = Some((idx, dist));
                     }
                 }
@@ -115,20 +116,19 @@ impl CorrelationAlgo for GridNearestAlgo {
         "Grid Nearest Neighbor"
     }
 }
-fn distance_point_to_line(
-    point: [f64; 2],
-    line_start: [f64; 2],
-    line_end: [f64; 2],
-) -> f64 {
+fn distance_point_to_line(point: [f64; 2], line_start: [f64; 2], line_end: [f64; 2]) -> f64 {
     let line_vec = [line_end[0] - line_start[0], line_end[1] - line_start[1]];
     let point_vec = [point[0] - line_start[0], point[1] - line_start[1]];
     let line_len_sq = line_vec[0] * line_vec[0] + line_vec[1] * line_vec[1];
     if line_len_sq == 0.0 {
         return haversine_distance(point, line_start);
     }
-    let t = ((point_vec[0] * line_vec[0] + point_vec[1] * line_vec[1]) / line_len_sq)
-        .clamp(0.0, 1.0);
-    let closest = [line_start[0] + t * line_vec[0], line_start[1] + t * line_vec[1]];
+    let t =
+        ((point_vec[0] * line_vec[0] + point_vec[1] * line_vec[1]) / line_len_sq).clamp(0.0, 1.0);
+    let closest = [
+        line_start[0] + t * line_vec[0],
+        line_start[1] + t * line_vec[1],
+    ];
     haversine_distance(point, closest)
 }
 fn haversine_distance(point1: [f64; 2], point2: [f64; 2]) -> f64 {
@@ -136,8 +136,8 @@ fn haversine_distance(point1: [f64; 2], point2: [f64; 2]) -> f64 {
     let lat2 = point2[1].to_radians();
     let delta_lat = (point2[1] - point1[1]).to_radians();
     let delta_lon = (point2[0] - point1[0]).to_radians();
-    let a = (delta_lat / 2.0).sin().powi(2)
-        + lat1.cos() * lat2.cos() * (delta_lon / 2.0).sin().powi(2);
+    let a =
+        (delta_lat / 2.0).sin().powi(2) + lat1.cos() * lat2.cos() * (delta_lon / 2.0).sin().powi(2);
     let c = 2.0 * a.sqrt().atan2((1.0 - a).sqrt());
     EARTH_RADIUS_M * c
 }

@@ -11,6 +11,7 @@ license = "GPL-3"
 [workspace.dependencies]
 rust_decimal = { version = "1.40.0", features = ["serde", "maths"] }
 dioxus = { version = "0.7.3", features = ["desktop", "router"] }
+dioxus-free-icons = { version = "0.10.0", features = ["material-design-icons-device", "material-design-icons-image", "material-design-icons-maps"] }
 arrow = { version = "57.2.0" }
 parquet = "57.2.0"
 rayon = "1.11.0"

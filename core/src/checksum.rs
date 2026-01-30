@@ -36,9 +36,7 @@ impl DataChecksum {
         Ok(format!("{:x}", hasher.finalize()))
     }
     /// Fetch remote URL and calculate checksum
-    pub async fn fetch_and_checksum(
-        url: &str,
-    ) -> Result<String, Box<dyn std::error::Error>> {
+    pub async fn fetch_and_checksum(url: &str) -> Result<String, Box<dyn std::error::Error>> {
         let response: Response = reqwest::get(url).await?;
         let bytes = response.bytes().await?;
         let mut hasher = Sha256::new();
@@ -64,9 +62,7 @@ impl DataChecksum {
         Ok(())
     }
     /// Update all checksums from remote sources
-    pub async fn update_from_remote(
-        &mut self,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn update_from_remote(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         self.miljo_checksum = Self::fetch_and_checksum(&self.miljo_url).await?;
         self.parkering_checksum = Self::fetch_and_checksum(&self.parkering_url).await?;
         self.adresser_checksum = Self::fetch_and_checksum(&self.adresser_url).await?;

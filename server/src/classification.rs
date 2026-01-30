@@ -6,8 +6,7 @@ use std::fs;
 use std::path::PathBuf;
 /// Get the classification data directory (Documents/amp_classifications)
 fn _get_classification_dir() -> Result<PathBuf, String> {
-    let _home = dirs::home_dir()
-        .ok_or_else(|| "Could not determine home directory".to_string())?;
+    let _home = dirs::home_dir().ok_or_else(|| "Could not determine home directory".to_string())?;
     let _docs_dir = _home.join("Documents");
     let _class_dir = _docs_dir.join("amp_classifications");
     if !_class_dir.exists() {
@@ -62,7 +61,11 @@ pub fn _add_classification(_req: &_ClassificationRequest) -> Result<String, Stri
         "{}-{}-{}",
         _req.category,
         chrono::Local::now().timestamp_millis(),
-        uuid::Uuid::new_v4().to_string().split('-').next().unwrap_or("xxx"),
+        uuid::Uuid::new_v4()
+            .to_string()
+            .split('-')
+            .next()
+            .unwrap_or("xxx"),
     );
     let _entry = _ClassificationEntry {
         id: _id.clone(),
@@ -83,11 +86,10 @@ pub fn _add_classification(_req: &_ClassificationRequest) -> Result<String, Stri
         _json["entries"] = json!([]);
     }
     if let Some(_entries) = _json["entries"].as_array_mut() {
-        _entries
-            .push(
-                serde_json::to_value(&_entry)
-                    .map_err(|e| format!("Failed to serialize entry: {}", e))?,
-            );
+        _entries.push(
+            serde_json::to_value(&_entry)
+                .map_err(|e| format!("Failed to serialize entry: {}", e))?,
+        );
     }
     let _json_str = serde_json::to_string_pretty(&_json)
         .map_err(|e| format!("Failed to serialize JSON: {}", e))?;
@@ -102,42 +104,37 @@ pub fn _undo_classification(_category: &str, _address: &str) -> Result<String, S
     }
     let _file_path = _get_classification_file(_category)?;
     if !_file_path.exists() {
-        return Err(format!("No classifications found for category: {}", _category));
+        return Err(format!(
+            "No classifications found for category: {}",
+            _category
+        ));
     }
     let _content = fs::read_to_string(&_file_path)
         .map_err(|e| format!("Failed to read classification file: {}", e))?;
     let mut _json: Value = serde_json::from_str(&_content)
         .map_err(|e| format!("Failed to parse classification file: {}", e))?;
     if let Some(_entries) = _json["entries"].as_array_mut()
-        && let Some(_last_index) = _entries
-            .iter()
-            .rposition(|e| {
-                e.get("address")
-                    .and_then(|addr| addr.as_str())
-                    .map(|addr| addr == _address)
-                    .unwrap_or(false)
-            })
+        && let Some(_last_index) = _entries.iter().rposition(|e| {
+            e.get("address")
+                .and_then(|addr| addr.as_str())
+                .map(|addr| addr == _address)
+                .unwrap_or(false)
+        })
     {
         _entries.remove(_last_index);
         let _json_str = serde_json::to_string_pretty(&_json)
             .map_err(|e| format!("Failed to serialize JSON: {}", e))?;
         fs::write(&_file_path, _json_str)
             .map_err(|e| format!("Failed to write classification file: {}", e))?;
-        return Ok(
-            format!(
-                "Undid last classification for '{}' in category '{}'",
-                _address,
-                _category,
-            ),
-        );
+        return Ok(format!(
+            "Undid last classification for '{}' in category '{}'",
+            _address, _category,
+        ));
     }
-    Err(
-        format!(
-            "No classifications found for '{}' in category '{}'",
-            _address,
-            _category,
-        ),
-    )
+    Err(format!(
+        "No classifications found for '{}' in category '{}'",
+        _address, _category,
+    ))
 }
 #[cfg(test)]
 mod tests {

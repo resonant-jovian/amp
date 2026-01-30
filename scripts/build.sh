@@ -3,19 +3,19 @@ set -e
 
 echo "🔨 Building Dioxus Android APK..."
 
-# Get script directory (project root) - fixed ShellCheck warnings
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
-echo "📍 Project root: $SCRIPT_DIR"
+# Get repository root (parent of scripts directory)
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+echo "📍 Project root: $REPO_ROOT"
 
 # Go to android directory
-cd "$SCRIPT_DIR/android" || {
-    echo "❌ android directory not found at $SCRIPT_DIR/android"
+cd "$REPO_ROOT/android" || {
+    echo "❌ android directory not found at $REPO_ROOT/android"
     exit 1
 }
 
 # Load keystore settings
 echo "📖 Loading keystore configuration..."
-KEYSTORE_DIR="$SCRIPT_DIR"
+KEYSTORE_DIR="$REPO_ROOT"
 storePassword=$(grep "^storePassword=" "$KEYSTORE_DIR/keystore.properties" | cut -d= -f2 | tr -d ' "')
 keyPassword=$(grep "^keyPassword=" "$KEYSTORE_DIR/keystore.properties" | cut -d= -f2 | tr -d ' "')
 keyAlias=$(grep "^keyAlias=" "$KEYSTORE_DIR/keystore.properties" | cut -d= -f2 | tr -d ' "')
@@ -32,7 +32,7 @@ echo "✓ Keystore found"
 
 # Backup original Dioxus.toml BEFORE modifying it
 echo "📝 Backing up original Dioxus.toml..."
-DIOXUS_BACKUP="$SCRIPT_DIR/android/Dioxus.toml.backup.$(date +%s)"
+DIOXUS_BACKUP="$REPO_ROOT/android/Dioxus.toml.backup.$(date +%s)"
 if [ -f "Dioxus.toml" ]; then
     cp -- "Dioxus.toml" "$DIOXUS_BACKUP"
     echo "✓ Backup created: $(basename "$DIOXUS_BACKUP")"
@@ -82,10 +82,10 @@ echo "✓ Dioxus.toml updated with signing config"
 
 # CRITICAL: Clean previous build to avoid cached gradle files
 echo "🧹 Cleaning previous build artifacts..."
-ANDROID_DIR="$SCRIPT_DIR/target/dx/amp/release/android/app"
+ANDROID_DIR="$REPO_ROOT/target/dx/amp/release/android/app"
 rm -rf -- "$ANDROID_DIR" 2>/dev/null || true
-rm -rf -- "$SCRIPT_DIR/android/app/.gradle" 2>/dev/null || true
-rm -rf -- "$SCRIPT_DIR/android/app/build" 2>/dev/null || true
+rm -rf -- "$REPO_ROOT/android/app/.gradle" 2>/dev/null || true
+rm -rf -- "$REPO_ROOT/android/app/build" 2>/dev/null || true
 pkill -9 gradle java 2>/dev/null || true
 sleep 1
 
