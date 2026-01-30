@@ -1,7 +1,13 @@
 use crate::countdown::{TimeBucket, bucket_for, format_countdown};
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
+
 /// Display an address with countdown timer in appropriate category
+/// 
+/// # Props
+/// * `addr` - StoredAddress to display
+/// * `index` - Position in list (for keying)
+/// * `on_remove` - Event handler for remove button (currently unused)
 #[component]
 fn AddressItem(
     addr: StoredAddress,
@@ -11,13 +17,13 @@ fn AddressItem(
     let matched = &addr.matched_entry;
     let countdown = matched
         .as_ref()
-        .and_then(|e| format_countdown(e.dag, &e.tid))
+        .and_then(|e| format_countdown(e.day, &e.time))
         .unwrap_or_else(|| "...".to_string());
     let address_display = format!(
         "{} {}, {}",
-        addr.gata,
-        addr.gatunummer,
-        addr.postnummer,
+        addr.street,
+        addr.street_number,
+        addr.postal_code,
     );
     rsx! {
         div { class: "address-item",
@@ -26,7 +32,11 @@ fn AddressItem(
         }
     }
 }
+
 /// Panel displaying addresses needing attention within 4 hours
+/// 
+/// # Props
+/// * `addresses` - Vector of all StoredAddress entries (will be filtered)
 #[component]
 pub fn Active(addresses: Vec<StoredAddress>) -> Element {
     let active_addrs: Vec<_> = addresses
@@ -34,7 +44,7 @@ pub fn Active(addresses: Vec<StoredAddress>) -> Element {
         .filter(|a| a.valid && a.active)
         .filter(|a| {
             if let Some(entry) = &a.matched_entry {
-                matches!(bucket_for(entry.dag, &entry.tid), TimeBucket::Now)
+                matches!(bucket_for(entry.day, &entry.time), TimeBucket::Now)
             } else {
                 false
             }
@@ -70,7 +80,11 @@ pub fn Active(addresses: Vec<StoredAddress>) -> Element {
         }
     }
 }
+
 /// Panel displaying addresses within 6 hours
+/// 
+/// # Props
+/// * `addresses` - Vector of all StoredAddress entries (will be filtered)
 #[component]
 pub fn Six(addresses: Vec<StoredAddress>) -> Element {
     let addrs: Vec<_> = addresses
@@ -78,7 +92,7 @@ pub fn Six(addresses: Vec<StoredAddress>) -> Element {
         .filter(|a| a.valid && a.active)
         .filter(|a| {
             if let Some(entry) = &a.matched_entry {
-                matches!(bucket_for(entry.dag, &entry.tid), TimeBucket::Within6Hours)
+                matches!(bucket_for(entry.day, &entry.time), TimeBucket::Within6Hours)
             } else {
                 false
             }
@@ -114,7 +128,11 @@ pub fn Six(addresses: Vec<StoredAddress>) -> Element {
         }
     }
 }
+
 /// Panel displaying addresses within 24 hours
+/// 
+/// # Props
+/// * `addresses` - Vector of all StoredAddress entries (will be filtered)
 #[component]
 pub fn Day(addresses: Vec<StoredAddress>) -> Element {
     let addrs: Vec<_> = addresses
@@ -122,7 +140,7 @@ pub fn Day(addresses: Vec<StoredAddress>) -> Element {
         .filter(|a| a.valid && a.active)
         .filter(|a| {
             if let Some(entry) = &a.matched_entry {
-                matches!(bucket_for(entry.dag, &entry.tid), TimeBucket::Within1Day)
+                matches!(bucket_for(entry.day, &entry.time), TimeBucket::Within1Day)
             } else {
                 false
             }
@@ -158,7 +176,11 @@ pub fn Day(addresses: Vec<StoredAddress>) -> Element {
         }
     }
 }
+
 /// Panel displaying addresses within 1 month
+/// 
+/// # Props
+/// * `addresses` - Vector of all StoredAddress entries (will be filtered)
 #[component]
 pub fn Month(addresses: Vec<StoredAddress>) -> Element {
     let addrs: Vec<_> = addresses
@@ -166,7 +188,7 @@ pub fn Month(addresses: Vec<StoredAddress>) -> Element {
         .filter(|a| a.valid && a.active)
         .filter(|a| {
             if let Some(entry) = &a.matched_entry {
-                matches!(bucket_for(entry.dag, &entry.tid), TimeBucket::Within1Month)
+                matches!(bucket_for(entry.day, &entry.time), TimeBucket::Within1Month)
             } else {
                 false
             }
@@ -202,7 +224,11 @@ pub fn Month(addresses: Vec<StoredAddress>) -> Element {
         }
     }
 }
+
 /// Panel displaying addresses with no valid parking restriction data
+/// 
+/// # Props
+/// * `addresses` - Vector of all StoredAddress entries (will be filtered)
 #[component]
 pub fn NotValid(addresses: Vec<StoredAddress>) -> Element {
     let addrs: Vec<_> = addresses.into_iter().filter(|a| a.active && !a.valid).collect();
