@@ -25,6 +25,10 @@ jobs:
         working-directory: ./core
         run: cargo fmt --all -- --check
       
+      - name: Check formatting (server)
+        working-directory: ./server
+        run: cargo fmt --all -- --check
+      
       - name: Check formatting (android)
         working-directory: ./android
         run: cargo fmt --all -- --check
@@ -62,6 +66,10 @@ jobs:
         working-directory: ./core
         run: cargo clippy --all-targets --all-features -- -D warnings
       
+      - name: Run clippy (server)
+        working-directory: ./server
+        run: cargo clippy --all-targets --all-features -- -D warnings
+      
       - name: Run clippy (android)
         working-directory: ./android
         run: cargo clippy --all-targets --all-features -- -D warnings
@@ -71,7 +79,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        crate: [core, android]
+        crate: [core, server, android]
     steps:
       - uses: actions/checkout@v4
       
@@ -105,7 +113,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        crate: [core, android]
+        crate: [core, server, android]
     steps:
       - uses: actions/checkout@v4
       
@@ -157,6 +165,12 @@ jobs:
       
       - name: Generate documentation (core)
         working-directory: ./core
+        run: cargo doc --no-deps --all-features
+        env:
+          RUSTDOCFLAGS: -D warnings
+      
+      - name: Generate documentation (server)
+        working-directory: ./server
         run: cargo doc --no-deps --all-features
         env:
           RUSTDOCFLAGS: -D warnings
