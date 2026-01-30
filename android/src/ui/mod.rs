@@ -1,6 +1,6 @@
-pub mod adresser;
-pub mod paneler;
-pub mod topbar;
+pub mod addresses;
+pub mod panels;
+pub mod top_bar;
 
 use crate::matching::match_address;
 use crate::static_data::StaticAddressEntry;
@@ -86,9 +86,9 @@ fn fuzzy_match_address(
 }
 
 use crate::ui::{
-    adresser::Adresser,
-    paneler::{Active, Day, Month, NotValid, Six},
-    topbar::TopBar,
+    addresses::Addresses,
+    panels::{ActivePanel, InvalidPanel, OneDayPanel, OneMonthPanel, SixHoursPanel},
+    top_bar::TopBar,
 };
 
 /// Main application component
@@ -192,17 +192,17 @@ pub fn App() -> Element {
     rsx! {
         Stylesheet { href: CSS }
         TopBar { on_add_address: handle_add_address }
-        Adresser {
+        Addresses {
             stored_addresses: stored_addresses.read().clone(),
             on_toggle_active: handle_toggle_active,
             on_remove_address: handle_remove_address,
         }
         div { class: "categories-section",
-            Active { addresses: stored_addresses.read().clone() }
-            Six { addresses: stored_addresses.read().clone() }
-            Day { addresses: stored_addresses.read().clone() }
-            Month { addresses: stored_addresses.read().clone() }
-            NotValid { addresses: stored_addresses.read().clone() }
+            ActivePanel { addresses: stored_addresses.read().clone() }
+            SixHoursPanel { addresses: stored_addresses.read().clone() }
+            OneDayPanel { addresses: stored_addresses.read().clone() }
+            OneMonthPanel { addresses: stored_addresses.read().clone() }
+            InvalidPanel { addresses: stored_addresses.read().clone() }
         }
         script {}
     }
