@@ -14,7 +14,7 @@ mod tests {
     fn create_test_address(lat: &str, lon: &str, name: &str) -> AdressClean {
         AdressClean {
             coordinates: [decimal(lon), decimal(lat)],
-            postnummer: "200 00".to_string(),
+            postnummer: Some("200 00".to_string()),
             adress: name.to_string(),
             gata: "Test Street".to_string(),
             gatunummer: "1".to_string(),
@@ -252,14 +252,14 @@ mod tests {
         let addresses = vec![
             AdressClean {
                 coordinates: [decimal("13.1945945"), decimal("55.5932645")],
-                postnummer: "211 00".to_string(),
+                postnummer: Some("211 00".to_string()),
                 adress: "Lilla Torg 1".to_string(),
                 gata: "Lilla Torg".to_string(),
                 gatunummer: "1".to_string(),
             },
             AdressClean {
                 coordinates: [decimal("13.2004523"), decimal("55.6043210")],
-                postnummer: "213 00".to_string(),
+                postnummer: Some("213 00".to_string()),
                 adress: "Västra Varvsgatan 41".to_string(),
                 gata: "Västra Varvsgatan".to_string(),
                 gatunummer: "41".to_string(),
@@ -350,7 +350,7 @@ mod tests {
             let lat_offset = Decimal::from(i) * decimal("0.0001");
             addresses.push(AdressClean {
                 coordinates: [decimal("13.1945945") + lat_offset, decimal("55.5932645")],
-                postnummer: "200 00".to_string(),
+                postnummer: Some("200 00".to_string()),
                 adress: format!("Address {}", i),
                 gata: "Test Street".to_string(),
                 gatunummer: format!("{}", i),
@@ -399,7 +399,7 @@ mod tests {
         let coord = [decimal("13.1945945"), decimal("55.5932645")];
         let address = AdressClean {
             coordinates: coord,
-            postnummer: "200 00".to_string(),
+            postnummer: Some("200 00".to_string()),
             adress: "Test Address".to_string(),
             gata: "Test Street".to_string(),
             gatunummer: "1".to_string(),
