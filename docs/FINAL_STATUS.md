@@ -184,7 +184,7 @@ amp-server check-updates --checksum-file checksums.json
 
 ### GitHub Actions Workflows
 
-**`.github/workflows/ci.yml`** - Main CI Pipeline
+**`.github/workflows/ci.yml`** - Comprehensive CI Pipeline
 
 ```yaml
 Jobs:
@@ -195,17 +195,13 @@ Jobs:
   - doc:      Generate documentation (core, server, android)
 ```
 
-**`.github/workflows/test.yml`** - Dedicated Testing
+**Additional Workflows (Pre-existing):**
+- `.github/workflows/android-test.yml` - Android-specific testing
+- `.github/workflows/correlation-tests.yml` - Correlation algorithm validation
+- `.github/workflows/server-benchmark.yml` - Performance benchmarking
 
-```yaml
-Jobs:
-  - test:     Unit + integration tests
-  - coverage: Code coverage analysis (planned)
-```
-
-**Status Badges:**
+**Status Badge:**
 - [![CI](https://github.com/resonant-jovian/amp/actions/workflows/ci.yml/badge.svg)](https://github.com/resonant-jovian/amp/actions/workflows/ci.yml)
-- [![Tests](https://github.com/resonant-jovian/amp/actions/workflows/test.yml/badge.svg)](https://github.com/resonant-jovian/amp/actions/workflows/test.yml)
 
 **Note:** iOS excluded from CI until objc bindings implemented (compilation requires macOS + Xcode).
 
@@ -533,7 +529,7 @@ sudo cp target/release/amp-server /usr/local/bin/
 
 - **Rust source files:** 42
 - **Documentation files:** 16
-- **CI/CD workflows:** 2
+- **CI/CD workflows:** 4 (ci.yml + 3 pre-existing)
 - **Build scripts:** 5
 - **Asset files:** 8
 
@@ -583,4 +579,4 @@ The AMP project is **production-ready** for Android with a comprehensive CLI too
 
 **Last Updated:** January 30, 2026  
 **Branch:** `refactor/comprehensive-2026-01`  
-**Commit:** `daa335fe0d570bdfc9ebf9d3cded4f1b20efb02a`
+**Commit:** `a8e84ff8e1ae6bc674a2e662883a1e34b8fd486b`
