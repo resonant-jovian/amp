@@ -8,11 +8,11 @@ use amp_core::correlation_algorithms::{
     CorrelationAlgo, DistanceBasedAlgo, DistanceBasedParkeringAlgo, GridNearestAlgo,
     GridNearestParkeringAlgo, KDTreeParkeringAlgo, KDTreeSpatialAlgo,
     OverlappingChunksAlgo, OverlappingChunksParkeringAlgo, ParkeringCorrelationAlgo,
-    RTreeParkeringAlgo, RTreeSpatialAlgo, RaycastingAlgo, RaycastingParkeringAlgo,
+    RTreeSpatialAlgo, RaycastingAlgo, RaycastingParkeringAlgo,
 };
 
 use amp_core::parquet::{
-    ParkingRestriction, write_android_local_addresses, write_correlation_parquet,
+    ParkingRestriction, write_android_local_addresses, write_output_data_parquet,
 };
 use amp_core::structs::{AdressClean, CorrelationResult, MiljoeDataClean, OutputData, OutputDataWithDistance, ParkeringsDataClean};
 use clap::{Parser, Subcommand};
@@ -587,21 +587,21 @@ fn run_correlation(
     let merged = merge_results(&addresses, &miljo_results, &parkering_results);
     let both = merged
         .iter()
-        .filter(|r: &&OutputData| r.info.is_some() && r.taxa.is_some())
+        .filter(|r| r.data.info.is_some() && r.data.taxa.is_some())
         .count();
     let miljo_only = merged
         .iter()
-        .filter(|r: &&OutputData| r.info.is_some() && r.taxa.is_none())
+        .filter(|r| r.data.info.is_some() && r.data.taxa.is_none())
         .count();
     let parkering_only = merged
         .iter()
-        .filter(|r: &&OutputData| r.info.is_none() && r.taxa.is_some())
+        .filter(|r| r.data.info.is_none() && r.data.taxa.is_some())
         .count();
     let duration = start.elapsed();
     pb.finish_with_message(format!("✓ Completed in {:.2?}", duration));
     let no_match = merged
         .iter()
-        .filter(|r: &&OutputData| (r.info.is_none() && r.taxa.is_none()))
+        .filter(|r| r.data.info.is_none() && r.data.taxa.is_none())
         .count();
     let total_matches = both + miljo_only + parkering_only;
     println!("\n📊 Results:");
@@ -641,24 +641,24 @@ fn run_correlation(
         let mut rng = thread_rng();
         let mut random_results: Vec<_> = merged
             .iter()
-            .filter(|r: &&OutputData| (r.info.is_some() && r.taxa.is_some()))
+            .filter(|r| r.data.info.is_some() && r.data.taxa.is_some())
             .collect();
         random_results.shuffle(&mut rng);
         println!("\n🎲 10 Random Matches:");
         for result in random_results.iter().take(10) {
-            println!("   {} ({})", result.adress, result.dataset_source());
-            if let Some((dist, _)) = &result.miljo_match {
+            println!("   {} ({})", result.data.adress, result.data.dataset_source());
+            if let Some(dist) = result.miljo_distance {
                 println!("      ├─ Miljödata: {:.2}m", dist);
             }
-            if let Some((dist, _)) = &result.parkering_match {
+            if let Some(dist) = result.parkering_distance {
                 println!("      └─ Parkering: {:.2}m", dist);
             }
         }
         let mut sorted_by_distance: Vec<_> = merged
             .iter()
-            .filter(|r: &&OutputData| (r.info.is_some() && r.taxa.is_some()))
+            .filter(|r| r.data.info.is_some() && r.data.taxa.is_some())
             .collect();
-        sorted_by_distance.sort_by(|a: &&CorrelationResult, b: &&CorrelationResult| {
+        sorted_by_distance.sort_by(|a, b| {
             b.closest_distance()
                 .partial_cmp(&a.closest_distance())
                 .unwrap()
@@ -671,13 +671,13 @@ fn run_correlation(
             if let Some(dist) = result.closest_distance() {
                 println!(
                     "   {} - {:.2}m ({})",
-                    result.address,
+                    result.data.adress,
                     dist,
-                    result.dataset_source(),
+                    result.data.dataset_source(),
                 );
             }
         }
-        let exceeds_threshold = sorted_by_distance.iter().any(|r: &&CorrelationResult| {
+        let exceeds_threshold = sorted_by_distance.iter().any(|r| {
             r.closest_distance().map(|d| d > cutoff).unwrap_or(false)
         });
         if exceeds_threshold {
@@ -731,13 +731,13 @@ fn run_output(
             .progress_chars("█▓▒░ "),
     );
     pb.set_message("Correlating with miljödata...");
-    let miljo_results = correlate_dataset(&algorithm, &addresses, &miljodata, cutoff, &pb)?;
+    let miljo_results = correlate_miljoe_dataset(&algorithm, &addresses, &miljodata, cutoff, &pb)?;
     pb.set_message("Correlating with parkering...");
-    let parkering_results = correlate_dataset(&algorithm, &addresses, &parkering, cutoff, &pb)?;
+    let parkering_results = correlate_parkering_dataset(&algorithm, &addresses, &parkering, cutoff, &pb)?;
     let duration = start.elapsed();
     pb.finish_with_message(format!("✓ Completed in {:.2?}", duration));
     let merged = merge_results(&addresses, &miljo_results, &parkering_results);
-    let total_matches = merged.iter().filter(|r| r.info.is_some()).count();
+    let total_matches = merged.iter().filter(|r| r.data.info.is_some()).count();
     println!("\n✓ Correlation complete");
     println!(
         "   Total matches: {}/{} ({:.1}%)",
@@ -746,26 +746,29 @@ fn run_output(
         (total_matches as f64 / addresses.len() as f64) * 100.0,
     );
     println!("\n💾 Writing server parquet file...");
-    write_correlation_parquet(merged.clone())
+    let output_data: Vec<OutputData> = merged.iter().map(|r| r.data.clone()).collect();
+    write_output_data_parquet(output_data)
         .map_err(|e| format!("Failed to write parquet: {}", e))?;
     println!("   ✓ Saved to {}", output_path);
     if generate_android {
         println!("\n🔄 Generating Android local storage format...");
         let mut android_addresses = Vec::new();
-        for result in merged {
-            if let Some((_distance, info)) = result.miljo_match
-                && let Some(restriction) = extract_restriction_from_info(&info)
+        for result in &merged {
+            if let Some(info) = &result.data.info
+                && let Some(restriction) = extract_restriction_from_info(info)
             {
-                let gata_parts: Vec<&str> = result.address.split_whitespace().collect();
+                let gata_parts: Vec<&str> = result.data.adress.split_whitespace().collect();
                 if gata_parts.len() >= 2 {
                     android_addresses.push(ParkingRestriction {
                         street: gata_parts[0].to_string(),
                         street_number: gata_parts[1].to_string(),
-                        postal_code: parse_postnummer(&result.postnummer),
-                        address: result.address.clone(),
+                        postal_code: parse_postnummer(
+                            result.data.postnummer.as_ref().map(|s| s.as_str()).unwrap_or("00000")
+                        ),
+                        address: result.data.adress.clone(),
                         day: restriction.dag,
                         time: restriction.tid,
-                        info,
+                        info: info.to_string(),
                     });
                 }
             }
@@ -858,13 +861,13 @@ fn run_test_mode(
             .template("[{bar:40.cyan/blue}] {pos}/{len} {percent}%")?
             .progress_chars("█▓▒░ "),
     );
-    let miljo_results = correlate_dataset(&algorithm, &addresses, &miljodata, cutoff, &pb)?;
-    let parkering_results = correlate_dataset(&algorithm, &addresses, &parkering, cutoff, &pb)?;
+    let miljo_results = correlate_miljoe_dataset(&algorithm, &addresses, &miljodata, cutoff, &pb)?;
+    let parkering_results = correlate_parkering_dataset(&algorithm, &addresses, &parkering, cutoff, &pb)?;
     pb.finish_with_message("✓ Correlation complete".to_string());
     let merged = merge_results(&addresses, &miljo_results, &parkering_results);
     let matching_addresses: Vec<_> = merged
         .iter()
-        .filter(|r: &&CorrelationResult| r.has_match())
+        .filter(|r| r.data.has_match())
         .collect();
     if matching_addresses.is_empty() {
         println!("\n❌ No matching addresses found for testing!");
@@ -889,13 +892,24 @@ fn run_test_mode(
     println!("   - Tab 3: Correlation data visualization");
     println!("   - Tab 4: Debug console with address search logs\n");
     for (idx, result) in selected.iter().enumerate() {
+        // Convert OutputDataWithDistance to CorrelationResult for browser display
+        let corr_result = CorrelationResult {
+            address: result.data.adress.clone(),
+            postnummer: result.data.postnummer.clone().unwrap_or_default(),
+            miljo_match: result.data.info.as_ref().map(|info| {
+                (result.miljo_distance.unwrap_or(0.0), info.clone())
+            }),
+            parkering_match: result.data.taxa.as_ref().map(|taxa| {
+                (result.parkering_distance.unwrap_or(0.0), taxa.clone())
+            }),
+        };
         println!(
             "   [{}/{}] Opening window for: {}",
             idx + 1,
             actual_windows,
-            result.address,
+            corr_result.address,
         );
-        if let Err(e) = open_browser_window(result, idx) {
+        if let Err(e) = open_browser_window(&corr_result, idx) {
             println!("      ⚠️  Failed to open: {}", e);
         }
         if idx < actual_windows - 1 {
@@ -988,7 +1002,7 @@ fn create_tabbed_interface_page(
 }
 /// Open a single browser window with integrated tabbed interface
 fn open_browser_window(
-    result: &&CorrelationResult,
+    result: &CorrelationResult,
     window_idx: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let address = &result.address;
