@@ -68,7 +68,6 @@ impl OutputData {
     pub fn has_match(&self) -> bool {
         self.info.is_some() || self.taxa.is_some()
     }
-
     /// Get source description
     pub fn dataset_source(&self) -> &'static str {
         match (self.info.is_some(), self.taxa.is_some()) {
@@ -79,13 +78,11 @@ impl OutputData {
         }
     }
 }
-// Add new struct
 pub struct OutputDataWithDistance {
     pub data: OutputData,
     pub miljo_distance: Option<f64>,
     pub parkering_distance: Option<f64>,
 }
-
 impl OutputDataWithDistance {
     pub fn closest_distance(&self) -> Option<f64> {
         match (self.miljo_distance, self.parkering_distance) {

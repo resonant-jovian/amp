@@ -55,7 +55,6 @@ impl CorrelationAlgo for RaycastingAlgo {
 }
 /// Raycasting algorithm for parkering data
 pub struct RaycastingParkeringAlgo;
-
 impl ParkeringCorrelationAlgo for RaycastingParkeringAlgo {
     fn correlate(
         &self,
@@ -97,12 +96,10 @@ impl ParkeringCorrelationAlgo for RaycastingParkeringAlgo {
         }
         closest_index.map(|idx| (idx, min_distance))
     }
-
     fn name(&self) -> &'static str {
         "Raycasting (Parkering)"
     }
 }
-
 fn ray_intersects_line(
     ray_start: [f64; 2],
     ray_end: [f64; 2],

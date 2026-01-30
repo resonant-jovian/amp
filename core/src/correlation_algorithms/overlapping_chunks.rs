@@ -22,7 +22,6 @@ impl OverlappingChunksAlgo {
         }
     }
 }
-
 impl SpatialGrid {
     pub fn new(parking_lines: &[MiljoeDataClean]) -> Self {
         let mut chunks: HashMap<_, Vec<usize>> = HashMap::new();
@@ -100,7 +99,6 @@ pub struct OverlappingChunksParkeringAlgo {
     chunks: HashMap<(i32, i32), Vec<usize>>,
     cell_size: f64,
 }
-
 impl OverlappingChunksParkeringAlgo {
     pub fn new(parking_lines: &[ParkeringsDataClean]) -> Self {
         let mut chunks: HashMap<_, Vec<usize>> = HashMap::new();
@@ -141,7 +139,6 @@ impl OverlappingChunksParkeringAlgo {
         candidates
     }
 }
-
 impl ParkeringCorrelationAlgo for OverlappingChunksParkeringAlgo {
     fn correlate(
         &self,
@@ -169,13 +166,11 @@ impl ParkeringCorrelationAlgo for OverlappingChunksParkeringAlgo {
                 (dist <= MAX_DISTANCE_METERS).then_some((idx, dist))
             })
             .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
-        }
-
+    }
     fn name(&self) -> &'static str {
         "Overlapping Chunks (Parkering)"
     }
 }
-
 /// Calculate perpendicular distance from point to line segment using Haversine
 fn distance_point_to_line(point: [f64; 2], line_start: [f64; 2], line_end: [f64; 2]) -> f64 {
     let line_vec = [line_end[0] - line_start[0], line_end[1] - line_start[1]];

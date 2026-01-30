@@ -153,7 +153,7 @@ mod tests {
     fn test_correlation_result_structure() {
         let result1 = CorrelationResult {
             address: "Storgatan 1".to_string(),
-            postnummer: Some("200 00".to_string()),
+            postnummer: "200 00".to_string(),
             miljo_match: Some((15.5, "Miljö Zone A".to_string())),
             parkering_match: None,
         };
@@ -162,7 +162,7 @@ mod tests {
         assert_eq!(result1.closest_distance(), Some(15.5));
         let result2 = CorrelationResult {
             address: "Storgatan 2".to_string(),
-            postnummer: Some("200 00".to_string()),
+            postnummer: "200 00".to_string(),
             miljo_match: Some((20.0, "Miljö Zone B".to_string())),
             parkering_match: Some((35.0, "Parkering Zone A".to_string())),
         };
@@ -175,7 +175,7 @@ mod tests {
         );
         let result3 = CorrelationResult {
             address: "Storgatan 3".to_string(),
-            postnummer: Some("200 00".to_string()),
+            postnummer: "200 00".to_string(),
             miljo_match: None,
             parkering_match: None,
         };

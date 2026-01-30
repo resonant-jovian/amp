@@ -201,7 +201,6 @@ impl KDTreeParkeringAlgo {
         cells
     }
 }
-
 impl ParkeringCorrelationAlgo for KDTreeParkeringAlgo {
     fn correlate(
         &self,
@@ -228,12 +227,10 @@ impl ParkeringCorrelationAlgo for KDTreeParkeringAlgo {
         }
         best
     }
-
     fn name(&self) -> &'static str {
         "KD-Tree Spatial Index (Parkering)"
     }
 }
-
 fn distance_point_to_line(point: [f64; 2], line_start: [f64; 2], line_end: [f64; 2]) -> f64 {
     let line_vec = [line_end[0] - line_start[0], line_end[1] - line_start[1]];
     let point_vec = [point[0] - line_start[0], point[1] - line_start[1]];

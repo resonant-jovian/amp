@@ -121,7 +121,6 @@ pub struct GridNearestParkeringAlgo {
     grid: HashMap<(i32, i32), Vec<usize>>,
     cell_size: f64,
 }
-
 impl GridNearestParkeringAlgo {
     pub fn new(parking_lines: &[ParkeringsDataClean]) -> Self {
         let mut grid: HashMap<(i32, i32), Vec<usize>> = HashMap::new();
@@ -188,7 +187,6 @@ impl GridNearestParkeringAlgo {
         cells
     }
 }
-
 impl ParkeringCorrelationAlgo for GridNearestParkeringAlgo {
     fn correlate(
         &self,
@@ -223,12 +221,10 @@ impl ParkeringCorrelationAlgo for GridNearestParkeringAlgo {
         }
         best
     }
-
     fn name(&self) -> &'static str {
         "Grid Nearest (Parkering)"
     }
 }
-
 fn distance_point_to_line(point: [f64; 2], line_start: [f64; 2], line_end: [f64; 2]) -> f64 {
     let line_vec = [line_end[0] - line_start[0], line_end[1] - line_start[1]];
     let point_vec = [point[0] - line_start[0], point[1] - line_start[1]];

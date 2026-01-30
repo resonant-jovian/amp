@@ -56,7 +56,6 @@ impl CorrelationAlgo for DistanceBasedAlgo {
 }
 /// Distance-based algorithm for parkering data
 pub struct DistanceBasedParkeringAlgo;
-
 impl ParkeringCorrelationAlgo for DistanceBasedParkeringAlgo {
     fn correlate(
         &self,
@@ -84,7 +83,6 @@ impl ParkeringCorrelationAlgo for DistanceBasedParkeringAlgo {
             })
             .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
     }
-
     fn name(&self) -> &'static str {
         "Distance-Based (Parkering)"
     }

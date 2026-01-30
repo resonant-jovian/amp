@@ -6,15 +6,15 @@ use amp_core::checksum::DataChecksum;
 use amp_core::correlation_algorithms::rtree_spatial::RTreeParkeringAlgo;
 use amp_core::correlation_algorithms::{
     CorrelationAlgo, DistanceBasedAlgo, DistanceBasedParkeringAlgo, GridNearestAlgo,
-    GridNearestParkeringAlgo, KDTreeParkeringAlgo, KDTreeSpatialAlgo,
-    OverlappingChunksAlgo, OverlappingChunksParkeringAlgo, ParkeringCorrelationAlgo,
-    RTreeSpatialAlgo, RaycastingAlgo, RaycastingParkeringAlgo,
+    GridNearestParkeringAlgo, KDTreeParkeringAlgo, KDTreeSpatialAlgo, OverlappingChunksAlgo,
+    OverlappingChunksParkeringAlgo, ParkeringCorrelationAlgo, RTreeSpatialAlgo, RaycastingAlgo,
+    RaycastingParkeringAlgo,
 };
-
-use amp_core::parquet::{
-    ParkingRestriction, write_android_local_addresses, write_output_data_parquet,
+use amp_core::parquet::{ParkingRestriction, write_android_local_addresses, write_output_data};
+use amp_core::structs::{
+    AdressClean, CorrelationResult, MiljoeDataClean, OutputData, OutputDataWithDistance,
+    ParkeringsDataClean,
 };
-use amp_core::structs::{AdressClean, CorrelationResult, MiljoeDataClean, OutputData, OutputDataWithDistance, ParkeringsDataClean};
 use clap::{Parser, Subcommand};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use rand::seq::SliceRandom;
@@ -360,15 +360,15 @@ fn correlate_miljoe_dataset(
     pb.set_position(addresses.len() as u64);
     Ok(results)
 }
+type CorPark = Result<Vec<(String, f64, ParkeringsDataClean)>, Box<dyn std::error::Error>>;
 fn correlate_parkering_dataset(
     algorithm: &AlgorithmChoice,
     addresses: &[AdressClean],
     zones: &[ParkeringsDataClean],
     cutoff: f64,
     pb: &ProgressBar,
-) -> Result<Vec<(String, f64, ParkeringsDataClean)>, Box<dyn std::error::Error>> {
+) -> CorPark {
     let counter = Arc::new(AtomicUsize::new(0));
-
     let results: Vec<_> = match algorithm {
         AlgorithmChoice::DistanceBased => {
             let algo = DistanceBasedParkeringAlgo;
@@ -479,11 +479,9 @@ fn correlate_parkering_dataset(
                 .collect()
         }
     };
-
     pb.set_position(addresses.len() as u64);
     Ok(results)
 }
-
 /// Merge correlate results from two datasets
 fn merge_results(
     addresses: &[AdressClean],
@@ -494,18 +492,15 @@ fn merge_results(
         .iter()
         .map(|(addr, dist, info)| (addr.clone(), (*dist, info.clone())))
         .collect();
-
     let parkering_map: std::collections::HashMap<_, _> = parkering_results
         .iter()
         .map(|(addr, dist, data)| (addr.clone(), (*dist, data.clone())))
         .collect();
-
     addresses
         .iter()
         .map(|addr| {
             let miljo_data = miljo_map.get(&addr.adress);
             let parkering_data = parkering_map.get(&addr.adress);
-
             let (info, tid, dag, miljo_distance) = if let Some((dist, info_str)) = miljo_data {
                 (
                     Some(info_str.clone()),
@@ -516,7 +511,6 @@ fn merge_results(
             } else {
                 (None, None, None, None)
             };
-
             let (taxa, antal_platser, typ_av_parkering, parkering_distance) =
                 if let Some((dist, p_data)) = parkering_data {
                     (
@@ -528,7 +522,6 @@ fn merge_results(
                 } else {
                     (None, None, None, None)
                 };
-
             OutputDataWithDistance {
                 data: OutputData {
                     postnummer: addr.postnummer.clone(),
@@ -646,7 +639,11 @@ fn run_correlation(
         random_results.shuffle(&mut rng);
         println!("\n🎲 10 Random Matches:");
         for result in random_results.iter().take(10) {
-            println!("   {} ({})", result.data.adress, result.data.dataset_source());
+            println!(
+                "   {} ({})",
+                result.data.adress,
+                result.data.dataset_source()
+            );
             if let Some(dist) = result.miljo_distance {
                 println!("      ├─ Miljödata: {:.2}m", dist);
             }
@@ -677,9 +674,9 @@ fn run_correlation(
                 );
             }
         }
-        let exceeds_threshold = sorted_by_distance.iter().any(|r| {
-            r.closest_distance().map(|d| d > cutoff).unwrap_or(false)
-        });
+        let exceeds_threshold = sorted_by_distance
+            .iter()
+            .any(|r| r.closest_distance().map(|d| d > cutoff).unwrap_or(false));
         if exceeds_threshold {
             println!(
                 "\n⚠️  ERROR: Some matches exceed {}m threshold!",
@@ -733,7 +730,8 @@ fn run_output(
     pb.set_message("Correlating with miljödata...");
     let miljo_results = correlate_miljoe_dataset(&algorithm, &addresses, &miljodata, cutoff, &pb)?;
     pb.set_message("Correlating with parkering...");
-    let parkering_results = correlate_parkering_dataset(&algorithm, &addresses, &parkering, cutoff, &pb)?;
+    let parkering_results =
+        correlate_parkering_dataset(&algorithm, &addresses, &parkering, cutoff, &pb)?;
     let duration = start.elapsed();
     pb.finish_with_message(format!("✓ Completed in {:.2?}", duration));
     let merged = merge_results(&addresses, &miljo_results, &parkering_results);
@@ -747,7 +745,7 @@ fn run_output(
     );
     println!("\n💾 Writing server parquet file...");
     let output_data: Vec<OutputData> = merged.iter().map(|r| r.data.clone()).collect();
-    write_output_data_parquet(output_data)
+    write_output_data("../android/data/db.parquet", output_data)
         .map_err(|e| format!("Failed to write parquet: {}", e))?;
     println!("   ✓ Saved to {}", output_path);
     if generate_android {
@@ -763,7 +761,7 @@ fn run_output(
                         street: gata_parts[0].to_string(),
                         street_number: gata_parts[1].to_string(),
                         postal_code: parse_postnummer(
-                            result.data.postnummer.as_ref().map(|s| s.as_str()).unwrap_or("00000")
+                            result.data.postnummer.as_deref().unwrap_or("00000"),
                         ),
                         address: result.data.adress.clone(),
                         day: restriction.dag,
@@ -862,13 +860,11 @@ fn run_test_mode(
             .progress_chars("█▓▒░ "),
     );
     let miljo_results = correlate_miljoe_dataset(&algorithm, &addresses, &miljodata, cutoff, &pb)?;
-    let parkering_results = correlate_parkering_dataset(&algorithm, &addresses, &parkering, cutoff, &pb)?;
+    let parkering_results =
+        correlate_parkering_dataset(&algorithm, &addresses, &parkering, cutoff, &pb)?;
     pb.finish_with_message("✓ Correlation complete".to_string());
     let merged = merge_results(&addresses, &miljo_results, &parkering_results);
-    let matching_addresses: Vec<_> = merged
-        .iter()
-        .filter(|r| r.data.has_match())
-        .collect();
+    let matching_addresses: Vec<_> = merged.iter().filter(|r| r.data.has_match()).collect();
     if matching_addresses.is_empty() {
         println!("\n❌ No matching addresses found for testing!");
         return Ok(());
@@ -892,16 +888,19 @@ fn run_test_mode(
     println!("   - Tab 3: Correlation data visualization");
     println!("   - Tab 4: Debug console with address search logs\n");
     for (idx, result) in selected.iter().enumerate() {
-        // Convert OutputDataWithDistance to CorrelationResult for browser display
         let corr_result = CorrelationResult {
             address: result.data.adress.clone(),
             postnummer: result.data.postnummer.clone().unwrap_or_default(),
-            miljo_match: result.data.info.as_ref().map(|info| {
-                (result.miljo_distance.unwrap_or(0.0), info.clone())
-            }),
-            parkering_match: result.data.taxa.as_ref().map(|taxa| {
-                (result.parkering_distance.unwrap_or(0.0), taxa.clone())
-            }),
+            miljo_match: result
+                .data
+                .info
+                .as_ref()
+                .map(|info| (result.miljo_distance.unwrap_or(0.0), info.clone())),
+            parkering_match: result
+                .data
+                .taxa
+                .as_ref()
+                .map(|taxa| (result.parkering_distance.unwrap_or(0.0), taxa.clone())),
         };
         println!(
             "   [{}/{}] Opening window for: {}",
