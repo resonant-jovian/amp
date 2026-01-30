@@ -14,6 +14,26 @@ pub struct MiljoeDataClean {
     pub tid: String,
     pub dag: u8,
 }
+#[derive(Debug, Clone)]
+pub struct ParkeringsDataClean {
+    pub coordinates: [[Decimal; 2]; 2],
+    pub taxa: String,
+    pub antal_platser: u64,
+    pub typ_av_parkering: String,
+}
+#[derive(Debug, Clone)]
+pub struct OutputData {
+    pub postnummer: Option<String>,
+    pub adress: String,
+    pub gata: String,
+    pub gatunummer: String,
+    pub info: Option<String>,
+    pub tid: Option<String>,
+    pub dag: Option<u8>,
+    pub taxa: Option<String>,
+    pub antal_platser: Option<u64>,
+    pub typ_av_parkering: Option<String>,
+}
 /// Result of correlation for a single address
 #[derive(Debug, Clone)]
 pub struct CorrelationResult {
