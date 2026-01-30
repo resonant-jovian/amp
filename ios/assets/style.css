@@ -31,6 +31,46 @@ body {
     padding: 20px;
 }
 
+.top-bar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.top-bar-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: white;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4);
+    margin: 0;
+}
+
+.menu-icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.menu-icon-btn svg {
+    color: white;
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6)) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
+}
+
+.menu-icon-btn:hover {
+    transform: scale(1.1);
+    opacity: 0.9;
+}
+
+.menu-icon-btn:active {
+    transform: scale(0.95);
+}
+
 .input-section {
     display: flex;
     gap: 10px;
@@ -153,6 +193,42 @@ body {
     flex: 1;
     color: #333;
     font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.address-info-icon {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    border-radius: 50%;
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.address-info-icon:hover {
+    background-color: #1976D2;
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.address-info-icon:active {
+    transform: scale(0.95);
+}
+
+.address-info-icon svg {
+    width: 16px;
+    height: 16px;
 }
 
 .address-actions {
@@ -208,21 +284,32 @@ input:checked+.slider:before {
 }
 
 .btn-remove {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    border-radius: 50%;
     background-color: #ff0000;
     color: white;
-    padding: 6px 12px;
-    font-size: 12px;
-    border-radius: 4px;
     border: none;
     cursor: pointer;
     transition: all 0.3s ease;
     font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 .btn-remove:hover {
     background-color: #cc0000;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(255, 0, 0, 0.3);
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(255, 0, 0, 0.3);
+}
+
+.btn-remove:active {
+    transform: scale(0.95);
 }
 
 /* Categories Section */
