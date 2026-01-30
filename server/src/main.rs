@@ -631,12 +631,12 @@ fn run_output(
                 if gata_parts.len() >= 2 {
                     android_addresses
                         .push(ParkingRestriction {
-                            gata: gata_parts[0].to_string(),
-                            gatunummer: gata_parts[1].to_string(),
-                            postnummer: parse_postnummer(&result.postnummer),
-                            adress: result.address.clone(),
-                            dag: restriction.dag,
-                            tid: restriction.tid,
+                            street: gata_parts[0].to_string(),
+                            street_number: gata_parts[1].to_string(),
+                            postal_code: parse_postnummer(&result.postnummer),
+                            address: result.address.clone(),
+                            day: restriction.dag,
+                            time: restriction.tid,
                             info,
                         });
                 }

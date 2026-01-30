@@ -1,12 +1,10 @@
 use amp_core::parquet::{ParkingRestriction, read_android_local_addresses};
 use std::collections::HashMap;
-
 pub type StaticAddressEntry = ParkingRestriction;
-
 /// Load parquet data from assets
-/// 
+///
 /// Searches multiple possible paths for the parking database file.
-/// 
+///
 /// # Returns
 /// HashMap with keys formatted as "street street_number-postal_code"
 pub fn load_parquet_data() -> HashMap<String, StaticAddressEntry> {

@@ -47,7 +47,7 @@ mod tests {
             "55.5946495",
             "Test Zone",
         );
-        let addresses = vec![address];
+        let addresses = [address];
         let zones = vec![zone];
         let db_algo = DistanceBasedAlgo;
         let db_result = db_algo.correlate(&addresses[0], &zones);
@@ -75,7 +75,7 @@ mod tests {
             "13.1926245",
             "Far Zone",
         );
-        let addresses = vec![address];
+        let addresses = [address];
         let zones = vec![far_zone];
         let algo = DistanceBasedAlgo;
         let result = algo.correlate(&addresses[0], &zones);
@@ -91,7 +91,7 @@ mod tests {
             "13.1946245",
             "Test Zone",
         );
-        let addresses = vec![address];
+        let addresses = [address];
         let zones = vec![zone];
         let db_algo = DistanceBasedAlgo;
         let db_result = db_algo.correlate(&addresses[0], &zones);
@@ -401,7 +401,7 @@ mod tests {
             dag: 1,
         };
         let algo = DistanceBasedAlgo;
-        let result = algo.correlate(&address, &vec![zone]);
+        let result = algo.correlate(&address, &[zone]);
         assert!(result.is_some(), "Should find exact match");
         let (_, dist) = result.unwrap();
         assert!(dist < 1.0, "Distance should be very small for exact match");
@@ -419,7 +419,7 @@ mod tests {
             dag: 1,
         };
         let algo = DistanceBasedAlgo;
-        let result = algo.correlate(&address, &vec![degenerate_zone]);
+        let result = algo.correlate(&address, &[degenerate_zone]);
         assert!(result.is_some(), "Should handle degenerate zone");
     }
     #[test]

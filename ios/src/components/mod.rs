@@ -4,7 +4,6 @@
 //! - Notifications (UserNotifications framework)
 //! - Storage (UserDefaults)
 //! - Geolocation (CoreLocation)
-
+pub mod geo;
 pub mod notification;
 pub mod storage;
-pub mod geo;

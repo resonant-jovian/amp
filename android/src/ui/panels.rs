@@ -1,9 +1,8 @@
 use crate::countdown::{TimeBucket, bucket_for, format_countdown};
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
-
 /// Display an address with countdown timer in appropriate category
-/// 
+///
 /// # Props
 /// * `addr` - StoredAddress to display
 /// * `index` - Position in list (for keying)
@@ -32,9 +31,8 @@ fn AddressItem(
         }
     }
 }
-
 /// Panel displaying addresses needing attention within 4 hours
-/// 
+///
 /// # Props
 /// * `addresses` - Vector of all StoredAddress entries (will be filtered)
 #[component]
@@ -80,9 +78,8 @@ pub fn ActivePanel(addresses: Vec<StoredAddress>) -> Element {
         }
     }
 }
-
 /// Panel displaying addresses within 6 hours
-/// 
+///
 /// # Props
 /// * `addresses` - Vector of all StoredAddress entries (will be filtered)
 #[component]
@@ -128,9 +125,8 @@ pub fn SixHoursPanel(addresses: Vec<StoredAddress>) -> Element {
         }
     }
 }
-
 /// Panel displaying addresses within 24 hours
-/// 
+///
 /// # Props
 /// * `addresses` - Vector of all StoredAddress entries (will be filtered)
 #[component]
@@ -176,9 +172,8 @@ pub fn OneDayPanel(addresses: Vec<StoredAddress>) -> Element {
         }
     }
 }
-
 /// Panel displaying addresses within 1 month
-/// 
+///
 /// # Props
 /// * `addresses` - Vector of all StoredAddress entries (will be filtered)
 #[component]
@@ -224,9 +219,8 @@ pub fn OneMonthPanel(addresses: Vec<StoredAddress>) -> Element {
         }
     }
 }
-
 /// Panel displaying addresses with no valid parking restriction data
-/// 
+///
 /// # Props
 /// * `addresses` - Vector of all StoredAddress entries (will be filtered)
 #[component]

@@ -1,10 +1,9 @@
 use chrono::{Datelike, Duration, Local as ChronoLocal, NaiveDate, NaiveTime};
-
 /// Parse time interval string (e.g., "0800-1000" → (08:00, 10:00))
-/// 
+///
 /// # Arguments
 /// * `time` - Time interval in format "HHMM-HHMM"
-/// 
+///
 /// # Returns
 /// Tuple of (start_time, end_time) or None if invalid format
 fn parse_time_interval(time: &str) -> Option<(NaiveTime, NaiveTime)> {
@@ -23,12 +22,11 @@ fn parse_time_interval(time: &str) -> Option<(NaiveTime, NaiveTime)> {
     };
     Some((parse_hm(parts[0])?, parse_hm(parts[1])?))
 }
-
 /// Add one month to a date, handling month/year wraparound
-/// 
+///
 /// # Arguments
 /// * `date` - Starting date
-/// 
+///
 /// # Returns
 /// Date one month later, or None if calculation fails
 fn add_one_month(date: NaiveDate) -> Option<NaiveDate> {
@@ -40,7 +38,6 @@ fn add_one_month(date: NaiveDate) -> Option<NaiveDate> {
     }
     NaiveDate::from_ymd_opt(year, month, date.day())
 }
-
 /// Calculate remaining duration until next parking restriction deadline
 ///
 /// # Arguments
@@ -66,13 +63,12 @@ pub fn remaining_duration(day: u8, time: &str) -> Option<Duration> {
     let next_end = next_month_date.and_time(end);
     if next_end >= now { Some(next_end - now) } else { None }
 }
-
 /// Format countdown as human-readable string
 ///
 /// # Arguments
 /// * `day` - Day of month for parking restriction
 /// * `time` - Time interval string
-/// 
+///
 /// # Returns
 /// Formatted string like "5d 02h 30m" or None if calculation fails
 pub fn format_countdown(day: u8, time: &str) -> Option<String> {
@@ -82,7 +78,6 @@ pub fn format_countdown(day: u8, time: &str) -> Option<String> {
     let minutes = remaining.num_minutes() % 60;
     Some(format!("{}d {:02}h {:02}m", days, hours, minutes))
 }
-
 /// Time bucket categories for grouping parking restrictions
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TimeBucket {
@@ -97,13 +92,12 @@ pub enum TimeBucket {
     /// Invalid or expired restriction
     Invalid,
 }
-
 /// Categorize address by time remaining until parking restriction deadline
-/// 
+///
 /// # Arguments
 /// * `day` - Day of month for parking restriction
 /// * `time` - Time interval string
-/// 
+///
 /// # Returns
 /// TimeBucket representing urgency of the restriction
 pub fn bucket_for(day: u8, time: &str) -> TimeBucket {
@@ -123,12 +117,10 @@ pub fn bucket_for(day: u8, time: &str) -> TimeBucket {
         TimeBucket::Invalid
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use chrono::Timelike;
-
     #[test]
     fn test_parse_time_interval() {
         let (start, end) = parse_time_interval("0800-1000").unwrap();
@@ -137,13 +129,11 @@ mod tests {
         assert_eq!(end.hour(), 10);
         assert_eq!(end.minute(), 0);
     }
-
     #[test]
     fn test_parse_time_invalid() {
         assert!(parse_time_interval("08:00-10:00").is_none());
         assert!(parse_time_interval("0800").is_none());
     }
-
     #[test]
     fn test_format_countdown() {
         let result = format_countdown(1, "0800-1000");

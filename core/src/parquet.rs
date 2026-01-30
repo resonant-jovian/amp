@@ -14,9 +14,8 @@ use parquet::{
     file::properties::{EnabledStatistics, WriterProperties},
 };
 use std::{collections::BTreeMap, fs::File, sync::Arc};
-
 /// Parking restriction information extracted from parquet data
-/// 
+///
 /// Represents a single parking restriction entry with address details,
 /// day of week, time period, and additional information.
 #[derive(Clone, Debug, PartialEq)]
@@ -36,7 +35,6 @@ pub struct ParkingRestriction {
     /// Additional information about the restriction
     pub info: String,
 }
-
 /// Read correlation results from parquet file
 pub fn read_correlation_parquet() -> anyhow::Result<Vec<CorrelationResult>> {
     let file = File::open("correlation_results.parquet")
@@ -144,7 +142,6 @@ pub fn read_correlation_parquet() -> anyhow::Result<Vec<CorrelationResult>> {
     }
     Ok(result)
 }
-
 /// Write correlation results to parquet file
 pub fn write_correlation_parquet(data: Vec<CorrelationResult>) -> anyhow::Result<()> {
     if data.is_empty() {
@@ -225,9 +222,8 @@ pub fn write_correlation_parquet(data: Vec<CorrelationResult>) -> anyhow::Result
     writer.close().map_err(|e| anyhow::anyhow!("Failed to close writer: {}", e))?;
     Ok(())
 }
-
 /// Schema for Android local address storage (parquet format)
-/// 
+///
 /// Defines the structure for persisting parking restriction data.
 /// Note: Column names in parquet use Swedish for backwards compatibility
 /// with existing data files, but struct fields use English.
@@ -247,12 +243,11 @@ pub fn android_local_schema() -> Arc<Schema> {
         ),
     )
 }
-
 /// Read Android local addresses from parquet file
-/// 
+///
 /// # Arguments
 /// * `path` - Path to the parquet file
-/// 
+///
 /// # Returns
 /// Vector of ParkingRestriction entries with translated field names
 pub fn read_android_local_addresses(
@@ -270,7 +265,6 @@ pub fn read_android_local_addresses(
     let mut result = Vec::new();
     while let Some(batch) = reader.next().transpose()? {
         let batch: RecordBatch = batch;
-        // Read from Swedish column names, map to English struct fields
         let gata = batch
             .column(batch.schema().index_of("gata")?)
             .as_any()
@@ -353,13 +347,12 @@ pub fn read_android_local_addresses(
     }
     Ok(result)
 }
-
 /// Write Android local addresses to parquet file
-/// 
+///
 /// # Arguments
 /// * `path` - Output path for the parquet file
 /// * `addresses` - Vector of ParkingRestriction entries to write
-/// 
+///
 /// # Returns
 /// Result indicating success or failure
 pub fn write_android_local_addresses(
@@ -390,7 +383,6 @@ pub fn write_android_local_addresses(
         let mut tid_builder = StringBuilder::new();
         let mut info_builder = StringBuilder::new();
         let mut distance_builder = Float64Builder::new();
-        // Write using Swedish column names for backwards compatibility
         for addr in rows {
             gata_builder.append_value(&addr.street);
             gatunummer_builder.append_value(&addr.street_number);

@@ -19,3 +19,7 @@ echo "🔍 Final clippy check..."
 cargo clippy --all-targets --all-features -- -D warnings
 
 echo "✅ All checks passed!"
+
+echo "📦 Running dx format..."
+
+dx fmt --all-code

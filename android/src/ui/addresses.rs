@@ -1,8 +1,7 @@
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
-
 /// Address list component displaying all stored addresses with toggle and remove controls
-/// 
+///
 /// # Props
 /// * `stored_addresses` - Vector of StoredAddress entries to display
 /// * `on_toggle_active` - Event handler for toggling address active state

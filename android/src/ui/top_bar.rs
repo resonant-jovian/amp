@@ -1,65 +1,47 @@
 use dioxus::prelude::*;
-
 /// Top navigation bar with address input and controls
-/// 
+///
 /// Provides input fields for adding new addresses and buttons for GPS and settings.
-/// 
+///
 /// # Props
 /// * `on_add_address` - Event handler called with (street, street_number, postal_code) tuple
 #[component]
 pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Element {
     let mut address_input = use_signal(String::new);
     let mut postal_code_input = use_signal(String::new);
-
-    /// Handle add button click - parse address and call parent handler
     let handle_add_click = move |_| {
         let address_str = address_input();
         let postal_code = postal_code_input();
         info!(
-            "Add button clicked: address='{}', postal_code='{}'",
-            address_str, postal_code
+            "Add button clicked: address='{}', postal_code='{}'", address_str,
+            postal_code
         );
-
-        // Validate non-empty inputs
         if address_str.trim().is_empty() || postal_code.trim().is_empty() {
             warn!("Validation failed: empty fields");
             return;
         }
-
-        // Parse address string into street name and number
-        // Expected format: "Street Name 123"
         let street_words: Vec<&str> = address_str.split_whitespace().collect();
         if street_words.len() < 2 {
             warn!("Address parsing failed: need at least 2 words");
             return;
         }
-
-        // Last word is the street number
         let street_number = street_words[street_words.len() - 1].to_string();
-        // Everything before is the street name
         let street = street_words[..street_words.len() - 1].join(" ");
-
         info!(
-            "Parsed: street='{}', street_number='{}', postal_code='{}'",
-            street, street_number, postal_code
+            "Parsed: street='{}', street_number='{}', postal_code='{}'", street,
+            street_number, postal_code
         );
-
         on_add_address.call((street, street_number, postal_code.to_string()));
         address_input.set(String::new());
         postal_code_input.set(String::new());
         info!("Address added successfully");
     };
-
-    /// Handle GPS button click (placeholder for future implementation)
     let handle_gps_click = move |_| {
         info!("GPS button clicked - TODO: implement location reading");
     };
-
-    /// Handle settings button click (placeholder for future implementation)
     let handle_settings_click = move |_| {
         info!("Settings button clicked - TODO: implement settings");
     };
-
     rsx! {
         div { class: "category-container topbar-container",
             div { class: "category-title topbar-title",
