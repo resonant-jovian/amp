@@ -11,8 +11,9 @@ const EARTH_RADIUS_M: f64 = 6371000.0;
 pub struct OverlappingChunksAlgo {
     grid: SpatialGrid,
 }
-pub struct OverlappingChunksAlgoPark {
-    grid: OverlappingChunksParkeringAlgo,
+pub struct SpatialGrid {
+    chunks: HashMap<(i32, i32), Vec<usize>>,
+    cell_size: f64,
 }
 impl OverlappingChunksAlgo {
     pub fn new(parking_lines: &[MiljoeDataClean]) -> Self {
@@ -21,18 +22,7 @@ impl OverlappingChunksAlgo {
         }
     }
 }
-impl OverlappingChunksAlgoPark {
-    pub fn new_park(parking_lines: &[ParkeringsDataClean]) -> Self {
-        Self {
-            grid: OverlappingChunksParkeringAlgo::new_park(parking_lines),
-        }
-    }
-}
 
-pub struct SpatialGrid {
-    chunks: HashMap<(i32, i32), Vec<usize>>,
-    cell_size: f64,
-}
 impl SpatialGrid {
     pub fn new(parking_lines: &[MiljoeDataClean]) -> Self {
         let mut chunks: HashMap<_, Vec<usize>> = HashMap::new();
@@ -112,7 +102,7 @@ pub struct OverlappingChunksParkeringAlgo {
 }
 
 impl OverlappingChunksParkeringAlgo {
-    pub fn new_park(parking_lines: &[ParkeringsDataClean]) -> Self {
+    pub fn new(parking_lines: &[ParkeringsDataClean]) -> Self {
         let mut chunks: HashMap<_, Vec<usize>> = HashMap::new();
         for (idx, line) in parking_lines.iter().enumerate() {
             if let (Some(min_x), Some(min_y), Some(max_x), Some(max_y)) = (
@@ -152,7 +142,7 @@ impl OverlappingChunksParkeringAlgo {
     }
 }
 
-impl ParkeringCorrelationAlgo for OverlappingChunksAlgoPark {
+impl ParkeringCorrelationAlgo for OverlappingChunksParkeringAlgo {
     fn correlate(
         &self,
         address: &AdressClean,
@@ -162,7 +152,7 @@ impl ParkeringCorrelationAlgo for OverlappingChunksAlgoPark {
             address.coordinates[0].to_f64()?,
             address.coordinates[1].to_f64()?,
         ];
-        let candidates = self.grid.query_nearby(point);
+        let candidates = self.query_nearby(point);
         candidates
             .into_iter()
             .filter_map(|idx| {
@@ -182,7 +172,7 @@ impl ParkeringCorrelationAlgo for OverlappingChunksAlgoPark {
         }
 
     fn name(&self) -> &'static str {
-        "Overlapping Chunks"
+        "Overlapping Chunks (Parkering)"
     }
 }
 
