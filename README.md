@@ -1,4 +1,3 @@
-```
                                 .         .                          
          .8.                   ,8.       ,8.          8 888888888o   
         .888.                 ,888.     ,888.         8 8888    `88. 
@@ -11,12 +10,13 @@
  .888888888. `88888.   ,8'       `8        `8.`8888.  8 8888         
 .8'       `8. `88888. ,8'         `         `8.`8888. 8 8888         
 
-```
 
 **Address-to-Miljozone Parking** — Geospatial correlation library matching addresses to environmental parking zones in Malmö, Sweden.
 
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 [![Rust 2024](https://img.shields.io/badge/rust-2024%2B-orange)](https://www.rust-lang.org/)
+[![CI](https://github.com/resonant-jovian/amp/actions/workflows/ci.yml/badge.svg)](https://github.com/resonant-jovian/amp/actions/workflows/ci.yml)
+[![Tests](https://github.com/resonant-jovian/amp/actions/workflows/test.yml/badge.svg)](https://github.com/resonant-jovian/amp/actions/workflows/test.yml)
 
 ## Overview
 
@@ -28,6 +28,7 @@ AMP correlates street addresses with parking restriction zones using geospatial 
 - CLI with testing mode, benchmarking, and data update checks
 - Android and iOS apps built with Dioxus
 - Visual testing interface with StadsAtlas integration
+- Comprehensive CI/CD with automated testing and linting
 
 ## Quick Start
 
@@ -94,12 +95,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Getting Started
 - **[CLI Usage](docs/cli-usage.md)** — Complete command reference
-- **[Testing Guide](docs/testing.md)** — Visual and unit testing procedures
+- **[Testing Guide](docs/testing.md)** — Visual and unit testing procedures with CI status badges
 
 ### Architecture & Design
 - **[Architecture](docs/architecture.md)** — System design and data flow
 - **[Algorithms](docs/algorithms.md)** — How each algorithm works
 - **[API Integration](docs/api-integration.md)** — ArcGIS data fetching
+
+### Mobile Apps
+- **[Android README](android/README.md)** — Android app build and deployment
+- **[iOS Setup](docs/IOS_SETUP.md)** — iOS platform integration and shared code strategy
 
 ### Module Guides
 - **[Core Library](core/README.md)** — Library API and usage
@@ -113,10 +118,11 @@ amp/
 ├── README.md              # This file
 ├── docs/                  # Documentation
 │   ├── cli-usage.md       # CLI command reference
-│   ├── testing.md         # Testing procedures
+│   ├── testing.md         # Testing procedures + CI badges
 │   ├── architecture.md    # System design
 │   ├── algorithms.md      # Algorithm details
-│   └── api-integration.md # Data fetching
+│   ├── api-integration.md # Data fetching
+│   └── IOS_SETUP.md       # iOS platform guide
 ├── core/                  # Rust library crate
 │   ├── README.md          # Library guide
 │   └── src/
@@ -124,15 +130,28 @@ amp/
 │   ├── README.md          # Server guide
 │   └── src/
 ├── android/               # Android app (Dioxus)
+│   ├── README.md          # Android-specific docs
 │   ├── src/
-│   │   ├── matching.rs     # Address validation
-│   │   ├── countdown.rs    # Parking deadline logic
-│   │   └── ui/
+│   │   ├── matching.rs     # Address validation (shared with iOS)
+│   │   ├── countdown.rs    # Parking deadline logic (shared with iOS)
+│   │   ├── static_data.rs  # Parquet data loading (shared with iOS)
+│   │   ├── components/     # Platform-specific modules
+│   │   │   ├── notification.rs  # Android notifications
+│   │   │   ├── storage.rs       # Android storage
+│   │   │   └── geo.rs           # Android GPS
+│   │   └── ui/             # Shared UI components
 │   │       ├── addresses.rs # Address list component
 │   │       ├── panels.rs    # Category panels
 │   │       └── top_bar.rs   # Navigation bar
 │   └── assets/
 ├── ios/                   # iOS app (Dioxus)
+│   ├── README.md          # iOS-specific docs
+│   └── src/
+│       ├── components/     # iOS platform-specific
+│       │   ├── notification.rs  # iOS notifications (UserNotifications)
+│       │   ├── storage.rs       # iOS storage (UserDefaults)
+│       │   └── geo.rs           # iOS GPS (CoreLocation)
+│       └── [shared files]  # Symlinks/copies from android/src
 └── scripts/               # Build and deployment scripts
     ├── README.md          # Scripts documentation
     ├── build.sh           # Android release build
@@ -147,6 +166,7 @@ amp/
 - Rust 1.70+ ([rustup](https://rustup.rs))
 - For mobile: Dioxus CLI (`cargo install dioxus-cli`)
 - For Android: Android SDK and Java 21
+- For iOS: Xcode and iOS development tools
 
 ### Build Commands
 
@@ -204,7 +224,36 @@ The codebase follows English naming conventions for maintainability:
 - **UI text:** Swedish (user-facing strings remain in Swedish)
 - **Documentation:** English (all doc comments)
 
+## Code Sharing Between Platforms
+
+The iOS and Android apps share approximately **85% of their codebase**:
+
+**Shared Modules (~1,130 lines):**
+- `countdown.rs` — Time calculation logic
+- `matching.rs` — Address matching algorithms
+- `static_data.rs` — Parquet data loading
+- `ui/` — All UI components (addresses, panels, top_bar)
+
+**Platform-Specific (~200 lines each):**
+- `components/notification.rs` — iOS (UserNotifications) vs Android (Notifications)
+- `components/storage.rs` — iOS (UserDefaults) vs Android (SharedPreferences)
+- `components/geo.rs` — iOS (CoreLocation) vs Android (Location Services)
+
+See [docs/IOS_SETUP.md](docs/IOS_SETUP.md) for detailed sharing strategies.
+
 ## Testing
+
+### Continuous Integration
+
+All commits are automatically tested via GitHub Actions:
+- **Formatting:** `cargo fmt --check`
+- **Linting:** `cargo clippy -- -D warnings`
+- **Tests:** `cargo test --all-targets --all-features`
+- **Build:** Release builds for all platforms
+
+Status: [![CI](https://github.com/resonant-jovian/amp/actions/workflows/ci.yml/badge.svg)](https://github.com/resonant-jovian/amp/actions/workflows/ci.yml)
+
+See [docs/testing.md](docs/testing.md) for complete CI pipeline details.
 
 ### Visual Testing (Browser)
 
@@ -253,10 +302,11 @@ Malmö, Sweden
 
 For detailed information, see:
 - [CLI Usage Guide](docs/cli-usage.md) — All commands and parameters
-- [Testing Strategies](docs/testing.md) — Visual, unit, and integration testing
+- [Testing Strategies](docs/testing.md) — Visual, unit, integration testing + CI pipeline
 - [Architecture Overview](docs/architecture.md) — System design
 - [Algorithm Comparison](docs/algorithms.md) — How each algorithm works
 - [API Integration](docs/api-integration.md) — Data fetching from ArcGIS
+- [iOS Platform Guide](docs/IOS_SETUP.md) — iOS setup and code sharing
 - [Core Library](core/README.md) — Library API documentation
 - [Server Tool](server/README.md) — CLI tool documentation
 - [Build Scripts](scripts/README.md) — Build and deployment automation
