@@ -1,4 +1,7 @@
 use dioxus::prelude::*;
+use dioxus_free_icons::icons::fa_solid_icons::FaBlurb;
+use dioxus_free_icons::Icon;
+
 /// Top navigation bar with address input and controls
 ///
 /// Provides input fields for adding new addresses and buttons for GPS and settings.
@@ -51,34 +54,10 @@ pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Ele
                         class: "topbar-settings-btn",
                         onclick: handle_settings_click,
                         title: "Inställningar",
-                        svg {
-                            xmlns: "http://www.w3.org/2000/svg",
-                            width: "20",
-                            height: "20",
-                            view_box: "0 0 24 24",
-                            fill: "none",
-                            stroke: "white",
-                            stroke_width: "2",
-                            stroke_linecap: "round",
-                            stroke_linejoin: "round",
-                            line {
-                                x1: "3",
-                                y1: "6",
-                                x2: "21",
-                                y2: "6",
-                            }
-                            line {
-                                x1: "3",
-                                y1: "12",
-                                x2: "21",
-                                y2: "12",
-                            }
-                            line {
-                                x1: "3",
-                                y1: "18",
-                                x2: "21",
-                                y2: "18",
-                            }
+                        Icon {
+                            icon: FaBlurb,
+                            width: 20,
+                            height: 20,
                         }
                     }
                 }
