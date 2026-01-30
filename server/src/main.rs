@@ -745,7 +745,7 @@ fn run_output(
     );
     println!("\n💾 Writing server parquet file...");
     let output_data: Vec<OutputData> = merged.iter().map(|r| r.data.clone()).collect();
-    write_output_data("../android/data/db.parquet", output_data)
+    write_output_data("../android/assets/data/db.parquet", output_data)
         .map_err(|e| format!("Failed to write parquet: {}", e))?;
     println!("   ✓ Saved to {}", output_path);
     if generate_android {
