@@ -88,7 +88,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        crate: [core, server, android]
+        # Exclude android - it uses the dedicated android-test.yml workflow with dx
+        crate: [core, server]
     steps:
       - uses: actions/checkout@v4
       
