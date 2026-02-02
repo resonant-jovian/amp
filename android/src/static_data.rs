@@ -73,16 +73,39 @@ fn load_parking_data() -> anyhow::Result<HashMap<String, StaticAddressEntry>> {
     let mut map = HashMap::new();
 
     for item in local_data {
+        // Skip entries with missing required fields
+        let gata = match item.gata {
+            Some(g) => g,
+            None => continue,
+        };
+        let gatunummer = match item.gatunummer {
+            Some(gn) => gn,
+            None => continue,
+        };
+        let postnummer = match item.postnummer {
+            Some(pn) => pn,
+            None => continue,
+        };
+        let dag = match item.dag {
+            Some(d) => d,
+            None => continue,
+        };
+        let tid = item.tid.unwrap_or_else(|| String::from("00:00-23:59"));
+
+        // Extract coordinates from lat/lon fields
+        let lat = item.lat.unwrap_or(0.0);
+        let lon = item.lon.unwrap_or(0.0);
+
         // Create key from address components
-        let key = format!("{}_{}_{}" item.gata, item.gatunummer, item.postnummer);
+        let key = format!("{}_{}_{}" , gata, gatunummer, postnummer);
 
         let entry = StaticAddressEntry {
-            gata: item.gata.clone(),
-            gatunummer: item.gatunummer.clone(),
-            postnummer: item.postnummer.clone(),
-            dag: item.dag,
-            tid: item.tid.clone(),
-            coordinates: item.coordinates,
+            gata,
+            gatunummer,
+            postnummer,
+            dag,
+            tid,
+            coordinates: [lat, lon],
         };
 
         map.insert(key, entry);
