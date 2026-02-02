@@ -81,8 +81,8 @@ fn load_parking_data() -> anyhow::Result<HashMap<String, StaticAddressEntry>> {
             None => continue,
         };
         let tid = item.tid.unwrap_or_else(|| String::from("00:00-23:59"));
-        let lat = item.lat.unwrap_or(0.0);
-        let lon = item.lon.unwrap_or(0.0);
+        // LocalData doesn't include coordinates, use default [0.0, 0.0]
+        let coordinates = [0.0, 0.0];
         let key = format!("{}_{}_{}", gata, gatunummer, postnummer);
         let entry = StaticAddressEntry {
             gata,
@@ -90,7 +90,7 @@ fn load_parking_data() -> anyhow::Result<HashMap<String, StaticAddressEntry>> {
             postnummer,
             dag,
             tid,
-            coordinates: [lat, lon],
+            coordinates,
         };
         map.insert(key, entry);
     }

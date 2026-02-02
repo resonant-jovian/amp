@@ -183,16 +183,14 @@ fn serialize_addresses(addresses: &[StoredAddress]) -> Result<String, String> {
         if i > 0 {
             json.push(',');
         }
-        json.push_str(
-            &format!(
-                r#"{{"street":"{}","street_number":"{}","postal_code":"{}","active":{}}}",
+        json.push_str(&format!(
+            r#"{{"street":"{}","street_number":"{}","postal_code":"{}","active":{}}}"#,
             escape_json(&addr.street),
             escape_json(&addr.street_number),
             escape_json(&addr.postal_code),
             addr.active
         ));
     }
-
     json.push(']');
     Ok(json)
 }
@@ -222,12 +220,10 @@ mod tests {
 
     #[test]
     fn test_escape_json() {
-        assert_eq!(escape_json(r#"test"string"#,
-            ),
-            r#"test\"string"#,
-        );
+        assert_eq!(escape_json(r#"test"string"#), r#"test\"string"#);
         assert_eq!(escape_json("line1\nline2"), "line1\\nline2");
     }
+    
     #[test]
     fn test_serialize_empty() {
         let result = serialize_addresses(&[]);
