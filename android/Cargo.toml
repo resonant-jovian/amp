@@ -10,8 +10,13 @@ amp-core = { path = "../core" }
 dioxus.workspace = true
 dioxus-free-icons.workspace = true
 chrono.workspace = true
+chrono-tz.workspace = true
 jni.workspace = true
 anyhow.workspace = true
+strsim.workspace = true
+uuid.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 
 [features]
 default = ["mobile"]
