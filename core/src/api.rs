@@ -104,38 +104,7 @@ impl DataLoader {
             gatunummer,
         })
     }
-    fn extract_time_from_taxa(taxa_str: &str) -> String {
-        let parts: Vec<&str> = taxa_str.split('–').collect();
-        if parts.len() >= 2
-            && let Some(before_dash) = parts.first()
-        {
-            let start_time = before_dash.split_whitespace().last().and_then(|s| {
-                s.chars()
-                    .rev()
-                    .take_while(|c| c.is_ascii_digit())
-                    .collect::<String>()
-                    .chars()
-                    .rev()
-                    .collect::<String>()
-                    .parse::<u32>()
-                    .ok()
-            });
-            if let Some(start) = start_time
-                && let Some(after_dash) = parts.get(1)
-            {
-                let end_time = after_dash
-                    .chars()
-                    .take_while(|c| c.is_ascii_digit())
-                    .collect::<String>()
-                    .parse::<u32>()
-                    .ok();
-                if let Some(end) = end_time {
-                    return format!("{:02}:00–{:02}:00", start, end);
-                }
-            }
-        }
-        "00:00–23:59".to_string()
-    }
+
     /// Parse a parking feature and return all its segments as separate MiljoeDataClean entries
     /// For MultiLineString features with N segments, returns Vec with N entries, one per segment
     fn parse_miljoedata_feature(feature: Feature, is_avgifter: bool) -> Vec<MiljoeDataClean> {
@@ -165,20 +134,7 @@ impl DataLoader {
                 .to_string()
         };
         let tid = props
-            .get("tid")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| {
-                if is_avgifter {
-                    if let Some(taxa_str) = props.get("taxa").and_then(|v| v.as_str()) {
-                        Self::extract_time_from_taxa(taxa_str)
-                    } else {
-                        "00:00–23:59".to_string()
-                    }
-                } else {
-                    "00:00–23:59".to_string()
-                }
-            });
+            .get("tid").unwrap().to_string();
         let dag = if is_avgifter {
             0u8
         } else {
