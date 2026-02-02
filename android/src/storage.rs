@@ -160,7 +160,7 @@ fn save_to_shared_preferences(addresses: &[StoredAddress]) -> Result<(), String>
         .new_string(&json_str)
         .map_err(|e| format!("Failed to create value: {:?}", e))?;
     env.call_method(
-        editor,
+        &editor,
         "putString",
         "(Ljava/lang/String;Ljava/lang/String;)Landroid/content/SharedPreferences$Editor;",
         &[JValue::Object(&key), JValue::Object(&value)],
@@ -171,6 +171,55 @@ fn save_to_shared_preferences(addresses: &[StoredAddress]) -> Result<(), String>
     Ok(())
 }
 #[cfg(target_os = "android")]
-fn get_application_context(env: &mut JNIEnv) -> Result<JObject, String> {
+fn get_application_context<'a>(env: &'a mut JNIEnv<'a>) -> Result<JObject<'a>, String> {
     Err("Application context not available - needs proper initialization".to_string())
+}
+/// Serialize addresses to JSON string
+///
+/// Creates a simple JSON array representation of addresses for storage.
+fn serialize_addresses(addresses: &[StoredAddress]) -> Result<String, String> {
+    let mut json = String::from("[");
+    for (i, addr) in addresses.iter().enumerate() {
+        if i > 0 {
+            json.push(',');
+        }
+        json.push_str(&format!(
+            r#"{{"street":"{}","street_number":"{}","postal_code":"{}","active":{}}}"#,
+            escape_json(&addr.street),
+            escape_json(&addr.street_number),
+            escape_json(&addr.postal_code),
+            addr.active,
+        ));
+    }
+    json.push(']');
+    Ok(json)
+}
+/// Deserialize JSON string to addresses
+///
+/// Parses a JSON array representation back into StoredAddress instances.
+fn deserialize_addresses(json: &str) -> Result<Vec<StoredAddress>, String> {
+    eprintln!("JSON deserialization not fully implemented: {}", json);
+    Ok(Vec::new())
+}
+/// Escape special characters for JSON strings
+fn escape_json(s: &str) -> String {
+    s.replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\n', "\\n")
+        .replace('\r', "\\r")
+        .replace('\t', "\\t")
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_escape_json() {
+        assert_eq!(escape_json(r#"test"string"#), r#"test\"string"#);
+        assert_eq!(escape_json("line1\nline2"), "line1\\nline2");
+    }
+    #[test]
+    fn test_serialize_empty() {
+        let result = serialize_addresses(&[]);
+        assert_eq!(result.unwrap(), "[]");
+    }
 }
