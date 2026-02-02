@@ -5,8 +5,9 @@ pub mod panels;
 pub mod settings_dropdown;
 pub mod top_bar;
 
-use crate::matching::{match_address, MatchResult};
-use crate::storage::{read_addresses_from_device, write_addresses_to_device};
+use crate::components::address_utils::normalize_string;
+use crate::components::matching::{match_address, MatchResult};
+use crate::components::storage::{read_addresses_from_device, write_addresses_to_device};
 use amp_core::structs::DB;
 use dioxus::prelude::*;
 use uuid::Uuid;
@@ -94,19 +95,6 @@ fn uuid_to_usize(uuid: &Uuid) -> usize {
     ])
 }
 
-/// Normalize string for comparison
-///
-/// Converts to lowercase and trims whitespace for consistent matching.
-///
-/// # Arguments
-/// * `s` - String to normalize
-///
-/// # Returns
-/// Normalized string (lowercase, trimmed)
-fn normalize_string(s: &str) -> String {
-    s.trim().to_lowercase()
-}
-
 /// Fuzzy match address against database using Levenshtein distance
 ///
 /// Implements multi-stage matching strategy:
@@ -142,7 +130,8 @@ fn fuzzy_match_address(street: &str, street_number: &str, postal_code: &str) -> 
         MatchResult::Invalid(_) => {}
     }
 
-    let data = crate::matching::get_parking_data();
+    use crate::components::matching::get_parking_data;
+    let data = get_parking_data();
 
     // Normalize inputs
     let street_norm = normalize_string(street);
@@ -215,7 +204,7 @@ use crate::ui::{
 /// - Persisting addresses to local storage
 #[component]
 pub fn App() -> Element {
-    let mut stored_addresses = use_signal::<Vec<StoredAddress>>(Vec::new);
+    let mut stored_addresses = use_signal::<Vec<StoredAddress>>(Vec::new));
 
     use_effect(move || {
         let loaded = read_addresses_from_device();
