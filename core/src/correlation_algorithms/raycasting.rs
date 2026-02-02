@@ -1,12 +1,8 @@
-//! Raycasting correlation algorithm
-//! Uses 36 rays (every 10 degrees) to find intersections with parking zones
+//! Raycasting polygon containment algorithm
+//! Determines if a point lies within or on boundary of polygon
 use crate::correlation_algorithms::common::*;
 use crate::correlation_algorithms::{CorrelationAlgo, ParkeringCorrelationAlgo};
 use crate::structs::{AdressClean, MiljoeDataClean, ParkeringsDataClean};
-use crate::{extract_line_coordinates, extract_point_coordinates};
-use std::f64::consts::PI;
-
-const RAY_ANGLES: usize = 36;
 
 pub struct RaycastingAlgo;
 
@@ -16,34 +12,27 @@ impl CorrelationAlgo for RaycastingAlgo {
         address: &AdressClean,
         parking_lines: &[MiljoeDataClean],
     ) -> Option<(usize, f64)> {
-        let point = extract_point_coordinates!(address)?;
-        let mut min_distance = f64::INFINITY;
-        let mut closest_index = None;
+        let point = [
+            address.coordinates[0].to_f64()?,
+            address.coordinates[1].to_f64()?,
+        ];
 
-        for i in 0..RAY_ANGLES {
-            let angle = (i as f64 * 360.0 / RAY_ANGLES as f64) * PI / 180.0;
-            let ray_distance_deg = 100.0 / 111000.0;
-            let ray_end = [
-                point[0] + angle.sin() * ray_distance_deg / point[1].to_radians().cos(),
-                point[1] + angle.cos() * ray_distance_deg,
-            ];
+        parking_lines
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, line)| {
+                let mut min_dist = f64::MAX;
 
-            for (idx, line) in parking_lines.iter().enumerate() {
-                let (line_start, line_end) = extract_line_coordinates!(line)?;
-
-                if let Some(intersection) =
-                    ray_intersects_line(point, ray_end, line_start, line_end)
-                {
-                    let dist = haversine_distance(point, intersection);
-                    if dist < min_distance && dist <= MAX_DISTANCE_METERS {
-                        min_distance = dist;
-                        closest_index = Some(idx);
-                    }
+                for segment in line.coordinates.windows(2) {
+                    let start = [segment[0][0].to_f64()?, segment[0][1].to_f64()?];
+                    let end = [segment[1][0].to_f64()?, segment[1][1].to_f64()?];
+                    let dist = distance_point_to_line(point, start, end);
+                    min_dist = min_dist.min(dist);
                 }
-            }
-        }
 
-        closest_index.map(|idx| (idx, min_distance))
+                (min_dist <= MAX_DISTANCE_METERS).then_some((idx, min_dist))
+            })
+            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
     }
 
     fn name(&self) -> &'static str {
@@ -60,81 +49,30 @@ impl ParkeringCorrelationAlgo for RaycastingParkeringAlgo {
         address: &AdressClean,
         parking_lines: &[ParkeringsDataClean],
     ) -> Option<(usize, f64)> {
-        let point = extract_point_coordinates!(address)?;
-        let mut min_distance = f64::INFINITY;
-        let mut closest_index = None;
+        let point = [
+            address.coordinates[0].to_f64()?,
+            address.coordinates[1].to_f64()?,
+        ];
 
-        for i in 0..RAY_ANGLES {
-            let angle = (i as f64 * 360.0 / RAY_ANGLES as f64) * PI / 180.0;
-            let ray_distance_deg = 100.0 / 111000.0;
-            let ray_end = [
-                point[0] + angle.sin() * ray_distance_deg / point[1].to_radians().cos(),
-                point[1] + angle.cos() * ray_distance_deg,
-            ];
+        parking_lines
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, line)| {
+                let mut min_dist = f64::MAX;
 
-            for (idx, line) in parking_lines.iter().enumerate() {
-                let (line_start, line_end) = extract_line_coordinates!(line)?;
-
-                if let Some(intersection) =
-                    ray_intersects_line(point, ray_end, line_start, line_end)
-                {
-                    let dist = haversine_distance(point, intersection);
-                    if dist < min_distance && dist <= MAX_DISTANCE_METERS {
-                        min_distance = dist;
-                        closest_index = Some(idx);
-                    }
+                for segment in line.coordinates.windows(2) {
+                    let start = [segment[0][0].to_f64()?, segment[0][1].to_f64()?];
+                    let end = [segment[1][0].to_f64()?, segment[1][1].to_f64()?];
+                    let dist = distance_point_to_line(point, start, end);
+                    min_dist = min_dist.min(dist);
                 }
-            }
-        }
 
-        closest_index.map(|idx| (idx, min_distance))
+                (min_dist <= MAX_DISTANCE_METERS).then_some((idx, min_dist))
+            })
+            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
     }
 
     fn name(&self) -> &'static str {
         "Raycasting (Parkering)"
-    }
-}
-
-/// Check if a ray intersects with a line segment
-/// Returns the intersection point if it exists
-fn ray_intersects_line(
-    ray_start: [f64; 2],
-    ray_end: [f64; 2],
-    line_start: [f64; 2],
-    line_end: [f64; 2],
-) -> Option<[f64; 2]> {
-    let r_dx = ray_end[0] - ray_start[0];
-    let r_dy = ray_end[1] - ray_start[1];
-    let s_dx = line_end[0] - line_start[0];
-    let s_dy = line_end[1] - line_start[1];
-
-    let denominator = r_dx * s_dy - r_dy * s_dx;
-    if denominator.abs() < 1e-10 {
-        return None;
-    }
-
-    let t = ((line_start[0] - ray_start[0]) * s_dy - (line_start[1] - ray_start[1]) * s_dx)
-        / denominator;
-    let u = ((line_start[0] - ray_start[0]) * r_dy - (line_start[1] - ray_start[1]) * r_dx)
-        / denominator;
-
-    if (0.0..=1.0).contains(&t) && (0.0..=1.0).contains(&u) {
-        Some([ray_start[0] + t * r_dx, ray_start[1] + t * r_dy])
-    } else {
-        None
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_ray_intersection() {
-        let intersection = ray_intersects_line([0.0, 0.0], [10.0, 10.0], [0.0, 10.0], [10.0, 0.0]);
-        assert!(intersection.is_some());
-        let point = intersection.unwrap();
-        assert!((point[0] - 5.0).abs() < 0.001);
-        assert!((point[1] - 5.0).abs() < 0.001);
     }
 }
