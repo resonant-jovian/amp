@@ -1,13 +1,16 @@
 use crate::android_bridge::read_device_gps_location;
 use crate::geo::find_address_by_coordinates;
+use crate::ui::settings_dropdown::SettingsDropdown;
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::md_image_icons::MdBlurOn;
 use dioxus_free_icons::icons::md_maps_icons::MdAddLocationAlt;
+
 /// Top navigation bar with address input and controls
 ///
 /// Provides input fields for adding new addresses and buttons for GPS and settings.
 /// GPS button reads device location and autopopulates fields with nearest address.
+/// Settings button opens a slide-in dropdown panel with app configuration options.
 ///
 /// # Props
 /// * `on_add_address` - Event handler called with (street, street_number, postal_code) tuple
@@ -15,6 +18,8 @@ use dioxus_free_icons::icons::md_maps_icons::MdAddLocationAlt;
 pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Element {
     let mut address_input = use_signal(String::new);
     let mut postal_code_input = use_signal(String::new);
+    let mut show_settings = use_signal(|| false);
+    
     let handle_add_click = move |_| {
         let address_str = address_input();
         let postal_code = postal_code_input();
@@ -42,6 +47,7 @@ pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Ele
         postal_code_input.set(String::new());
         info!("Address added successfully");
     };
+    
     let handle_gps_click = move |_| {
         info!("GPS button clicked - reading device location");
         if let Some((lat, lon)) = read_device_gps_location() {
@@ -67,9 +73,18 @@ pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Ele
             warn!("Could not read device location - check permissions");
         }
     };
+    
     let handle_settings_click = move |_| {
-        info!("Settings button clicked - TODO: implement settings");
+        let new_state = !show_settings();
+        show_settings.set(new_state);
+        info!("Settings button clicked - dropdown now: {}", if new_state { "open" } else { "closed" });
     };
+    
+    let handle_close_settings = move |_| {
+        info!("Settings dropdown closed");
+        show_settings.set(false);
+    };
+    
     rsx! {
         div { class: "category-container topbar-container",
             div { class: "category-title topbar-title",
@@ -125,6 +140,12 @@ pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Ele
                         Icon { icon: MdAddLocationAlt, width: 20, height: 20 }
                     }
                 }
+            }
+            
+            // Settings dropdown panel
+            SettingsDropdown {
+                is_open: show_settings(),
+                on_close: handle_close_settings,
             }
         }
     }
