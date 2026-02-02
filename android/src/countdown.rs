@@ -228,7 +228,7 @@ pub fn format_countdown_compact(restriction: &DB) -> Option<String> {
 ///
 /// Categorizes restrictions by urgency based on time remaining.
 /// Used for sorting and filtering addresses by deadline proximity.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum TimeBucket {
     /// Restriction ends within 4 hours (highest urgency)
     Now,
