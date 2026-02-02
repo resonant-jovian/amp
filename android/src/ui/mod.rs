@@ -145,7 +145,7 @@ pub fn App() -> Element {
         } else {
             // First launch - add some example addresses
             info!("No saved addresses, adding examples");
-            let mut examples = vec![
+            let examples = vec![
                 StoredAddress::new(
                     "Storgatan".to_string(),
                     "1".to_string(),
