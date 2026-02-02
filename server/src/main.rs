@@ -43,21 +43,16 @@ enum Commands {
     Correlate {
         #[arg(short, long, value_enum, default_value_t = AlgorithmChoice::KDTree)]
         algorithm: AlgorithmChoice,
-        #[arg(short, long, default_value_t = 50., help = "Distance cutoff in meters")]
+        #[arg(short, long, default_value_t = 20., help = "Distance cutoff in meters")]
         cutoff: f64,
     },
     /// Output correlation results to parquet (for server database or Android app)
     Output {
         #[arg(short, long, value_enum, default_value_t = AlgorithmChoice::KDTree)]
         algorithm: AlgorithmChoice,
-        #[arg(short, long, default_value_t = 50., help = "Distance cutoff in meters")]
+        #[arg(short, long, default_value_t = 20., help = "Distance cutoff in meters")]
         cutoff: f64,
-        #[arg(
-            short,
-            long,
-            default_value = "correlation_results.parquet",
-            help = "Output file path"
-        )]
+        #[arg(short, long, default_value = "db.parquet", help = "Output file path")]
         output: String,
         #[arg(
             short,
@@ -70,7 +65,7 @@ enum Commands {
     Test {
         #[arg(short, long, value_enum, default_value_t = AlgorithmChoice::KDTree)]
         algorithm: AlgorithmChoice,
-        #[arg(short, long, default_value_t = 50., help = "Distance cutoff in meters")]
+        #[arg(short, long, default_value_t = 20., help = "Distance cutoff in meters")]
         cutoff: f64,
         #[arg(
             short,
@@ -89,7 +84,7 @@ enum Commands {
             help = "Number of addresses to test"
         )]
         sample_size: usize,
-        #[arg(short, long, default_value_t = 50., help = "Distance cutoff in meters")]
+        #[arg(short, long, default_value_t = 20., help = "Distance cutoff in meters")]
         cutoff: f64,
     },
     /// Check for data updates from Malmö open data portal
@@ -674,10 +669,21 @@ fn run_output(
         (total_matches as f64 / addresses.len() as f64) * 100.0,
     );
     println!("\n💾 Writing server parquet file...");
-    let output_data: Vec<OutputData> = merged.iter().map(|r| r.data.clone()).collect();
-    write_output_parquet(output_data, "../android/assets/data/db.parquet")
+    let output_data: Vec<OutputData> = merged
+        .iter()
+        .filter(|r| r.data.has_match())
+        .map(|r| r.data.clone())
+        .collect();
+    println!(
+        "  Filtered: {}/{} entries with matches ({:.1}%)",
+        output_data.len(),
+        merged.len(),
+        (output_data.len() as f64 / merged.len() as f64) * 100.0,
+    );
+    write_output_parquet(output_data.clone(), "../android/assets/data/db.parquet")
         .map_err(|e| format!("Failed to write parquet: {}", e))?;
     println!("  ✓ Saved to {}", output_path);
+    println!("  ✓ Wrote {} entries with matches", output_data.len());
     println!("\n✅ Output complete!");
     Ok(())
 }

@@ -7,7 +7,7 @@ use dioxus_free_icons::icons::md_maps_icons::MdAddLocationAlt;
 /// Top navigation bar with address input and controls
 ///
 /// Provides input fields for adding new addresses and buttons for GPS and settings.
-/// GPS button reads device location and auto-populates fields with nearest address.
+/// GPS button reads device location and autopopulates fields with nearest address.
 ///
 /// # Props
 /// * `on_add_address` - Event handler called with (street, street_number, postal_code) tuple
