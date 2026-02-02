@@ -1,5 +1,8 @@
 pub mod addresses;
+pub mod confirm_dialog;
+pub mod info_dialog;
 pub mod panels;
+pub mod settings_dropdown;
 pub mod top_bar;
 
 use crate::matching::{match_address, MatchResult};
