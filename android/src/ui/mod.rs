@@ -13,7 +13,6 @@ use uuid::Uuid;
 static CSS: Asset = asset!("/assets/style.css");
 /// Maximum Levenshtein distance for fuzzy matching
 /// Lower values = stricter matching
-const FUZZY_MATCH_THRESHOLD: usize = 3;
 /// Represents a locally stored address with validation and activation state
 ///
 /// Each address is assigned a unique UUID for tracking and can be toggled active/inactive.
@@ -139,8 +138,6 @@ fn fuzzy_match_address(street: &str, street_number: &str, postal_code: &str) -> 
         let street_distance = strsim::levenshtein(&street_norm, &entry_street_norm);
         let street_match = if street_norm == entry_street_norm {
             true
-        } else if street_distance <= FUZZY_MATCH_THRESHOLD {
-            true
         } else {
             entry_street_norm.contains(&street_norm) || street_norm.contains(&entry_street_norm)
         };
@@ -175,7 +172,7 @@ use crate::ui::{
 /// - Persisting addresses to local storage
 #[component]
 pub fn App() -> Element {
-    let mut stored_addresses = use_signal::<Vec<StoredAddress>>(|| Vec::new());
+    let mut stored_addresses = use_signal::<Vec<StoredAddress>>(Vec::new);
     use_effect(move || {
         let loaded = read_addresses_from_device();
         if !loaded.is_empty() {

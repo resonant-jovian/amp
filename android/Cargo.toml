@@ -19,6 +19,7 @@ serde.workspace = true
 serde_json.workspace = true
 arrow.workspace = true
 parquet.workspace = true
+bytes.workspace = true
 
 [features]
 default = ["mobile"]
