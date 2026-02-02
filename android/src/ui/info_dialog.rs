@@ -1,5 +1,6 @@
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
+
 /// Information dialog component for displaying address details
 ///
 /// Shows comprehensive address information in a modal overlay with formatted rows.
@@ -27,12 +28,15 @@ pub fn InfoDialog(
     if !is_open || address.is_none() {
         return rsx!();
     }
+
     let addr = address.unwrap();
+
     rsx! {
         div { class: "modal-overlay", onclick: move |_| on_close.call(()),
             div {
                 class: "modal-container info-dialog",
                 onclick: move |e| e.stop_propagation(),
+
                 div { class: "modal-header",
                     h3 { class: "modal-title", "Adressinformation" }
                     button {
@@ -41,6 +45,7 @@ pub fn InfoDialog(
                         "×"
                     }
                 }
+
                 div { class: "modal-body info-content",
                     div { class: "info-row",
                         span { class: "info-label", "Gata:" }
@@ -74,21 +79,36 @@ pub fn InfoDialog(
                             }
                         }
                     }
-                    if let Some(entry) = addr.matched_entry {
-                        if let Some(taxa) = entry.taxa {
+
+                    // Display matched parking data if available
+                    if let Some(ref entry) = addr.matched_entry {
+                        if let Some(ref taxa) = entry.taxa {
                             div { class: "info-row",
                                 span { class: "info-label", "Taxa:" }
                                 span { class: "info-value", "{taxa}" }
                             }
                         }
-                        if let Some(zone) = entry.zon {
+                        if let Some(ref info) = entry.info {
                             div { class: "info-row",
-                                span { class: "info-label", "Zon:" }
-                                span { class: "info-value", "{zone}" }
+                                span { class: "info-label", "Info:" }
+                                span { class: "info-value", "{info}" }
+                            }
+                        }
+                        if let Some(ref typ) = entry.typ_av_parkering {
+                            div { class: "info-row",
+                                span { class: "info-label", "Typ:" }
+                                span { class: "info-value", "{typ}" }
+                            }
+                        }
+                        if let Some(platser) = entry.antal_platser {
+                            div { class: "info-row",
+                                span { class: "info-label", "Platser:" }
+                                span { class: "info-value", "{platser}" }
                             }
                         }
                     }
                 }
+
                 div { class: "modal-actions",
                     button {
                         class: "modal-btn modal-btn-primary",
