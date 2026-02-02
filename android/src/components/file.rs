@@ -34,7 +34,7 @@ pub fn read_db_data() -> Result<Vec<OutputData>> {
     let file_path = storage_dir.join("./android/assets/data/db.parquet");
     let file =
         File::open(&file_path).map_err(|e| anyhow::anyhow!("Failed to open db.parquet: {}", e))?;
-    Ok(read_db_parquet(file)?)
+    read_db_parquet(file)
 }
 /// Read binary parquet data
 pub fn read_address_data() -> Result<Vec<AdressClean>> {
@@ -42,7 +42,7 @@ pub fn read_address_data() -> Result<Vec<AdressClean>> {
     let file_path = storage_dir.join("./android/assets/data/address.parquet");
     let file = File::open(&file_path)
         .map_err(|e| anyhow::anyhow!("Failed to open address.parquet: {}", e))?;
-    Ok(read_address_parquet(file)?)
+    read_address_parquet(file)
 }
 /// Read binary parquet data
 pub fn read_local_data() -> Result<Vec<LocalData>> {
@@ -50,7 +50,7 @@ pub fn read_local_data() -> Result<Vec<LocalData>> {
     let file_path = storage_dir.join("./android/assets/data/local.parquet");
     let file = File::open(&file_path)
         .map_err(|e| anyhow::anyhow!("Failed to open local.parquet: {}", e))?;
-    Ok(read_local_parquet(file)?)
+    read_local_parquet(file)
 }
 /// Write addresses to persistent storage
 pub fn write_local_to_device(_local: &Vec<LocalData>) -> Result<()> {
