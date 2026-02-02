@@ -2,25 +2,20 @@
 //!
 //! Provides local storage for user addresses using Android SharedPreferences.
 //! Falls back to in-memory storage for non-Android platforms (testing).
-
 use crate::ui::StoredAddress;
-
 #[cfg(target_os = "android")]
 use jni::{
-    objects::{JClass, JObject, JString, JValue},
     JNIEnv, JavaVM,
+    objects::{JClass, JObject, JString, JValue},
 };
-
 #[cfg(target_os = "android")]
 use std::sync::OnceLock;
-
 #[cfg(target_os = "android")]
 static JVM: OnceLock<JavaVM> = OnceLock::new();
-
 /// Initialize the JVM reference for Android storage operations
 ///
 /// This should be called once during app initialization on Android.
-/// 
+///
 /// # Arguments
 /// * `env` - JNI environment reference
 #[cfg(target_os = "android")]
@@ -29,7 +24,6 @@ pub fn init_jvm(env: &JNIEnv) {
         let _ = JVM.set(vm);
     }
 }
-
 /// Load stored addresses from persistent storage
 ///
 /// On Android, reads from SharedPreferences. On other platforms, returns empty vec.
@@ -50,14 +44,11 @@ pub fn read_addresses_from_device() -> Vec<StoredAddress> {
             Vec::new()
         })
     }
-
     #[cfg(not(target_os = "android"))]
     {
-        // Mock for testing on non-Android platforms
         Vec::new()
     }
 }
-
 /// Write stored addresses to persistent storage
 ///
 /// On Android, writes to SharedPreferences as JSON. On other platforms, no-op.
@@ -80,31 +71,23 @@ pub fn write_addresses_to_device(addresses: &[StoredAddress]) -> Result<(), Stri
     {
         save_to_shared_preferences(addresses)
     }
-
     #[cfg(not(target_os = "android"))]
     {
-        // Mock for testing - print to stderr
         eprintln!("[Mock] Would save {} addresses", addresses.len());
         Ok(())
     }
 }
-
 #[cfg(target_os = "android")]
 fn load_from_shared_preferences() -> Result<Vec<StoredAddress>, String> {
     let vm = JVM.get().ok_or("JVM not initialized")?;
     let mut env = vm
         .attach_current_thread()
         .map_err(|e| format!("Failed to attach thread: {:?}", e))?;
-
-    // Get application context
     let context = get_application_context(&mut env)?;
-
-    // Get SharedPreferences
     let prefs_name = env
         .new_string("amp_prefs")
         .map_err(|e| format!("Failed to create string: {:?}", e))?;
-    let mode = JValue::Int(0); // Context.MODE_PRIVATE
-
+    let mode = JValue::Int(0);
     let prefs = env
         .call_method(
             &context,
@@ -115,15 +98,12 @@ fn load_from_shared_preferences() -> Result<Vec<StoredAddress>, String> {
         .map_err(|e| format!("Failed to get SharedPreferences: {:?}", e))?
         .l()
         .map_err(|e| format!("Failed to convert to object: {:?}", e))?;
-
-    // Get stored JSON string
     let key = env
         .new_string("stored_addresses")
         .map_err(|e| format!("Failed to create key: {:?}", e))?;
     let default = env
         .new_string("[]")
         .map_err(|e| format!("Failed to create default: {:?}", e))?;
-
     let json_obj = env
         .call_method(
             prefs,
@@ -134,36 +114,25 @@ fn load_from_shared_preferences() -> Result<Vec<StoredAddress>, String> {
         .map_err(|e| format!("Failed to get string: {:?}", e))?
         .l()
         .map_err(|e| format!("Failed to convert to object: {:?}", e))?;
-
     let json_jstring: JString = json_obj.into();
     let json_str: String = env
         .get_string(&json_jstring)
         .map_err(|e| format!("Failed to get Rust string: {:?}", e))?
         .into();
-
-    // Deserialize JSON to addresses
     deserialize_addresses(&json_str)
 }
-
 #[cfg(target_os = "android")]
 fn save_to_shared_preferences(addresses: &[StoredAddress]) -> Result<(), String> {
     let vm = JVM.get().ok_or("JVM not initialized")?;
     let mut env = vm
         .attach_current_thread()
         .map_err(|e| format!("Failed to attach thread: {:?}", e))?;
-
-    // Serialize addresses to JSON
     let json_str = serialize_addresses(addresses)?;
-
-    // Get application context
     let context = get_application_context(&mut env)?;
-
-    // Get SharedPreferences
     let prefs_name = env
         .new_string("amp_prefs")
         .map_err(|e| format!("Failed to create string: {:?}", e))?;
-    let mode = JValue::Int(0); // Context.MODE_PRIVATE
-
+    let mode = JValue::Int(0);
     let prefs = env
         .call_method(
             &context,
@@ -174,22 +143,22 @@ fn save_to_shared_preferences(addresses: &[StoredAddress]) -> Result<(), String>
         .map_err(|e| format!("Failed to get SharedPreferences: {:?}", e))?
         .l()
         .map_err(|e| format!("Failed to convert to object: {:?}", e))?;
-
-    // Get editor
     let editor = env
-        .call_method(prefs, "edit", "()Landroid/content/SharedPreferences$Editor;", &[])
+        .call_method(
+            prefs,
+            "edit",
+            "()Landroid/content/SharedPreferences$Editor;",
+            &[],
+        )
         .map_err(|e| format!("Failed to get editor: {:?}", e))?
         .l()
         .map_err(|e| format!("Failed to convert to object: {:?}", e))?;
-
-    // Put string
     let key = env
         .new_string("stored_addresses")
         .map_err(|e| format!("Failed to create key: {:?}", e))?;
     let value = env
         .new_string(&json_str)
         .map_err(|e| format!("Failed to create value: {:?}", e))?;
-
     env.call_method(
         editor,
         "putString",
@@ -197,36 +166,26 @@ fn save_to_shared_preferences(addresses: &[StoredAddress]) -> Result<(), String>
         &[JValue::Object(&key), JValue::Object(&value)],
     )
     .map_err(|e| format!("Failed to put string: {:?}", e))?;
-
-    // Apply changes
     env.call_method(editor, "apply", "()V", &[])
         .map_err(|e| format!("Failed to apply: {:?}", e))?;
-
     Ok(())
 }
-
 #[cfg(target_os = "android")]
 fn get_application_context(env: &mut JNIEnv) -> Result<JObject, String> {
-    // This is a simplified version - actual implementation would need
-    // to get the Activity context passed from the Android side
-    // For now, return an error prompting proper initialization
     Err("Application context not available - needs proper initialization".to_string())
 }
-
 /// Serialize addresses to JSON string
 ///
 /// Creates a simple JSON array representation of addresses for storage.
 fn serialize_addresses(addresses: &[StoredAddress]) -> Result<String, String> {
-    // Manual JSON serialization to avoid serde dependency
     let mut json = String::from("[");
-
     for (i, addr) in addresses.iter().enumerate() {
         if i > 0 {
             json.push(',');
         }
-
-        json.push_str(&format!(
-            r#"{{"street":"{}","street_number":"{}","postal_code":"{}","active":{}}}",
+        json.push_str(
+            &format!(
+                r#"{{"street":"{}","street_number":"{}","postal_code":"{}","active":{}}}",
             escape_json(&addr.street),
             escape_json(&addr.street_number),
             escape_json(&addr.postal_code),
@@ -263,10 +222,12 @@ mod tests {
 
     #[test]
     fn test_escape_json() {
-        assert_eq!(escape_json(r#"test"string"#), r#"test\"string"#);
+        assert_eq!(escape_json(r#"test"string"#,
+            ),
+            r#"test\"string"#,
+        );
         assert_eq!(escape_json("line1\nline2"), "line1\\nline2");
     }
-
     #[test]
     fn test_serialize_empty() {
         let result = serialize_addresses(&[]);

@@ -1,17 +1,13 @@
 pub mod addresses;
 pub mod panels;
 pub mod top_bar;
-
-use dioxus::prelude::*;
-use std::sync::atomic::{AtomicUsize, Ordering};
-
-use crate::matching::{match_address, MatchResult};
+use crate::matching::{MatchResult, match_address};
 use crate::static_data::StaticAddressEntry;
 use crate::storage::{read_addresses_from_device, write_addresses_to_device};
-
+use dioxus::prelude::*;
+use std::sync::atomic::{AtomicUsize, Ordering};
 static CSS: Asset = asset!("/assets/style.css");
 static ADDRESS_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
-
 /// Represents a locally stored address with validation and activation state
 ///
 /// Each address is assigned a unique ID for tracking and can be toggled active/inactive.
@@ -33,7 +29,6 @@ pub struct StoredAddress {
     /// The matched database entry (if valid)
     pub matched_entry: Option<StaticAddressEntry>,
 }
-
 impl StoredAddress {
     /// Create a new stored address and attempt to match against database
     ///
@@ -62,7 +57,6 @@ impl StoredAddress {
         }
     }
 }
-
 /// Fuzzy match address against database
 ///
 /// Implements multi-stage matching strategy:
@@ -88,42 +82,32 @@ fn fuzzy_match_address(
     street_number: &str,
     postal_code: &str,
 ) -> Option<StaticAddressEntry> {
-    // Try exact match first
     match match_address(street, street_number, postal_code) {
         MatchResult::Valid(entry) => return Some(entry),
         MatchResult::Invalid => {}
     }
-
-    // Try fuzzy match with case-insensitive substring matching
     let data = crate::matching::get_parking_data();
     let street_lower = street.to_lowercase().trim().to_string();
     let street_number_lower = street_number.to_lowercase().trim().to_string();
     let postal_code_trimmed = postal_code.trim();
-
     for entry in data.values() {
         let entry_street_lower = entry.gata.to_lowercase();
         let entry_number_lower = entry.gatunummer.to_lowercase();
-
-        // Check if all components match (case-insensitive, whitespace-tolerant)
         let street_match = entry_street_lower.contains(&street_lower)
             || street_lower.contains(&entry_street_lower);
         let number_match = entry_number_lower == street_number_lower;
         let postal_match = entry.postnummer == postal_code_trimmed;
-
         if street_match && number_match && postal_match {
             return Some(entry.clone());
         }
     }
-
     None
 }
-
 use crate::ui::{
     addresses::Addresses,
     panels::{ActivePanel, InvalidPanel, OneDayPanel, OneMonthPanel, SixHoursPanel},
     top_bar::TopBar,
 };
-
 /// Main application component
 ///
 /// Manages a list of stored addresses and provides UI for:
@@ -135,15 +119,12 @@ use crate::ui::{
 #[component]
 pub fn App() -> Element {
     let mut stored_addresses = use_signal::<Vec<StoredAddress>>(Vec::new);
-
-    // Load addresses from storage on app startup
     use_effect(move || {
         let loaded = read_addresses_from_device();
         if !loaded.is_empty() {
             info!("Loaded {} addresses from storage", loaded.len());
             stored_addresses.set(loaded);
         } else {
-            // First launch - add some example addresses
             info!("No saved addresses, adding examples");
             let examples = vec![
                 StoredAddress::new(
@@ -157,27 +138,20 @@ pub fn App() -> Element {
                     "22100".to_string(),
                 ),
             ];
-            
-            // Save examples to storage
             if let Err(e) = write_addresses_to_device(&examples) {
                 error!("Failed to save example addresses: {}", e);
             }
-            
             stored_addresses.set(examples);
         }
     });
-
     let handle_add_address = move |args: (String, String, String)| {
         let (street, street_number, postal_code) = args;
         info!(
             "handle_add_address called with street='{}', street_number='{}', postal_code='{}'",
             street, street_number, postal_code
         );
-
         let new_addr = StoredAddress::new(street, street_number, postal_code);
         let mut addrs = stored_addresses.write();
-
-        // Check for duplicates
         if !addrs.iter().any(|a| {
             a.street == new_addr.street
                 && a.street_number == new_addr.street_number
@@ -185,8 +159,6 @@ pub fn App() -> Element {
         }) {
             info!("Adding new address, total now: {}", addrs.len() + 1);
             addrs.push(new_addr);
-
-            // Persist to storage
             if let Err(e) = write_addresses_to_device(&addrs) {
                 error!("Failed to persist addresses after add: {}", e);
             }
@@ -194,40 +166,31 @@ pub fn App() -> Element {
             warn!("Duplicate address detected, not adding");
         }
     };
-
     let handle_toggle_active = move |id: usize| {
         info!("toggle_active called for id {}", id);
         let mut addrs = stored_addresses.write();
-
         if let Some(addr) = addrs.iter_mut().find(|a| a.id == id) {
             addr.active = !addr.active;
             info!("Address {} now active: {}", id, addr.active);
-
-            // Persist to storage
             if let Err(e) = write_addresses_to_device(&addrs) {
                 error!("Failed to persist addresses after toggle: {}", e);
             }
         }
     };
-
     let handle_remove_address = move |id: usize| {
         info!("remove_address called for id {}", id);
         let mut addrs = stored_addresses.write();
-
         if let Some(pos) = addrs.iter().position(|a| a.id == id) {
             let removed = addrs.remove(pos);
             info!(
                 "Removed address: {} {}, {}",
                 removed.street, removed.street_number, removed.postal_code
             );
-
-            // Persist to storage
             if let Err(e) = write_addresses_to_device(&addrs) {
                 error!("Failed to persist addresses after remove: {}", e);
             }
         }
     };
-
     rsx! {
         Stylesheet { href: CSS }
         TopBar { on_add_address: handle_add_address }

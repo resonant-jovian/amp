@@ -418,7 +418,6 @@ fn merge_results(
     parkering_results: &[(String, f64, ParkeringsDataClean)],
 ) -> Vec<OutputDataWithDistance> {
     use std::collections::HashMap;
-
     let miljo_map: HashMap<_, _> = miljo_results
         .iter()
         .map(|(addr, dist, miljodata)| (addr.clone(), (*dist, miljodata.clone())))
@@ -427,13 +426,11 @@ fn merge_results(
         .iter()
         .map(|(addr, dist, data)| (addr.clone(), (*dist, data.clone())))
         .collect();
-
     addresses
         .iter()
         .map(|addr| {
             let miljo_data = miljo_map.get(&addr.adress);
             let parkering_data = parkering_map.get(&addr.adress);
-
             let (info, tid, dag, miljo_distance) = if let Some((dist, miljodata)) = miljo_data {
                 (
                     Some(miljodata.info.clone()),
@@ -444,7 +441,6 @@ fn merge_results(
             } else {
                 (None, None, None, None)
             };
-
             let (taxa, antal_platser, typ_av_parkering, parkering_distance) =
                 if let Some((dist, p_data)) = parkering_data {
                     (
@@ -456,7 +452,6 @@ fn merge_results(
                 } else {
                     (None, None, None, None)
                 };
-
             OutputDataWithDistance {
                 data: OutputData {
                     postnummer: addr.postnummer.clone(),
@@ -957,7 +952,7 @@ fn run_benchmark(sample_size: usize, cutoff: f64) -> Result<(), Box<dyn std::err
     Ok(())
 }
 type AlgorithmBenchmarkFn =
-Box<dyn Fn(&Benchmarker, &[AdressClean], &ProgressBar, &AtomicUsize, &Arc<AtomicUsize>, f64)>;
+    Box<dyn Fn(&Benchmarker, &[AdressClean], &ProgressBar, &AtomicUsize, &Arc<AtomicUsize>, f64)>;
 fn benchmark_selected_with_progress(
     benchmarker: &Benchmarker,
     sample_size: usize,

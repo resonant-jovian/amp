@@ -2,14 +2,11 @@
 //!
 //! Provides access to the pre-computed parking restriction correlations
 //! loaded from the local.parquet file in the app assets.
-
 use crate::components::file::read_local_data;
 use std::collections::HashMap;
 use std::sync::OnceLock;
-
 /// Cached parking data
 static PARKING_DATA: OnceLock<HashMap<String, StaticAddressEntry>> = OnceLock::new();
-
 /// Represents a parking restriction address entry
 ///
 /// Contains all relevant information about parking restrictions
@@ -29,7 +26,6 @@ pub struct StaticAddressEntry {
     /// GPS coordinates [latitude, longitude]
     pub coordinates: [f64; 2],
 }
-
 /// Get static parking data
 ///
 /// Returns a reference to the cached parking restriction database.
@@ -49,21 +45,17 @@ pub struct StaticAddressEntry {
 /// }
 /// ```
 pub fn get_static_data() -> &'static HashMap<String, StaticAddressEntry> {
-    PARKING_DATA.get_or_init(|| {
-        match load_parking_data() {
-            Ok(data) => {
-                eprintln!("Loaded {} parking entries", data.len());
-                data
-            }
-            Err(e) => {
-                eprintln!("Failed to load parking data: {}", e);
-                // Return empty HashMap if load fails
-                HashMap::new()
-            }
+    PARKING_DATA.get_or_init(|| match load_parking_data() {
+        Ok(data) => {
+            eprintln!("Loaded {} parking entries", data.len());
+            data
+        }
+        Err(e) => {
+            eprintln!("Failed to load parking data: {}", e);
+            HashMap::new()
         }
     })
 }
-
 /// Load parking data from local.parquet file
 ///
 /// Reads the LocalData from the app assets and converts it to
@@ -71,9 +63,7 @@ pub fn get_static_data() -> &'static HashMap<String, StaticAddressEntry> {
 fn load_parking_data() -> anyhow::Result<HashMap<String, StaticAddressEntry>> {
     let local_data = read_local_data()?;
     let mut map = HashMap::new();
-
     for item in local_data {
-        // Skip entries with missing required fields
         let gata = match item.gata {
             Some(g) => g,
             None => continue,
@@ -91,14 +81,9 @@ fn load_parking_data() -> anyhow::Result<HashMap<String, StaticAddressEntry>> {
             None => continue,
         };
         let tid = item.tid.unwrap_or_else(|| String::from("00:00-23:59"));
-
-        // Extract coordinates from lat/lon fields
         let lat = item.lat.unwrap_or(0.0);
         let lon = item.lon.unwrap_or(0.0);
-
-        // Create key from address components
-        let key = format!("{}_{}_{}" , gata, gatunummer, postnummer);
-
+        let key = format!("{}_{}_{}", gata, gatunummer, postnummer);
         let entry = StaticAddressEntry {
             gata,
             gatunummer,
@@ -107,17 +92,13 @@ fn load_parking_data() -> anyhow::Result<HashMap<String, StaticAddressEntry>> {
             tid,
             coordinates: [lat, lon],
         };
-
         map.insert(key, entry);
     }
-
     Ok(map)
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn test_static_address_entry_creation() {
         let entry = StaticAddressEntry {
@@ -128,7 +109,6 @@ mod tests {
             tid: "09:00-17:00".to_string(),
             coordinates: [57.7089, 11.9746],
         };
-
         assert_eq!(entry.gata, "Storgatan");
         assert_eq!(entry.coordinates[0], 57.7089);
     }
