@@ -4,8 +4,6 @@
 use crate::correlation_algorithms::common::*;
 use crate::correlation_algorithms::{CorrelationAlgo, ParkeringCorrelationAlgo};
 use crate::structs::{AdressClean, MiljoeDataClean, ParkeringsDataClean};
-use crate::{extract_line_coordinates, extract_point_coordinates};
-use rust_decimal::prelude::ToPrimitive;
 use std::collections::HashMap;
 
 pub struct KDTreeSpatialAlgo {
@@ -27,22 +25,16 @@ impl KDTreeSpatialAlgo {
         let mut lines = Vec::new();
 
         for (idx, line) in parking_lines.iter().enumerate() {
-            if let Some(((x1, y1, x2, y2), (start, end))) = (
-                (
-                    line.coordinates[0][0].to_f64(),
-                    line.coordinates[0][1].to_f64(),
-                    line.coordinates[1][0].to_f64(),
-                    line.coordinates[1][1].to_f64(),
-                )
-                    .into(),
-                extract_line_coordinates!(line),
-            )
-                .into()
-            {
+            if let (Some(x1), Some(y1), Some(x2), Some(y2)) = (
+                line.coordinates[0][0].to_f64(),
+                line.coordinates[0][1].to_f64(),
+                line.coordinates[1][0].to_f64(),
+                line.coordinates[1][1].to_f64(),
+            ) {
                 lines.push(LineSegment {
                     index: idx,
-                    start,
-                    end,
+                    start: [x1, y1],
+                    end: [x2, y2],
                 });
 
                 let cells = line_cells(x1, y1, x2, y2, CELL_SIZE);
@@ -66,7 +58,10 @@ impl CorrelationAlgo for KDTreeSpatialAlgo {
         address: &AdressClean,
         _parking_lines: &[MiljoeDataClean],
     ) -> Option<(usize, f64)> {
-        let point = extract_point_coordinates!(address)?;
+        let point = [
+            address.coordinates[0].to_f64()?,
+            address.coordinates[1].to_f64()?,
+        ];
         let cell = get_cell(point, self.cell_size);
         let nearby_cells = get_nearby_cells(cell);
 
@@ -106,22 +101,16 @@ impl KDTreeParkeringAlgo {
         let mut lines = Vec::new();
 
         for (idx, line) in parking_lines.iter().enumerate() {
-            if let Some(((x1, y1, x2, y2), (start, end))) = (
-                (
-                    line.coordinates[0][0].to_f64(),
-                    line.coordinates[0][1].to_f64(),
-                    line.coordinates[1][0].to_f64(),
-                    line.coordinates[1][1].to_f64(),
-                )
-                    .into(),
-                extract_line_coordinates!(line),
-            )
-                .into()
-            {
+            if let (Some(x1), Some(y1), Some(x2), Some(y2)) = (
+                line.coordinates[0][0].to_f64(),
+                line.coordinates[0][1].to_f64(),
+                line.coordinates[1][0].to_f64(),
+                line.coordinates[1][1].to_f64(),
+            ) {
                 lines.push(LineSegment {
                     index: idx,
-                    start,
-                    end,
+                    start: [x1, y1],
+                    end: [x2, y2],
                 });
 
                 let cells = line_cells(x1, y1, x2, y2, CELL_SIZE);
@@ -145,7 +134,10 @@ impl ParkeringCorrelationAlgo for KDTreeParkeringAlgo {
         address: &AdressClean,
         _parking_lines: &[ParkeringsDataClean],
     ) -> Option<(usize, f64)> {
-        let point = extract_point_coordinates!(address)?;
+        let point = [
+            address.coordinates[0].to_f64()?,
+            address.coordinates[1].to_f64()?,
+        ];
         let cell = get_cell(point, self.cell_size);
         let nearby_cells = get_nearby_cells(cell);
 

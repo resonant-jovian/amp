@@ -3,7 +3,8 @@
 //! This module contains shared functions and macros used across multiple
 //! correlation algorithm implementations to reduce code duplication.
 
-use rust_decimal::prelude::ToPrimitive;
+// Re-export ToPrimitive so macros can use it
+pub use rust_decimal::prelude::ToPrimitive;
 
 /// Constants shared across algorithms
 pub const MAX_DISTANCE_METERS: f64 = 50.0;
@@ -111,45 +112,6 @@ pub fn get_nearby_cells(cell: (i32, i32)) -> Vec<(i32, i32)> {
         }
     }
     cells
-}
-
-/// Macro to extract line coordinates and handle Option conversion
-///
-/// Reduces code duplication when extracting coordinates from line data structures.
-///
-/// # Usage
-/// ```ignore
-/// let (line_start, line_end) = extract_line_coordinates!(line)?;
-/// ```
-#[macro_export]
-macro_rules! extract_line_coordinates {
-    ($line:expr) => {{
-        let start = [
-            $line.coordinates[0][0].to_f64()?,
-            $line.coordinates[0][1].to_f64()?,
-        ];
-        let end = [
-            $line.coordinates[1][0].to_f64()?,
-            $line.coordinates[1][1].to_f64()?,
-        ];
-        (start, end)
-    }};
-}
-
-/// Macro to extract point coordinates from address
-///
-/// # Usage
-/// ```ignore
-/// let point = extract_point_coordinates!(address)?;
-/// ```
-#[macro_export]
-macro_rules! extract_point_coordinates {
-    ($address:expr) => {{
-        [
-            $address.coordinates[0].to_f64()?,
-            $address.coordinates[1].to_f64()?,
-        ]
-    }};
 }
 
 #[cfg(test)]
