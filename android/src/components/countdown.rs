@@ -140,16 +140,20 @@ pub fn time_until_start(restriction: &DB) -> Option<Duration> {
     let now = Utc::now();
     restriction.time_until_start(now)
 }
-/// Format countdown as human-readable string
+/// Format countdown as human-readable string with adaptive granularity
 ///
-/// Converts the remaining duration into a formatted string showing
-/// days, hours, and minutes.
+/// Converts the remaining duration into a formatted string, adapting
+/// the format based on the time bucket:
+/// - Active (< 4h): Show hours, minutes, and seconds for urgency
+/// - Within 6 hours: Show hours and minutes only
+/// - Longer durations: Show days, hours, and minutes
 ///
 /// # Arguments
 /// * `restriction` - DB entry with parking restriction timestamps
 ///
 /// # Returns
-/// Formatted string like "5d 02h 30m" or None if calculation fails
+/// Formatted string like "3h 25m 10s", "12h 30m", or "2d 06h 30m"
+/// Returns None if calculation fails
 ///
 /// # Examples
 /// ```no_run
@@ -170,10 +174,32 @@ pub fn time_until_start(restriction: &DB) -> Option<Duration> {
 /// ```
 pub fn format_countdown(restriction: &DB) -> Option<String> {
     let remaining = remaining_duration(restriction)?;
-    let days = remaining.num_days();
-    let hours = remaining.num_hours() % 24;
-    let minutes = remaining.num_minutes() % 60;
-    Some(format!("{}d {:02}h {:02}m", days, hours, minutes))
+    
+    // Determine bucket to use appropriate formatting
+    let bucket = bucket_for(restriction);
+    
+    match bucket {
+        // Active: Show hours, minutes, seconds for maximum urgency awareness
+        TimeBucket::Now => {
+            let hours = remaining.num_hours();
+            let minutes = remaining.num_minutes() % 60;
+            let seconds = remaining.num_seconds() % 60;
+            Some(format!("{}h {:02}m {:02}s", hours, minutes, seconds))
+        }
+        // Within 6 hours: Show hours and minutes only
+        TimeBucket::Within6Hours => {
+            let hours = remaining.num_hours();
+            let minutes = remaining.num_minutes() % 60;
+            Some(format!("{}h {:02}m", hours, minutes))
+        }
+        // Longer durations: Show days, hours, minutes
+        _ => {
+            let days = remaining.num_days();
+            let hours = remaining.num_hours() % 24;
+            let minutes = remaining.num_minutes() % 60;
+            Some(format!("{}d {:02}h {:02}m", days, hours, minutes))
+        }
+    }
 }
 /// Format countdown in compact form (no days if zero)
 ///
@@ -369,7 +395,6 @@ mod tests {
         let db = create_test_db(15, "0800-1200");
         let result = format_countdown(&db);
         if let Some(s) = result {
-            assert!(s.contains("d"));
             assert!(s.contains("h"));
             assert!(s.contains("m"));
         }
