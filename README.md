@@ -1,291 +1,103 @@
-```
-                                .         .                          
-         .8.                   ,8.       ,8.          8 888888888o   
-        .888.                 ,888.     ,888.         8 8888    `88. 
-       :88888.               .`8888.   .`8888.        8 8888     `88 
-      . `88888.             ,8.`8888. ,8.`8888.       8 8888     ,88 
-     .8. `88888.           ,8'8.`8888,8^8.`8888.      8 8888.   ,88' 
-    .8`8. `88888.         ,8' `8.`8888' `8.`8888.     8 888888888P'  
-   .8' `8. `88888.       ,8'   `8.`88'   `8.`8888.    8 8888         
-  .8'   `8. `88888.     ,8'     `8.`'     `8.`8888.   8 8888         
- .888888888. `88888.   ,8'       `8        `8.`8888.  8 8888         
-.8'       `8. `88888. ,8'         `         `8.`8888. 8 8888         
+# AMP
 
-```
-**Address-to-Miljozone Parking** — Geospatial correlation library matching addresses to environmental parking zones in Malmö, Sweden.
+**Address-to-Miljözone Parking** — Geospatial correlation library matching Swedish addresses to environmental parking zones in Malmö.
 
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 [![Rust 2024](https://img.shields.io/badge/rust-2024%2B-orange)](https://www.rust-lang.org/)
-[![CI](https://github.com/resonant-jovian/amp/actions/workflows/ci.yml/badge.svg)](https://github.com/resonant-jovian/amp/actions/workflows/ci.yml)
 
-## Overview
+## What is AMP?
 
-AMP correlates street addresses with parking restriction zones using geospatial algorithms. It provides a Rust library, CLI tool, and mobile apps for checking parking restrictions without internet access.
-
-**Key Features:**
-- Six correlation algorithms (distance-based, raycasting, spatial indexing, grid-based)
-- Dual dataset support (miljödata + parkering zones)
-- CLI with testing mode, benchmarking, and data update checks
-- Android and iOS apps built with Dioxus
-- Visual testing interface with StadsAtlas integration
-- Comprehensive CI/CD with automated testing and linting
+AMP correlates street addresses with parking restriction zones using geospatial algorithms. It provides:
+- **Rust library** (`amp_core`) for correlation algorithms
+- **CLI tool** (`amp_server`) for testing and benchmarking
+- **Mobile apps** for offline parking zone lookup (Android/iOS)
 
 ## Quick Start
 
-### Testing Mode (Visual Verification)
-
-Open browser windows to visually verify correlation accuracy against official StadsAtlas:
-
 ```bash
-# Default: 10 windows, KD-Tree algorithm, 50m threshold
+# Run visual testing (opens browser tabs)
 cargo run --release -- test
 
-# Custom parameters
-cargo run -- test --algorithm rtree --cutoff 100 --windows 15
+# Correlate addresses
+cargo run --release -p amp_server -- correlate
+
+# Benchmark algorithms
+cargo run --release -p amp_server -- benchmark
 ```
-
-**What each window shows:**
-- **Tab 1:** Official Malmö StadsAtlas with parking zones
-- **Tab 2:** Correlation result details (address, distance, zone info)
-
-Manually verify that Tab 2 matches what you see in Tab 1's StadsAtlas.
-
-See [docs/cli-usage.md](docs/cli-usage.md) for complete testing guide.
-
-### CLI - Standard Commands
-
-```bash
-# Build
-cargo build --release -p amp_server
-
-# Run correlation (default: KD-Tree, 50m threshold)
-./target/release/amp-server correlate
-
-# Custom algorithm and distance threshold
-./target/release/amp-server correlate --algorithm rtree --cutoff 75
-
-# Benchmark algorithms interactively
-./target/release/amp-server benchmark --sample-size 500
-
-# Check if data has been updated
-./target/release/amp-server check-updates
-```
-
-### Library Usage
-
-```rust
-use amp_core::api::api_miljo_only;
-use amp_core::correlation_algorithms::{RTreeSpatialAlgo, CorrelationAlgo};
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let (addresses, zones) = api_miljo_only()?;
-    let algo = RTreeSpatialAlgo::new(&zones);
-    
-    for addr in addresses.iter().take(10) {
-        if let Some((idx, dist)) = algo.correlate(addr, &zones) {
-            println!("{}: {:.2}m to zone {}", addr.adress, dist, idx);
-        }
-    }
-    Ok(())
-}
-```
-
-## Documentation
-
-### Getting Started
-- **[CLI Usage](docs/cli-usage.md)** — Complete command reference
-- **[Testing Guide](docs/testing.md)** — Visual and unit testing procedures with CI status badges
-
-### Architecture & Design
-- **[Architecture](docs/architecture.md)** — System design and data flow
-- **[Algorithms](docs/algorithms.md)** — How each algorithm works
-- **[API Integration](docs/api-integration.md)** — ArcGIS data fetching
-
-### Mobile Apps
-- **[Android README](android/README.md)** — Android app build and deployment
-- **[iOS Setup](docs/IOS_SETUP.md)** — iOS platform integration and shared code strategy
-
-### Module Guides
-- **[Core Library](core/README.md)** — Library API and usage
-- **[Server/CLI](server/README.md)** — CLI tool guide
-- **[Scripts](scripts/README.md)** — Build and deployment scripts
 
 ## Project Structure
 
 ```
 amp/
-├── README.md              # This file
-├── docs/                  # Documentation
-│   ├── cli-usage.md       # CLI command reference
-│   ├── testing.md         # Testing procedures + CI badges
-│   ├── architecture.md    # System design
-│   ├── algorithms.md      # Algorithm details
-│   ├── api-integration.md # Data fetching
-│   └── IOS_SETUP.md       # iOS platform guide
-├── core/                  # Rust library crate
-│   ├── README.md          # Library guide
-│   └── src/
-├── server/                # CLI tool crate
-│   ├── README.md          # Server guide
-│   └── src/
-├── android/               # Android app (Dioxus)
-│   ├── README.md          # Android-specific docs
-│   ├── src/
-│   │   ├── matching.rs     # Address validation (shared with iOS)
-│   │   ├── countdown.rs    # Parking deadline logic (shared with iOS)
-│   │   ├── static_data.rs  # Parquet data loading (shared with iOS)
-│   │   ├── components/     # Platform-specific modules
-│   │   │   ├── notification.rs  # Android notifications
-│   │   │   ├── storage.rs       # Android storage
-│   │   │   └── geo.rs           # Android GPS
-│   │   └── ui/             # Shared UI components
-│   │       ├── addresses.rs # Address list component
-│   │       ├── panels.rs    # Category panels
-│   │       └── top_bar.rs   # Navigation bar
-│   └── assets/
-├── ios/                   # iOS app (Dioxus)
-│   ├── README.md          # iOS-specific docs
-│   └── src/
-│       ├── components/     # iOS platform-specific
-│       │   ├── notification.rs  # iOS notifications (UserNotifications)
-│       │   ├── storage.rs       # iOS storage (UserDefaults)
-│       │   └── geo.rs           # iOS GPS (CoreLocation)
-│       └── [shared files]  # Symlinks/copies from android/src
-└── scripts/               # Build and deployment scripts
-    ├── README.md          # Scripts documentation
-    ├── build.sh           # Android release build
-    ├── serve.sh           # Development hot-reload
-    ├── adb-install.sh     # APK installation
-    └── fmt_fix_clippy.sh  # Code formatting/linting
+├── core/           # Rust library (correlation algorithms)
+├── server/         # CLI tool (testing, benchmarking)
+├── android/        # Android app (Dioxus)
+├── ios/            # iOS app (Dioxus)
+├── scripts/        # Build and deployment scripts
+└── docs/           # Documentation
 ```
+
+## Documentation
+
+### Getting Started
+- [Architecture](docs/architecture.md) — System design and data flow
+- [Algorithms](docs/algorithms.md) — How correlation algorithms work
+- [CLI Usage](docs/cli-usage.md) — Command reference
+- [Testing Guide](docs/testing.md) — Visual and automated testing
+
+### Development
+- [Core Library](core/README.md) — Library API and usage
+- [CLI Tool](server/README.md) — Server/CLI documentation
+- [Android App](android/README.md) — Android build and deployment
+- [iOS App](ios/README.md) — iOS setup and code sharing
+- [Build Scripts](scripts/README.md) — Automation scripts
+
+### Technical Details
+- [API Integration](docs/api-integration.md) — Data fetching from Malmö Open Data
+- [Data Format](docs/data-format.md) — Parquet storage and structure
 
 ## Building
 
 ### Prerequisites
-- Rust 1.70+ ([rustup](https://rustup.rs))
-- For mobile: Dioxus CLI (`cargo install dioxus-cli`)
-- For Android: Android SDK and Java 21
-- For iOS: Xcode and iOS development tools
+- Rust 1.70+ ([install](https://rustup.rs))
+- Dioxus CLI: `cargo install dioxus-cli` (for mobile apps)
+- Android SDK + Java 21 (for Android)
+- Xcode (for iOS)
 
 ### Build Commands
 
 ```bash
 # Library and CLI
-cargo build --release -p amp_core
-cargo build --release -p amp_server
+cargo build --release
 
 # Run tests
 cargo test --release
 
-# Format and lint code
-./scripts/fmt_fix_clippy.sh
-
-# Android (signed release APK)
+# Android APK
 ./scripts/build.sh
-
-# Android (development with hot-reload)
-./scripts/serve.sh
 
 # iOS
 cd ios && dx build --release
 ```
 
-**Note:** Android build requires `keystore.properties` file in repository root. See [scripts/README.md](scripts/README.md) for details.
-
-## Dependencies
-
-Core dependencies:
-- `rust_decimal` — High-precision coordinates
-- `rayon` — Parallel processing
-- `tokio` — Async runtime
-- `reqwest` — HTTP client
-- `rstar` — R-tree spatial indexing
-- `kiddo` — KD-tree spatial indexing
-- `dioxus` — UI framework (mobile)
-- `parquet` — Data storage format
-
-See `Cargo.toml` files for complete lists.
-
-## Data Sources
-
-AMP fetches parking zone data from official Malmö Open Data:
-- **Miljöparkering** — Environmental parking restrictions
-- **Parkeringsavgifter** — Parking fee zones
-- **Adresser** — Address coordinates
-
-Data is verified using checksums. Run `check-updates` to detect new data.
-
-## Code Organization
-
-The codebase follows English naming conventions for maintainability:
-- **Variables and functions:** English (`street`, `postal_code`, `match_address`)
-- **Types and structs:** English (`StoredAddress`, `StaticAddressEntry`)
-- **UI text:** Swedish (user-facing strings remain in Swedish)
-- **Documentation:** English (all doc comments)
-
-## Code Sharing Between Platforms
-
-The iOS and Android apps share approximately **85% of their codebase**:
-
-**Shared Modules (~1,130 lines):**
-- `countdown.rs` — Time calculation logic
-- `matching.rs` — Address matching algorithms
-- `static_data.rs` — Parquet data loading
-- `ui/` — All UI components (addresses, panels, top_bar)
-
-**Platform-Specific (~200 lines each):**
-- `components/notification.rs` — iOS (UserNotifications) vs Android (Notifications)
-- `components/storage.rs` — iOS (UserDefaults) vs Android (SharedPreferences)
-- `components/geo.rs` — iOS (CoreLocation) vs Android (Location Services)
-
-See [docs/IOS_SETUP.md](docs/IOS_SETUP.md) for detailed sharing strategies.
-
 ## Testing
 
-### Continuous Integration
-
-All commits are automatically tested via GitHub Actions:
-- **Formatting:** `cargo fmt --check`
-- **Linting:** `cargo clippy -- -D warnings`
-- **Tests:** `cargo test --all-targets --all-features`
-- **Build:** Release builds for all platforms
-
-Status: [![CI](https://github.com/resonant-jovian/amp/actions/workflows/ci.yml/badge.svg)](https://github.com/resonant-jovian/amp/actions/workflows/ci.yml)
-
-See [docs/testing.md](docs/testing.md) for complete CI pipeline details.
-
-### Visual Testing (Browser)
-
-Test correlation accuracy by comparing results against official StadsAtlas:
+### Visual Testing
+Test correlation accuracy by comparing results against official Malmö StadsAtlas:
 
 ```bash
-# Quick test (5 windows)
-cargo run -- test --windows 5
+# Default: 10 windows, KD-Tree algorithm
+cargo run -- test
 
-# Compare algorithms
-cargo run -- test --algorithm kdtree --windows 10
-cargo run -- test --algorithm rtree --windows 10
-
-# Validate distance thresholds
-cargo run -- test --cutoff 25 --windows 5
-cargo run -- test --cutoff 50 --windows 5
-cargo run -- test --cutoff 100 --windows 5
+# Custom parameters
+cargo run -- test --algorithm rtree --cutoff 100 --windows 15
 ```
 
-See [docs/testing.md](docs/testing.md) for detailed testing guide.
+See [Testing Guide](docs/testing.md) for details.
 
-### Unit & Integration Tests
-
+### Automated Tests
 ```bash
-# All tests
 cargo test --release
-
-# Specific algorithm
-cargo test --lib correlation_algorithms::rtree
-
-# Benchmarks
-cargo bench
 ```
 
 ## License
@@ -297,16 +109,3 @@ GPL-3.0 — See [LICENSE](LICENSE) for details.
 **Albin Sjögren**  
 [albin@sjoegren.se](mailto:albin@sjoegren.se)  
 Malmö, Sweden
-
-## Related Documentation
-
-For detailed information, see:
-- [CLI Usage Guide](docs/cli-usage.md) — All commands and parameters
-- [Testing Strategies](docs/testing.md) — Visual, unit, integration testing + CI pipeline
-- [Architecture Overview](docs/architecture.md) — System design
-- [Algorithm Comparison](docs/algorithms.md) — How each algorithm works
-- [API Integration](docs/api-integration.md) — Data fetching from ArcGIS
-- [iOS Platform Guide](docs/IOS_SETUP.md) — iOS setup and code sharing
-- [Core Library](core/README.md) — Library API documentation
-- [Server Tool](server/README.md) — CLI tool documentation
-- [Build Scripts](scripts/README.md) — Build and deployment automation

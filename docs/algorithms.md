@@ -1,336 +1,207 @@
 # Correlation Algorithms
 
-AMP implements six geospatial correlation algorithms for matching addresses to parking zones.
+AMP implements six correlation algorithms to match addresses to parking zones. Each algorithm trades off between build time, query time, and memory usage.
 
-## Problem Statement
+## Algorithm Overview
 
-Given:
-- Address point P at coordinates (lat, lon)
-- Parking zone as LineString: [(lat₁, lon₁), (lat₂, lon₂)]
+| Algorithm | Build | Query | Memory | Use Case |
+|-----------|-------|-------|--------|----------|
+| KD-Tree   | O(n log n) | O(log n) | Medium | Default (balanced) |
+| R-Tree    | O(n log n) | O(log n) | Medium | Dense zones |
+| Distance  | O(1) | O(n) | Low | Small datasets |
+| Grid      | O(n) | O(1) | High | Uniform distribution |
+| Raycasting | O(1) | O(n) | Low | Polygon containment |
+| Chunks    | O(n) | O(n/k) | Medium | Large datasets |
 
-Find: Closest parking zone within 50 meters
+## Detailed Descriptions
 
-## Common Operations
+### KD-Tree Spatial (`kdtree_spatial.rs`)
 
-### Point-to-Line Distance
+**How it works:**
+1. Build KD-tree from all zone segment midpoints
+2. Query nearest neighbors for address coordinates
+3. Calculate actual distance to segments
+4. Return closest zone within threshold
 
-All algorithms use the same core distance calculation:
+**Strengths:**
+- Fast queries (logarithmic time)
+- Low memory overhead
+- Good for sparse and dense zones
 
-```rust
-fn point_to_line_distance(
-    point: [Decimal; 2],
-    line_start: [Decimal; 2],
-    line_end: [Decimal; 2],
-) -> f64 {
-    let dx = line_end[0] - line_start[0];
-    let dy = line_end[1] - line_start[1];
-    
-    let t = ((point[0] - line_start[0]) * dx + (point[1] - line_start[1]) * dy) 
-           / (dx * dx + dy * dy);
-    
-    let t_clamped = t.max(Decimal::ZERO).min(Decimal::ONE);
-    
-    let closest_x = line_start[0] + t_clamped * dx;
-    let closest_y = line_start[1] + t_clamped * dy;
-    
-    let dist_x = point[0] - closest_x;
-    let dist_y = point[1] - closest_y;
-    
-    (dist_x * dist_x + dist_y * dist_y).sqrt().to_f64().unwrap()
-}
-```
+**Weaknesses:**
+- Build time proportional to data size
+- Balancing overhead for dynamic updates
 
-**Mathematical basis:**
-- Projects point onto line segment
-- Clamps projection to segment endpoints
-- Returns Euclidean distance
+**Best for:** General use (default choice)
 
-## Algorithm Comparison
+### R-Tree Spatial (`rtree_spatial.rs`)
 
-| Algorithm | Complexity | Pre-process | Query Time | Best For |
-|-----------|------------|-------------|------------|----------|
-| Distance-Based | O(n×m) | None | Linear | Small datasets |
-| Raycasting | O(n×m×36) | None | Linear | Sparse zones |
-| Overlapping Chunks | O(n+m×k) | O(m) | Sub-linear | Large datasets |
-| R-Tree | O(n×log m) | O(m log m) | Logarithmic | General purpose |
-| KD-Tree | O(n×log m) | O(m log m) | Logarithmic | Point queries |
-| Grid | O(n+m×k) | O(m) | Sub-linear | Dense grids |
+**How it works:**
+1. Build R-tree with bounding boxes for zone segments
+2. Query spatially near segments
+3. Calculate distances to candidates
+4. Return closest match
 
-Where:
-- n = addresses
-- m = parking zones
-- k = average zones per cell (<< m)
+**Strengths:**
+- Excellent for clustered zones
+- Natural support for bounding box queries
+- Efficient range searches
 
-## 1. Distance-Based Algorithm
+**Weaknesses:**
+- Higher memory than KD-tree
+- Complex tree rebalancing
 
-**Implementation:** `core/src/correlation_algorithms/distance_based.rs`
+**Best for:** Dense, overlapping parking zones
 
-**Strategy:** Brute-force distance check
+### Distance-Based (`distance_based.rs`)
 
-```rust
-pub fn correlate(&self, address: &AdressClean, zones: &[MiljoeDataClean]) 
-    -> Option<(usize, f64)> 
-{
-    zones.iter()
-        .enumerate()
-        .filter_map(|(idx, zone)| {
-            let dist = point_to_line_distance(
-                address.coordinates,
-                zone.coordinates[0],
-                zone.coordinates[1]
-            );
-            if dist <= 50.0 { Some((idx, dist)) } else { None }
-        })
-        .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
-}
-```
+**How it works:**
+1. Iterate through all zones
+2. Calculate Euclidean distance to each segment
+3. Return minimum distance match
 
-**Characteristics:**
-- Simple and reliable
-- No pre-processing overhead
-- Good for < 1000 zones
+**Strengths:**
+- Simple implementation
+- No preprocessing required
+- Low memory usage
 
-## 2. Raycasting Algorithm
+**Weaknesses:**
+- Linear query time O(n)
+- Inefficient for large datasets
 
-**Implementation:** `core/src/correlation_algorithms/raycasting.rs`
+**Best for:** Testing, small datasets (<1000 zones)
 
-**Strategy:** Cast 36 rays in 10° increments, find intersecting zones
+### Grid-Based (`grid_nearest.rs`)
 
-```rust
-pub fn correlate(&self, address: &AdressClean, zones: &[MiljoeDataClean]) 
-    -> Option<(usize, f64)> 
-{
-    let mut closest = None;
-    
-    for angle in (0..360).step_by(10) {
-        let ray = cast_ray(address.coordinates, angle, 50.0);
-        
-        for (idx, zone) in zones.iter().enumerate() {
-            if let Some(intersection) = ray_intersects_line(ray, zone.coordinates) {
-                let dist = distance_to_intersection(address.coordinates, intersection);
-                closest = update_if_closer(closest, idx, dist);
-            }
-        }
-    }
-    
-    closest
-}
-```
+**How it works:**
+1. Divide geographic area into uniform grid cells
+2. Assign zone segments to grid cells
+3. For queries, check address cell and neighbors
+4. Return closest match from candidates
 
-**Characteristics:**
-- Spatial awareness (directional search)
-- 36 rays = 10° resolution
-- Higher computational cost
+**Strengths:**
+- Constant-time cell lookup
+- Predictable performance
+- Simple to implement
 
-## 3. Overlapping Chunks Algorithm
+**Weaknesses:**
+- High memory for fine grids
+- Inefficient if zones are non-uniform
+- Edge case handling complexity
 
-**Implementation:** `core/src/correlation_algorithms/overlapping_chunks.rs`
+**Best for:** Uniformly distributed zones, bounded areas
 
-**Strategy:** Divide space into 100m×100m grid cells with 50m overlap
+### Raycasting (`raycasting.rs`)
 
-```rust
-pub struct OverlappingChunksAlgo {
-    grid: HashMap<(i32, i32), Vec<usize>>,  // (cell_x, cell_y) -> zone indices
-    cell_size: f64,
-    overlap: f64,
-}
+**How it works:**
+1. Cast ray from address point to infinity
+2. Count intersections with zone polygon boundaries
+3. Odd count = inside zone, even = outside
+4. Return containing zone or nearest boundary
 
-impl OverlappingChunksAlgo {
-    pub fn new(zones: &[MiljoeDataClean]) -> Self {
-        let mut grid = HashMap::new();
-        
-        // Pre-process: Insert zones into overlapping cells
-        for (idx, zone) in zones.iter().enumerate() {
-            let cells = get_overlapping_cells(zone, 100.0, 50.0);
-            for cell in cells {
-                grid.entry(cell).or_insert_with(Vec::new).push(idx);
-            }
-        }
-        
-        Self { grid, cell_size: 100.0, overlap: 50.0 }
-    }
-    
-    pub fn correlate(&self, address: &AdressClean, zones: &[MiljoeDataClean]) 
-        -> Option<(usize, f64)> 
-    {
-        let cell = point_to_cell(address.coordinates, self.cell_size);
-        let neighbors = get_neighboring_cells(cell);  // 9 cells (3x3)
-        
-        let candidates: Vec<usize> = neighbors
-            .iter()
-            .filter_map(|c| self.grid.get(c))
-            .flatten()
-            .copied()
-            .collect();
-        
-        // Only check zones in nearby cells
-        candidates.iter()
-            .filter_map(|&idx| {
-                let dist = point_to_line_distance(
-                    address.coordinates,
-                    zones[idx].coordinates[0],
-                    zones[idx].coordinates[1]
-                );
-                if dist <= 50.0 { Some((idx, dist)) } else { None }
-            })
-            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
-    }
-}
-```
+**Strengths:**
+- Accurate point-in-polygon testing
+- No preprocessing needed
+- Works for complex polygons
 
-**Characteristics:**
-- 2-3x faster than distance-based
-- Overlap prevents edge case misses
-- Memory overhead: ~180MB for Malmö dataset
+**Weaknesses:**
+- O(n) per query
+- Edge cases (point on boundary)
 
-## 4. R-Tree Spatial Index
+**Best for:** Polygon-based zones, containment testing
 
-**Implementation:** `core/src/correlation_algorithms/rtree_spatial.rs`
+### Overlapping Chunks (`overlapping_chunks.rs`)
 
-**Strategy:** Use `rstar` crate for bounding-box spatial index
+**How it works:**
+1. Divide zones into overlapping geographic chunks
+2. For queries, process only relevant chunks
+3. Parallel processing within chunks (Rayon)
+4. Merge results from chunk boundaries
+
+**Strengths:**
+- Parallelizable
+- Memory-efficient for huge datasets
+- Good cache locality
+
+**Weaknesses:**
+- Chunk size tuning required
+- Overlap handling complexity
+- Less efficient for small datasets
+
+**Best for:** Very large datasets (>100k zones), parallel processing
+
+## CorrelationAlgo Trait
+
+All algorithms implement the `CorrelationAlgo` trait:
 
 ```rust
-use rstar::RTree;
-
-pub struct RTreeSpatialAlgo {
-    rtree: RTree<LineSegment>,  // Spatial index
-}
-
-impl RTreeSpatialAlgo {
-    pub fn new(zones: &[MiljoeDataClean]) -> Self {
-        let segments: Vec<LineSegment> = zones
-            .iter()
-            .enumerate()
-            .map(|(idx, zone)| LineSegment {
-                start: zone.coordinates[0],
-                end: zone.coordinates[1],
-                index: idx,
-            })
-            .collect();
-        
-        Self { rtree: RTree::bulk_load(segments) }
-    }
-    
-    pub fn correlate(&self, address: &AdressClean, zones: &[MiljoeDataClean]) 
-        -> Option<(usize, f64)> 
-    {
-        // Query nearby segments within bounding box
-        let nearby = self.rtree.locate_within_distance(
-            address.coordinates,
-            50.0
-        );
-        
-        nearby
-            .filter_map(|seg| {
-                let dist = point_to_line_distance(
-                    address.coordinates,
-                    seg.start,
-                    seg.end
-                );
-                if dist <= 50.0 { Some((seg.index, dist)) } else { None }
-            })
-            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
-    }
+pub trait CorrelationAlgo: Send + Sync {
+    fn correlate(
+        &self,
+        address: &Address,
+        zones: &[MiljoParkering],
+    ) -> Option<(usize, f64)>;
 }
 ```
 
-**Characteristics:**
-- Logarithmic query time
-- Efficient for general-purpose use
-- Standard choice for production
+**Returns:**
+- `Some((zone_index, distance))` if match found within threshold
+- `None` if no zones within distance cutoff
 
-## 5. KD-Tree Spatial Index
+## Distance Threshold
 
-**Implementation:** `core/src/correlation_algorithms/kdtree_spatial.rs`
+All algorithms respect a distance threshold (default 50m):
 
-**Strategy:** Use `kiddo` crate for k-dimensional tree (k=2 for lat/lon)
+```bash
+# Set custom threshold
+cargo run -- correlate --cutoff 75
+```
+
+**Recommendations:**
+- **25m**: Strict matching, may miss valid zones
+- **50m**: Balanced (default)
+- **100m**: Permissive, may match distant zones
+
+## Benchmarking
+
+Compare algorithms interactively:
+
+```bash
+cargo run --release -p amp_server -- benchmark
+```
+
+See [Testing Guide](testing.md) for benchmark details.
+
+## Implementation Notes
+
+### Distance Calculation
+
+All algorithms use `point_to_segment_distance` from `common.rs`:
 
 ```rust
-use kiddo::KdTree;
-
-pub struct KDTreeSpatialAlgo {
-    kdtree: KdTree<f64, usize, 2>,  // 2D tree
-}
+pub fn point_to_segment_distance(
+    point: (Decimal, Decimal),
+    seg_start: (Decimal, Decimal),
+    seg_end: (Decimal, Decimal),
+) -> Decimal
 ```
 
-**Characteristics:**
-- Optimized for point queries
-- Slightly less efficient for line segments
-- Comparable to R-Tree performance
+This computes the minimum distance from a point to a line segment using:
+1. Projection onto line
+2. Clamping to segment endpoints
+3. Euclidean distance to clamped point
 
-## 6. Grid Nearest Algorithm
+### Coordinate System
 
-**Implementation:** `core/src/correlation_algorithms/grid_nearest.rs`
+All coordinates use SWEREF99 TM (EPSG:3006):
+- X: Easting (meters)
+- Y: Northing (meters)
+- Malmö approximately: (115000-120000, 6165000-6170000)
 
-**Strategy:** Fixed-size grid without overlap
-
-```rust
-pub struct GridNearestAlgo {
-    grid: HashMap<(i32, i32), Vec<usize>>,
-    cell_size: f64,
-}
-```
-
-**Characteristics:**
-- Simpler than overlapping chunks
-- Risk of edge case misses
-- Faster pre-processing
-
-## Benchmark Results
-
-Tested on Malmö dataset (10,000 addresses, 2,000 zones):
-
-```
-Algorithm            Total Time    Avg/Address    Memory
-───────────────────────────────────────────────────────────
-Distance-Based       2.45s         4.90ms         100MB
-Raycasting          5.12s         10.24ms        105MB
-Overlapping Chunks  1.23s         2.46ms         180MB
-R-Tree              1.15s         2.30ms         140MB
-KD-Tree             1.28s         2.56ms         135MB
-Grid                1.31s         2.62ms         150MB
-```
-
-**Fastest:** R-Tree (1.15s)
-
-**Recommended:** R-Tree for production, Overlapping Chunks for memory-constrained environments
-
-## Algorithm Selection Guide
-
-```
-Dataset Size:
-  < 1000 zones      → Distance-Based
-  1000-10000 zones  → R-Tree or KD-Tree
-  > 10000 zones     → Overlapping Chunks
-
-Constraints:
-  Low memory        → Distance-Based
-  Low latency       → R-Tree
-  High throughput   → Overlapping Chunks
-
-Development:
-  Prototyping       → Distance-Based
-  Production        → R-Tree
-  Research          → Benchmark all
-```
-
-## Usage Example
-
-```rust
-use amp_core::correlation_algorithms::{RTreeSpatialAlgo, CorrelationAlgo};
-
-let algo = RTreeSpatialAlgo::new(&zones);
-
-for address in addresses {
-    if let Some((idx, dist)) = algo.correlate(&address, &zones) {
-        println!("{}: {:.2}m from zone {}", address.adress, dist, idx);
-    }
-}
-```
+Conversion handled by `geodesy` crate.
 
 ## Related Documentation
 
-- [Architecture](architecture.md) — System design
-- [CLI Usage](cli-usage.md) — Benchmark commands
-- [Testing](testing.md) — Algorithm validation
-- [core/README.md](../core/README.md) — Core library guide
+- [Architecture](architecture.md) — System overview
+- [CLI Usage](cli-usage.md) — Running benchmarks
+- [Testing](testing.md) — Performance testing

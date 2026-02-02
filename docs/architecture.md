@@ -1,204 +1,197 @@
 # Architecture
 
-AMP is organized as a Rust workspace with four modules sharing a common core library.
+AMP follows a modular architecture with clear separation between correlation logic, CLI tooling, and mobile apps.
 
 ## System Overview
 
 ```
-┌────────────────────────────────────────────┐
-│           Malmö Open Data (ArcGIS)            │
-│   Miljöparkering │ Parkeringsavgifter │ Adresser │
-└────────────────┬───────────────┬────────────┘
-                 │               │
-                 │   HTTP/JSON  │
-                 │               │
-                 v               v
-           ┌─────────────────────────────┐
-           │       amp_core Library       │
-           │   ─────────────────────  │
-           │   • API integration          │
-           │   • Data structures          │
-           │   • 6 algorithms             │
-           │   • Benchmarking             │
-           │   • Checksum verification    │
-           └───────┬──────────────────────┘
-                  │
-      ┌───────────┼───────────┐
-      │            │            │
-      v            v            v
-┌─────────┐  ┌─────────┐  ┌─────────┐
-│ Server  │  │ Android │  │   iOS   │
-│   CLI   │  │   App   │  │   App   │
-└─────────┘  └─────────┘  └─────────┘
+┌────────────────────────────────┐
+│     Malmö Open Data APIs      │
+│  (Adresser, Miljöparkering)  │
+└──────────────┬─────────────────┘
+               │
+               │ HTTP/GeoJSON
+               │
+       ┌───────┴───────┐
+       │   amp_core    │
+       │ (Rust Library)│
+       └─────┬───┬──────┘
+            │    │
+    ┌───────┼────┼───────┐
+    │       │    │        │
+┌───┴───┐  │    │   ┌───┴───┐
+│ Server │  │    │   │Android│
+│  (CLI) │  │    └───┤  iOS  │
+└───────┘  │        └───────┘
+         Parquet
 ```
 
-## Core Library (`core/`)
+## Core Components
 
-**Purpose:** Geospatial correlation engine
+### 1. Core Library (`amp_core`)
 
-**Modules:**
-- `api.rs` — Fetch data from ArcGIS Feature Services
-- `structs.rs` — Data types (`AdressClean`, `MiljoeDataClean`, `CorrelationResult`)
-- `correlation_algorithms/` — Six algorithm implementations
-- `benchmark.rs` — Performance testing framework
-- `checksum.rs` — SHA256 data verification
-- `parquet.rs` — Columnar storage for results
+The foundational Rust library providing:
 
-**Key Types:**
-```rust
-pub struct AdressClean {
-    pub coordinates: [Decimal; 2],  // High-precision lat/lon
-    pub adress: String,
-}
+- **Data Structures** (`structs.rs`)
+  - `Address`: Street address with coordinates
+  - `MiljoParkering`: Parking restriction zone
+  - `Segment`: Line segment for zone boundaries
 
-pub struct MiljoeDataClean {
-    pub coordinates: [[Decimal; 2]; 2],  // Line segment
-    pub info: String,                     // Zone restrictions
-}
-```
+- **Correlation Algorithms** (`correlation_algorithms/`)
+  - `KDTreeSpatialAlgo`: Fast spatial indexing (default)
+  - `RTreeSpatialAlgo`: R-tree based spatial queries
+  - `DistanceBasedAlgo`: Simple distance calculation
+  - `RaycastingAlgo`: Point-in-polygon testing
+  - `GridNearestAlgo`: Grid-based spatial partitioning
+  - `OverlappingChunksAlgo`: Chunked processing for large datasets
 
-See: [algorithms.md](algorithms.md), [core/README.md](../core/README.md)
+- **API Integration** (`api.rs`)
+  - Fetches GeoJSON from Malmö Open Data
+  - Parses addresses and parking zones
+  - Validates data integrity with checksums
 
-## Server (`server/`)
+- **Parquet Storage** (`parquet.rs`)
+  - Converts GeoJSON to efficient Parquet format
+  - Used for offline mobile app data
 
-**Purpose:** Command-line interface for correlation and benchmarking
+See [Core Library README](../core/README.md) for API details.
 
-**Commands:**
-```bash
-correlate --algorithm <name>  # Run correlation
-benchmark --sample-size <n>   # Performance testing  
-check-updates                 # Verify data changes
-```
+### 2. CLI Tool (`amp_server`)
 
-**Implementation:** Uses `clap` for CLI, `indicatif` for progress bars, `rayon` for parallelism.
+Command-line interface for:
 
-See: [cli-usage.md](cli-usage.md), [server/README.md](../server/README.md)
+- **Testing** (`test` command)
+  - Visual verification via browser
+  - Compares results against official StadsAtlas
+  - Configurable algorithm and distance thresholds
 
-## Mobile Apps (`android/`, `ios/`)
+- **Correlation** (`correlate` command)
+  - Batch processing of addresses
+  - Algorithm selection and benchmarking
 
-**Purpose:** Native apps for checking parking restrictions offline
+- **Data Updates** (`check-updates` command)
+  - Detects when Open Data has changed
+  - Validates checksums
 
-**Framework:** Dioxus (Rust-to-native UI)
+See [CLI Usage](cli-usage.md) for command reference.
 
-**Features:**
-- Address search
-- Current location detection
-- Zone restriction display
-- Offline operation (embedded data)
+### 3. Mobile Apps
 
-**Build:**
-```bash
-dx build --android --release  # Android
-dx build --ios --release      # iOS
-```
+Both Android and iOS apps share ~85% of code:
 
-See: [android/README.md](../android/README.md), [ios/README.md](../ios/README.md)
+**Shared Components:**
+- Address matching logic
+- Parking deadline countdown
+- Parquet data loading
+- All UI components
+
+**Platform-Specific:**
+- GPS/location services
+- Notifications
+- Persistent storage
+
+See [Android README](../android/README.md) and [iOS README](../ios/README.md).
 
 ## Data Flow
 
-### 1. Data Acquisition
+### CLI Workflow
 
-```
-ArcGIS API → Reqwest HTTP → GeoJSON → Rust Structs
-```
+1. Fetch GeoJSON from Malmö APIs
+2. Parse into internal data structures
+3. Initialize chosen correlation algorithm
+4. Process addresses in parallel (Rayon)
+5. Output results (JSON, visual browser tabs)
 
-- Three datasets: Miljöparkering, Parkeringsavgifter, Adresser
-- Automatic pagination for large datasets
-- Graceful error handling for missing fields
+### Mobile App Workflow
 
-See: [api-integration.md](api-integration.md)
+1. Load embedded Parquet files at startup
+2. User enters address or uses GPS
+3. Match address to stored data (fuzzy matching)
+4. Find nearest parking zone (correlation)
+5. Calculate deadline and display
+6. Schedule notification
 
-### 2. Correlation Processing
+## Algorithm Selection
 
-```
-Addresses + Zones → Algorithm → (Index, Distance) → CorrelationResult
-```
-
-- Parallel processing with Rayon
-- Distance threshold: 50 meters
-- Returns closest parking zone per address
-
-See: [algorithms.md](algorithms.md)
-
-### 3. Result Storage
-
-```
-CorrelationResult[] → Apache Parquet → Disk
-```
-
-- Columnar format for efficient storage
-- Used by mobile apps for offline access
-
-## Design Decisions
-
-### High-Precision Coordinates
-
-**Problem:** Floating-point errors in distance calculations
-
-**Solution:** `rust_decimal::Decimal` for all coordinate math
+Algorithms are selected via the `CorrelationAlgo` trait:
 
 ```rust
-// Maintains precision in repeated calculations
-let lat: Decimal = Decimal::from_str("55.605")?;
-let lon: Decimal = Decimal::from_str("13.002")?;
-```
-
-### Parallel Processing
-
-**Problem:** 100K addresses × 2K zones = 200M distance calculations
-
-**Solution:** Rayon data-parallelism
-
-```rust
-addresses.par_iter()  // Automatic CPU core utilization
-    .map(|addr| algo.correlate(addr, zones))
-    .collect()
-```
-
-**Performance:** 3-4x speedup on quad-core systems
-
-### Dual Dataset Support
-
-**Problem:** Parking restrictions split across two government datasets
-
-**Solution:** Correlate with both, merge results
-
-```rust
-pub struct CorrelationResult {
-    pub miljo_match: Option<(f64, String)>,
-    pub parkering_match: Option<(f64, String)>,
+pub trait CorrelationAlgo: Send + Sync {
+    fn correlate(
+        &self, 
+        address: &Address, 
+        zones: &[MiljoParkering]
+    ) -> Option<(usize, f64)>;
 }
 ```
 
-## Testing Strategy
+**Performance Characteristics:**
 
-- Unit tests per algorithm (`correlation_algorithms/*_test.rs`)
-- Integration tests (`core/src/correlation_tests.rs`)
-- Benchmark comparisons
-- Real-world data validation (1000+ address-zone pairs)
+| Algorithm | Build Time | Query Time | Memory | Best For |
+|-----------|------------|------------|--------|----------|
+| KD-Tree   | O(n log n) | O(log n)   | Medium | Default choice |
+| R-Tree    | O(n log n) | O(log n)   | Medium | Dense zones |
+| Distance  | O(1)       | O(n)       | Low    | Small datasets |
+| Grid      | O(n)       | O(1)       | High   | Uniform distribution |
+| Raycasting| O(1)       | O(n)       | Low    | Polygon zones |
 
-See: [testing.md](testing.md)
+See [Algorithms](algorithms.md) for detailed comparisons.
 
-## Performance Characteristics
+## Code Organization
 
-| Component | Complexity | Optimization |
-|-----------|------------|-------------|
-| Distance-Based | O(n×m) | Rayon parallelism |
-| R-Tree | O(n×log m) | Spatial indexing |
-| KD-Tree | O(n×log m) | Spatial indexing |
-| Grid | O(n+m×k) | Spatial hashing |
-| API Fetch | O(m) | Async/await, pagination |
+### Naming Conventions
 
-Where:
-- n = number of addresses
-- m = number of parking zones  
-- k = average zones per grid cell
+- **Code**: English (variables, functions, types)
+- **UI**: Swedish (user-facing strings)
+- **Documentation**: English (all markdown files)
 
-See: [algorithms.md](algorithms.md) for detailed complexity analysis
+This maintains code maintainability while preserving Swedish context for end users.
+
+### Module Structure
+
+```
+core/src/
+├── lib.rs                    # Public API
+├── structs.rs                # Core data types
+├── api.rs                    # Data fetching
+├── parquet.rs                # Parquet conversion
+├── checksum.rs               # Data validation
+├── benchmark.rs              # Performance testing
+└── correlation_algorithms/   # Algorithm implementations
+    ├── mod.rs                # Trait definition
+    ├── common.rs             # Shared utilities
+    ├── kdtree_spatial.rs     # KD-Tree
+    ├── rtree_spatial.rs      # R-Tree
+    ├── distance_based.rs     # Distance
+    ├── raycasting.rs         # Raycasting
+    ├── grid_nearest.rs       # Grid
+    └── overlapping_chunks.rs # Chunks
+```
+
+## Dependencies
+
+### Core Dependencies
+- `rust_decimal`: High-precision coordinates
+- `rayon`: Parallel processing
+- `rstar`: R-tree spatial indexing
+- `kiddo`: KD-tree implementation
+- `geodesy`: Coordinate transformations
+
+### Mobile Dependencies
+- `dioxus`: Cross-platform UI framework
+- `parquet`: Efficient data storage
+- `arrow`: Parquet data access
+
+### CLI Dependencies
+- `clap`: Command-line argument parsing
+- `tokio`: Async runtime
+- `reqwest`: HTTP client
+
+See workspace `Cargo.toml` for version details.
 
 ## Related Documentation
 
-- [Algorithms](algorithms.md) — Correlation algorithms explained
-- [CLI Usage](cli-usage.md) — Command-line guide
-- [API Integration](api-integration.md) — Data fetching details
-- [Testing](testing.md) — Test strategy
+- [Algorithms](algorithms.md) — Algorithm details and benchmarks
+- [API Integration](api-integration.md) — Data source details
+- [Data Format](data-format.md) — Parquet structure
+- [Testing](testing.md) — Testing strategies
