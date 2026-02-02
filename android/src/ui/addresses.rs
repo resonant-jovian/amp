@@ -1,8 +1,14 @@
+use crate::ui::confirm_dialog::ConfirmDialog;
+use crate::ui::info_dialog::InfoDialog;
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::md_device_icons::MdGraphicEq;
+
 /// Address list component displaying all stored addresses with toggle and remove controls
+///
+/// Includes confirmation dialog for removals and info dialog for viewing address details.
+/// Uses neumorphic design with smooth animations and state management.
 ///
 /// # Props
 /// * `stored_addresses` - Vector of StoredAddress entries to display
@@ -14,6 +20,52 @@ pub fn Addresses(
     on_toggle_active: EventHandler<usize>,
     on_remove_address: EventHandler<usize>,
 ) -> Element {
+    // State for confirmation dialog
+    let mut show_confirm = use_signal(|| false);
+    let mut pending_remove_id = use_signal(|| None::<usize>);
+    
+    // State for info dialog
+    let mut show_info = use_signal(|| false);
+    let mut selected_address = use_signal(|| None::<StoredAddress>);
+
+    // Handle remove button click - show confirmation
+    let handle_remove_click = move |addr_id: usize| {
+        info!("Remove button clicked for address id: {}", addr_id);
+        pending_remove_id.set(Some(addr_id));
+        show_confirm.set(true);
+    };
+
+    // Handle confirmed removal
+    let handle_confirm_remove = move |_| {
+        if let Some(id) = pending_remove_id() {
+            info!("Removal confirmed for address id: {}", id);
+            on_remove_address.call(id);
+        }
+        show_confirm.set(false);
+        pending_remove_id.set(None);
+    };
+
+    // Handle cancel removal
+    let handle_cancel = move |_| {
+        info!("Removal cancelled");
+        show_confirm.set(false);
+        pending_remove_id.set(None);
+    };
+
+    // Handle info button click - show address details
+    let handle_info_click = move |addr: StoredAddress| {
+        info!("Info button clicked for address: {} {}", addr.street, addr.street_number);
+        selected_address.set(Some(addr));
+        show_info.set(true);
+    };
+
+    // Handle close info dialog
+    let handle_close_info = move |_| {
+        info!("Info dialog closed");
+        show_info.set(false);
+        selected_address.set(None);
+    };
+
     rsx! {
         div { class: "category-container category-addresses",
             div { class: "category-title", "Adresser" }
@@ -34,10 +86,14 @@ pub fn Addresses(
                                     );
                                     let is_active = addr.active;
                                     let addr_id = addr.id;
+                                    let addr_clone = addr.clone();
+                                    
                                     rsx! {
                                         div { key: "{addr_id}", class: "address-item",
                                             div { class: "address-text",
-                                                button { class: "address-info-icon", onclick: move |_| {},
+                                                button { 
+                                                    class: "address-info-icon", 
+                                                    onclick: move |_| handle_info_click(addr_clone.clone()),
                                                     Icon { icon: MdGraphicEq, width: 16, height: 16 }
                                                 }
                                                 span { "{address_display}" }
@@ -54,7 +110,7 @@ pub fn Addresses(
                                                 }
                                                 button {
                                                     class: "btn-remove",
-                                                    onclick: move |_| on_remove_address.call(addr_id),
+                                                    onclick: move |_| handle_remove_click(addr_id),
                                                     "×"
                                                 }
                                             }
@@ -64,6 +120,22 @@ pub fn Addresses(
                         }
                     }
                 }
+            }
+            
+            // Confirmation dialog for removals
+            ConfirmDialog {
+                is_open: show_confirm(),
+                title: "Bekräfta borttagning".to_string(),
+                message: "Är du säker på att du vill ta bort denna adress?".to_string(),
+                on_confirm: handle_confirm_remove,
+                on_cancel: handle_cancel,
+            }
+            
+            // Info dialog for viewing address details
+            InfoDialog {
+                is_open: show_info(),
+                address: selected_address(),
+                on_close: handle_close_info,
             }
         }
     }
