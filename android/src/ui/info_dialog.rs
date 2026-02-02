@@ -1,6 +1,5 @@
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
-
 /// Information dialog component for displaying address details
 ///
 /// Shows comprehensive address information in a modal overlay with formatted rows.
@@ -28,15 +27,12 @@ pub fn InfoDialog(
     if !is_open || address.is_none() {
         return rsx!();
     }
-
     let addr = address.unwrap();
-
     rsx! {
         div { class: "modal-overlay", onclick: move |_| on_close.call(()),
             div {
                 class: "modal-container info-dialog",
                 onclick: move |e| e.stop_propagation(),
-
                 div { class: "modal-header",
                     h3 { class: "modal-title", "Adressinformation" }
                     button {
@@ -45,7 +41,6 @@ pub fn InfoDialog(
                         "×"
                     }
                 }
-
                 div { class: "modal-body info-content",
                     div { class: "info-row",
                         span { class: "info-label", "Gata:" }
@@ -79,8 +74,6 @@ pub fn InfoDialog(
                             }
                         }
                     }
-
-                    // Display matched parking data if available
                     if let Some(ref entry) = addr.matched_entry {
                         if let Some(ref taxa) = entry.taxa {
                             div { class: "info-row",
@@ -108,7 +101,6 @@ pub fn InfoDialog(
                         }
                     }
                 }
-
                 div { class: "modal-actions",
                     button {
                         class: "modal-btn modal-btn-primary",
