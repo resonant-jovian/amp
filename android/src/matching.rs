@@ -3,7 +3,7 @@
 //! Provides functions to validate and match user-provided addresses
 //! against the pre-computed correlations from the amp server.
 
-use crate::static_data::{get_static_data, StaticAddressEntry};
+use crate::static_data::get_static_data;
 use std::collections::HashMap;
 
 // Re-export types for use by other modules

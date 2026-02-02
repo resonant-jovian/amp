@@ -4,7 +4,6 @@
 //! Falls back to in-memory storage for non-Android platforms (testing).
 
 use crate::ui::StoredAddress;
-use std::sync::atomic::Ordering;
 
 #[cfg(target_os = "android")]
 use jni::{
