@@ -35,12 +35,18 @@ use jni::{
     JNIEnv,
     objects::{JObject, JString, JValue},
 };
-use std::sync::OnceLock;
+
 use std::sync::atomic::{AtomicI32, Ordering};
+
+#[cfg(target_os = "android")]
+use std::sync::OnceLock;
+
 /// Counter for generating unique notification IDs
 static NOTIFICATION_ID_COUNTER: AtomicI32 = AtomicI32::new(1);
+
 #[cfg(target_os = "android")]
 static JVM: OnceLock<jni::JavaVM> = OnceLock::new();
+
 /// Notification channel importance levels (Android 8.0+)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NotificationImportance {
@@ -55,8 +61,10 @@ pub enum NotificationImportance {
     /// Makes sound and appears, may use full screen (IMPORTANCE_MAX)
     Max = 5,
 }
+
 const DEFAULT_CHANNEL_ID: &str = "amp_parking_default";
 const DEFAULT_CHANNEL_NAME: &str = "Parking Notifications";
+
 /// Initialize JVM reference for notification operations
 ///
 /// Must be called during app startup on Android.
@@ -67,6 +75,7 @@ pub fn init_jvm(env: &JNIEnv) {
         eprintln!("[Notifications] JVM initialized");
     }
 }
+
 /// Send an Android notification
 ///
 /// Displays a notification to the user with the specified title and body.
@@ -95,6 +104,7 @@ pub fn init_jvm(env: &JNIEnv) {
 /// ```
 pub fn send_android_notification(title: &str, body: &str) -> Result<i32, String> {
     let notification_id = NOTIFICATION_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+
     #[cfg(target_os = "android")]
     {
         send_notification_android(notification_id, title, body)?;
@@ -104,6 +114,7 @@ pub fn send_android_notification(title: &str, body: &str) -> Result<i32, String>
         );
         Ok(notification_id)
     }
+
     #[cfg(not(target_os = "android"))]
     {
         eprintln!(
@@ -113,6 +124,7 @@ pub fn send_android_notification(title: &str, body: &str) -> Result<i32, String>
         Ok(notification_id)
     }
 }
+
 /// Send notification implementation using JNI
 ///
 /// # TODO
@@ -129,6 +141,7 @@ fn send_notification_android(id: i32, title: &str, body: &str) -> Result<(), Str
     );
     Ok(())
 }
+
 /// Cancel a notification by ID
 ///
 /// Removes a previously displayed notification from the notification tray.
@@ -155,6 +168,7 @@ pub fn cancel_notification(notification_id: i32) -> Result<(), String> {
         eprintln!("[Notifications] Cancelled #{}", notification_id);
         Ok(())
     }
+
     #[cfg(not(target_os = "android"))]
     {
         eprintln!(
@@ -164,6 +178,7 @@ pub fn cancel_notification(notification_id: i32) -> Result<(), String> {
         Ok(())
     }
 }
+
 /// Cancel notification implementation using JNI
 ///
 /// # TODO
@@ -173,6 +188,7 @@ fn cancel_notification_android(id: i32) -> Result<(), String> {
     eprintln!("[Android Notifications] TODO: Cancel notification #{}", id);
     Ok(())
 }
+
 /// Send notification with action to open location in maps
 ///
 /// Creates a notification that opens the specified address in a maps
@@ -195,6 +211,7 @@ pub fn send_notification_with_map_action(
     address: &str,
 ) -> Result<i32, String> {
     let notification_id = NOTIFICATION_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+
     #[cfg(target_os = "android")]
     {
         eprintln!(
@@ -203,6 +220,7 @@ pub fn send_notification_with_map_action(
         );
         Ok(notification_id)
     }
+
     #[cfg(not(target_os = "android"))]
     {
         eprintln!(
@@ -212,6 +230,7 @@ pub fn send_notification_with_map_action(
         Ok(notification_id)
     }
 }
+
 /// Create notification channel (Android 8.0+)
 ///
 /// Required for notifications on Android Oreo (API 26) and above.
@@ -247,8 +266,10 @@ pub fn create_notification_channel(channel_id: &str, channel_name: &str, importa
         channel_id, channel_name, importance,
     );
 }
+
 #[cfg(not(target_os = "android"))]
 pub fn create_notification_channel(_channel_id: &str, _channel_name: &str, _importance: i32) {}
+
 /// Initialize default notification channel
 ///
 /// Convenience function to set up the default channel used by the app.
@@ -260,6 +281,7 @@ pub fn init_default_channel() {
         NotificationImportance::Default as i32,
     );
 }
+
 /// Send notification with custom channel
 ///
 /// # TODO
@@ -276,9 +298,11 @@ pub fn send_notification_with_channel(
     );
     Err("Not implemented".to_string())
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn test_send_notification_non_android() {
         let result = send_android_notification("Test", "Message");
@@ -286,17 +310,20 @@ mod tests {
         let id = result.unwrap();
         assert!(id > 0);
     }
+
     #[test]
     fn test_cancel_notification() {
         let result = cancel_notification(1);
         assert!(result.is_ok());
     }
+
     #[test]
     fn test_notification_id_increment() {
         let id1 = send_android_notification("Test 1", "Body 1").unwrap();
         let id2 = send_android_notification("Test 2", "Body 2").unwrap();
         assert!(id2 > id1);
     }
+
     #[test]
     fn test_notification_importance() {
         assert_eq!(NotificationImportance::Default as i32, 3);

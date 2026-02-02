@@ -24,9 +24,13 @@ use jni::{
     JNIEnv,
     objects::{JObject, JValue},
 };
+
+#[cfg(target_os = "android")]
 use std::sync::OnceLock;
+
 #[cfg(target_os = "android")]
 static JVM: OnceLock<jni::JavaVM> = OnceLock::new();
+
 /// Initialize JVM reference for Android operations
 ///
 /// Must be called during app startup before any Android bridge functions.
@@ -46,6 +50,7 @@ pub fn init_jvm(env: &JNIEnv) {
         eprintln!("[Android Bridge] Failed to get JavaVM reference");
     }
 }
+
 /// Read device GPS location
 ///
 /// Attempts to get the current device location using Android LocationManager.
@@ -90,6 +95,7 @@ pub fn read_device_gps_location() -> Option<(f64, f64)> {
         None
     }
 }
+
 /// Get Android location using JNI and LocationManager
 ///
 /// # Returns
@@ -108,6 +114,7 @@ fn get_android_location() -> Result<(f64, f64), String> {
             .to_string(),
     )
 }
+
 /// Request location permissions from user
 ///
 /// Triggers the Android permission request dialog for location access.
@@ -132,10 +139,12 @@ pub fn request_location_permission() {
         "[Android Bridge] Location permission request not implemented - add JNI call to ActivityCompat.requestPermissions",
     );
 }
+
 #[cfg(not(target_os = "android"))]
 pub fn request_location_permission() {
     eprintln!("[Mock Android Bridge] Location permission request (no-op on non-Android)",);
 }
+
 /// Check if location permissions are granted
 ///
 /// Verifies whether the app has been granted location access permissions.
@@ -153,11 +162,13 @@ pub fn request_location_permission() {
 pub fn has_location_permission() -> bool {
     false
 }
+
 #[cfg(not(target_os = "android"))]
 pub fn has_location_permission() -> bool {
     eprintln!("[Mock Android Bridge] Permission check (always false on non-Android)");
     false
 }
+
 /// Get device model and manufacturer information
 ///
 /// # Returns
@@ -176,19 +187,23 @@ pub fn get_device_info() -> String {
         "Mock Device (Testing)".to_string()
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn test_read_gps_location_non_android() {
         let result = read_device_gps_location();
         assert_eq!(result, None);
     }
+
     #[test]
     fn test_has_permission_non_android() {
         let result = has_location_permission();
         assert_eq!(result, false);
     }
+
     #[test]
     fn test_device_info() {
         let info = get_device_info();

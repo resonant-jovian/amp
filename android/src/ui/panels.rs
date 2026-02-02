@@ -1,6 +1,7 @@
 use crate::countdown::{TimeBucket, bucket_for, format_countdown};
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
+
 /// Display an address with countdown timer in appropriate category
 ///
 /// # Props
@@ -12,12 +13,14 @@ fn AddressItem(addr: StoredAddress, index: usize, on_remove: EventHandler<usize>
     let matched = &addr.matched_entry;
     let countdown = matched
         .as_ref()
-        .and_then(|e| format_countdown(e.dag, &e.tid))
+        .and_then(|e| format_countdown(e))
         .unwrap_or_else(|| "...".to_string());
+
     let address_display = format!(
         "{} {}, {}",
         addr.street, addr.street_number, addr.postal_code,
     );
+
     rsx! {
         div { class: "address-item",
             div { class: "address-text", "{address_display}" }
@@ -25,6 +28,7 @@ fn AddressItem(addr: StoredAddress, index: usize, on_remove: EventHandler<usize>
         }
     }
 }
+
 /// Panel displaying addresses needing attention within 4 hours
 ///
 /// # Props
@@ -36,13 +40,15 @@ pub fn ActivePanel(addresses: Vec<StoredAddress>) -> Element {
         .filter(|a| a.valid && a.active)
         .filter(|a| {
             if let Some(entry) = &a.matched_entry {
-                matches!(bucket_for(entry.dag, &entry.tid), TimeBucket::Now)
+                matches!(bucket_for(entry), TimeBucket::Now)
             } else {
                 false
             }
         })
         .collect();
+
     let active_count = active_addrs.len();
+
     rsx! {
         div { class: "category-container category-active",
             div { class: "category-title", "Städas nu" }
@@ -72,6 +78,7 @@ pub fn ActivePanel(addresses: Vec<StoredAddress>) -> Element {
         }
     }
 }
+
 /// Panel displaying addresses within 6 hours
 ///
 /// # Props
@@ -83,13 +90,15 @@ pub fn SixHoursPanel(addresses: Vec<StoredAddress>) -> Element {
         .filter(|a| a.valid && a.active)
         .filter(|a| {
             if let Some(entry) = &a.matched_entry {
-                matches!(bucket_for(entry.dag, &entry.tid), TimeBucket::Within6Hours)
+                matches!(bucket_for(entry), TimeBucket::Within6Hours)
             } else {
                 false
             }
         })
         .collect();
+
     let count = addrs.len();
+
     rsx! {
         div { class: "category-container category-6h",
             div { class: "category-title", "Inom 6 timmar" }
@@ -119,6 +128,7 @@ pub fn SixHoursPanel(addresses: Vec<StoredAddress>) -> Element {
         }
     }
 }
+
 /// Panel displaying addresses within 24 hours
 ///
 /// # Props
@@ -130,13 +140,15 @@ pub fn OneDayPanel(addresses: Vec<StoredAddress>) -> Element {
         .filter(|a| a.valid && a.active)
         .filter(|a| {
             if let Some(entry) = &a.matched_entry {
-                matches!(bucket_for(entry.dag, &entry.tid), TimeBucket::Within1Day)
+                matches!(bucket_for(entry), TimeBucket::Within1Day)
             } else {
                 false
             }
         })
         .collect();
+
     let count = addrs.len();
+
     rsx! {
         div { class: "category-container category-24h",
             div { class: "category-title", "Inom 1 dag" }
@@ -166,6 +178,7 @@ pub fn OneDayPanel(addresses: Vec<StoredAddress>) -> Element {
         }
     }
 }
+
 /// Panel displaying addresses within 1 month
 ///
 /// # Props
@@ -177,13 +190,15 @@ pub fn OneMonthPanel(addresses: Vec<StoredAddress>) -> Element {
         .filter(|a| a.valid && a.active)
         .filter(|a| {
             if let Some(entry) = &a.matched_entry {
-                matches!(bucket_for(entry.dag, &entry.tid), TimeBucket::Within1Month)
+                matches!(bucket_for(entry), TimeBucket::Within1Month)
             } else {
                 false
             }
         })
         .collect();
+
     let count = addrs.len();
+
     rsx! {
         div { class: "category-container category-month",
             div { class: "category-title", "Inom 1 månad" }
@@ -213,6 +228,7 @@ pub fn OneMonthPanel(addresses: Vec<StoredAddress>) -> Element {
         }
     }
 }
+
 /// Panel displaying addresses with no valid parking restriction data
 ///
 /// # Props
@@ -223,7 +239,9 @@ pub fn InvalidPanel(addresses: Vec<StoredAddress>) -> Element {
         .into_iter()
         .filter(|a| a.active && !a.valid)
         .collect();
+
     let count = addrs.len();
+
     rsx! {
         div { class: "category-container category-invalid",
             div { class: "category-title", "Ingen städning" }

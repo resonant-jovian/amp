@@ -1,13 +1,16 @@
 pub mod addresses;
 pub mod panels;
 pub mod top_bar;
+
 use crate::matching::{MatchResult, match_address};
-use crate::static_data::StaticAddressEntry;
+use amp_core::structs::DB;
 use crate::storage::{read_addresses_from_device, write_addresses_to_device};
 use dioxus::prelude::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
+
 static CSS: Asset = asset!("/assets/style.css");
 static ADDRESS_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
 /// Represents a locally stored address with validation and activation state
 ///
 /// Each address is assigned a unique ID for tracking and can be toggled active/inactive.
@@ -27,8 +30,9 @@ pub struct StoredAddress {
     /// Whether this address should be displayed in panels
     pub active: bool,
     /// The matched database entry (if valid)
-    pub matched_entry: Option<StaticAddressEntry>,
+    pub matched_entry: Option<DB>,
 }
+
 impl StoredAddress {
     /// Create a new stored address and attempt to match against database
     ///
@@ -45,7 +49,9 @@ impl StoredAddress {
             Some(entry) => (true, Some(entry)),
             None => (false, None),
         };
+
         let id = ADDRESS_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+
         StoredAddress {
             id,
             street,
@@ -57,6 +63,7 @@ impl StoredAddress {
         }
     }
 }
+
 /// Fuzzy match address against database
 ///
 /// Implements multi-stage matching strategy:
@@ -69,7 +76,7 @@ impl StoredAddress {
 /// * `postal_code` - Postal code
 ///
 /// # Returns
-/// Some(StaticAddressEntry) if match found, None otherwise
+/// Some(DB) if match found, None otherwise
 ///
 /// # Examples
 /// ```no_run
@@ -81,33 +88,49 @@ fn fuzzy_match_address(
     street: &str,
     street_number: &str,
     postal_code: &str,
-) -> Option<StaticAddressEntry> {
+) -> Option<DB> {
     match match_address(street, street_number, postal_code) {
         MatchResult::Valid(entry) => return Some(entry),
         MatchResult::Invalid => {}
     }
+
     let data = crate::matching::get_parking_data();
     let street_lower = street.to_lowercase().trim().to_string();
     let street_number_lower = street_number.to_lowercase().trim().to_string();
     let postal_code_trimmed = postal_code.trim();
+
     for entry in data.values() {
-        let entry_street_lower = entry.gata.to_lowercase();
-        let entry_number_lower = entry.gatunummer.to_lowercase();
+        let entry_street_lower = entry.gata
+            .as_ref()
+            .map(|s| s.to_lowercase())
+            .unwrap_or_default();
+        let entry_number_lower = entry.gatunummer
+            .as_ref()
+            .map(|s| s.to_lowercase())
+            .unwrap_or_default();
+
         let street_match = entry_street_lower.contains(&street_lower)
             || street_lower.contains(&entry_street_lower);
         let number_match = entry_number_lower == street_number_lower;
-        let postal_match = entry.postnummer == postal_code_trimmed;
+        let postal_match = entry.postnummer
+            .as_ref()
+            .map(|pn| pn.as_str() == postal_code_trimmed)
+            .unwrap_or(false);
+
         if street_match && number_match && postal_match {
             return Some(entry.clone());
         }
     }
+
     None
 }
+
 use crate::ui::{
     addresses::Addresses,
     panels::{ActivePanel, InvalidPanel, OneDayPanel, OneMonthPanel, SixHoursPanel},
     top_bar::TopBar,
 };
+
 /// Main application component
 ///
 /// Manages a list of stored addresses and provides UI for:
@@ -119,6 +142,7 @@ use crate::ui::{
 #[component]
 pub fn App() -> Element {
     let mut stored_addresses = use_signal::<Vec<StoredAddress>>(Vec::new);
+
     use_effect(move || {
         let loaded = read_addresses_from_device();
         if !loaded.is_empty() {
@@ -144,14 +168,17 @@ pub fn App() -> Element {
             stored_addresses.set(examples);
         }
     });
+
     let handle_add_address = move |args: (String, String, String)| {
         let (street, street_number, postal_code) = args;
         info!(
             "handle_add_address called with street='{}', street_number='{}', postal_code='{}'",
             street, street_number, postal_code
         );
+
         let new_addr = StoredAddress::new(street, street_number, postal_code);
         let mut addrs = stored_addresses.write();
+
         if !addrs.iter().any(|a| {
             a.street == new_addr.street
                 && a.street_number == new_addr.street_number
@@ -166,6 +193,7 @@ pub fn App() -> Element {
             warn!("Duplicate address detected, not adding");
         }
     };
+
     let handle_toggle_active = move |id: usize| {
         info!("toggle_active called for id {}", id);
         let mut addrs = stored_addresses.write();
@@ -177,6 +205,7 @@ pub fn App() -> Element {
             }
         }
     };
+
     let handle_remove_address = move |id: usize| {
         info!("remove_address called for id {}", id);
         let mut addrs = stored_addresses.write();
@@ -191,6 +220,7 @@ pub fn App() -> Element {
             }
         }
     };
+
     rsx! {
         Stylesheet { href: CSS }
         TopBar { on_add_address: handle_add_address }
