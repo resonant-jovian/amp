@@ -1,10 +1,34 @@
+//! Address matching against parking restriction database
+//!
+//! Provides functions to validate and match user-provided addresses
+//! against the pre-computed correlations from the amp server.
+
+use crate::static_data::{get_static_data, StaticAddressEntry};
 use std::collections::HashMap;
-use std::sync::OnceLock;
-/// Get or initialize the parking data cache
+
+// Re-export types for use by other modules
+pub use crate::static_data::StaticAddressEntry;
+
+/// Result of address matching operation
+#[derive(Debug, Clone)]
+pub enum MatchResult {
+    /// Address found in database with full details
+    Valid(StaticAddressEntry),
+    /// Address not found or invalid
+    Invalid,
+}
+
+/// Get parking restriction data
+///
+/// Returns a reference to the parking data HashMap with address keys
+/// mapping to StaticAddressEntry values.
 ///
 /// # Returns
-/// Static reference to parking data HashMap
-/// Result of address matching operation
+/// Static reference to parking data
+pub fn get_parking_data() -> &'static HashMap<String, StaticAddressEntry> {
+    get_static_data()
+}
+
 /// Match user input address against static correlations from server
 ///
 /// This checks if the provided address (street, street_number, postal_code) exists
@@ -18,6 +42,30 @@ use std::sync::OnceLock;
 ///
 /// # Returns
 /// MatchResult::Valid with address data if found, MatchResult::Invalid otherwise
+///
+/// # Examples
+/// ```no_run
+/// use amp_android::matching::{match_address, MatchResult};
+/// 
+/// match match_address("Storgatan", "10", "22100") {
+///     MatchResult::Valid(entry) => println!("Found: {} {}", entry.gata, entry.gatunummer),
+///     MatchResult::Invalid => println!("Address not found"),
+/// }
+/// ```
+pub fn match_address(
+    street: &str,
+    street_number: &str,
+    postal_code: &str,
+) -> MatchResult {
+    let data = get_static_data();
+    let key = format!("{}_{}_{}", street, street_number, postal_code);
+
+    match data.get(&key) {
+        Some(entry) => MatchResult::Valid(entry.clone()),
+        None => MatchResult::Invalid,
+    }
+}
+
 /// Validate address input fields
 ///
 /// Checks that all fields contain non-empty values after trimming whitespace.
@@ -29,17 +77,36 @@ use std::sync::OnceLock;
 ///
 /// # Returns
 /// true if all fields are non-empty, false otherwise
+///
+/// # Examples
+/// ```
+/// use amp_android::matching::validate_input;
+/// 
+/// assert!(validate_input("Storgatan", "10", "22100"));
+/// assert!(!validate_input("", "10", "22100"));
+/// ```
 pub fn validate_input(street: &str, street_number: &str, postal_code: &str) -> bool {
-    !street.trim().is_empty() && !street_number.trim().is_empty() && !postal_code.trim().is_empty()
+    !street.trim().is_empty()
+        && !street_number.trim().is_empty()
+        && !postal_code.trim().is_empty()
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn test_validate_input() {
         assert!(validate_input("Storgatan", "10", "22100"));
         assert!(!validate_input("", "10", "22100"));
         assert!(!validate_input("Storgatan", "", "22100"));
         assert!(!validate_input("Storgatan", "10", ""));
+        assert!(!validate_input("  ", "10", "22100")); // Whitespace-only
+    }
+
+    #[test]
+    fn test_validate_input_whitespace() {
+        // Should trim whitespace before checking
+        assert!(validate_input(" Storgatan ", " 10 ", " 22100 "));
     }
 }
