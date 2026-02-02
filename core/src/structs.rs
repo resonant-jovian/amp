@@ -87,3 +87,14 @@ impl OutputDataWithDistance {
         }
     }
 }
+impl CorrelationResult {
+    /// Get source description
+    pub fn dataset_source(&self) -> &'static str {
+        match (self.miljo_match.is_some(), self.parkering_match.is_some()) {
+            (true, true) => "Both (Miljödata & Parkering)",
+            (true, false) => "Miljödata only",
+            (false, true) => "Parkering only",
+            (false, false) => "No match",
+        }
+    }
+}

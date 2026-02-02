@@ -1,22 +1,10 @@
-use crate::static_data::{StaticAddressEntry, load_parquet_data};
 use std::collections::HashMap;
 use std::sync::OnceLock;
-static PARKING_DATA: OnceLock<HashMap<String, StaticAddressEntry>> = OnceLock::new();
 /// Get or initialize the parking data cache
 ///
 /// # Returns
 /// Static reference to parking data HashMap
-fn get_parking_data() -> &'static HashMap<String, StaticAddressEntry> {
-    PARKING_DATA.get_or_init(load_parquet_data)
-}
 /// Result of address matching operation
-#[derive(Clone, Debug, PartialEq)]
-pub enum MatchResult {
-    /// Address found with parking restriction data
-    Valid(StaticAddressEntry),
-    /// Address not found in database
-    Invalid,
-}
 /// Match user input address against static correlations from server
 ///
 /// This checks if the provided address (street, street_number, postal_code) exists
@@ -30,19 +18,6 @@ pub enum MatchResult {
 ///
 /// # Returns
 /// MatchResult::Valid with address data if found, MatchResult::Invalid otherwise
-pub fn match_address(street: &str, street_number: &str, postal_code: &str) -> MatchResult {
-    let key = format!(
-        "{} {}-{}",
-        street.trim(),
-        street_number.trim(),
-        postal_code.trim(),
-    );
-    let data = get_parking_data();
-    match data.get(&key) {
-        Some(restriction) => MatchResult::Valid(restriction.clone()),
-        None => MatchResult::Invalid,
-    }
-}
 /// Validate address input fields
 ///
 /// Checks that all fields contain non-empty values after trimming whitespace.
@@ -66,10 +41,5 @@ mod tests {
         assert!(!validate_input("", "10", "22100"));
         assert!(!validate_input("Storgatan", "", "22100"));
         assert!(!validate_input("Storgatan", "10", ""));
-    }
-    #[test]
-    fn test_match_address_invalid() {
-        let result = match_address("NonExistent", "999", "00000");
-        assert_eq!(result, MatchResult::Invalid);
     }
 }

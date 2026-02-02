@@ -1,8 +1,6 @@
 pub mod addresses;
 pub mod panels;
 pub mod top_bar;
-use crate::matching::match_address;
-use crate::static_data::StaticAddressEntry;
 use dioxus::prelude::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
 static CSS: Asset = asset!("/assets/style.css");

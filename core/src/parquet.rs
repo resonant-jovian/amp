@@ -1,27 +1,21 @@
 use crate::structs::*;
-
 use anyhow;
-
-use arrow::array::{Array, BooleanArray, BooleanBuilder, Float64Builder, UInt64Array, UInt8Array, UInt8Builder, UInt64Builder};
-
+use arrow::array::{
+    Array, BooleanArray, BooleanBuilder, Float64Builder, UInt8Array, UInt8Builder, UInt64Array,
+    UInt64Builder,
+};
 use arrow::{
     array::{StringArray, StringBuilder},
     datatypes::{DataType, Field, Schema},
     record_batch::RecordBatch,
 };
-
 use parquet::{
     arrow::ArrowWriter,
     arrow::arrow_reader::ParquetRecordBatchReaderBuilder,
     file::properties::{EnabledStatistics, WriterProperties},
 };
-
-use std::{fs::File, sync::Arc};
 use rust_decimal::prelude::FromPrimitive;
-// ============================================================================
-// SCHEMA DEFINITIONS
-// ============================================================================
-
+use std::{fs::File, sync::Arc};
 pub fn output_data_schema() -> Arc<Schema> {
     Arc::new(Schema::new(vec![
         Field::new("postnummer", DataType::Utf8, true),
@@ -36,7 +30,6 @@ pub fn output_data_schema() -> Arc<Schema> {
         Field::new("typ_av_parkering", DataType::Utf8, true),
     ]))
 }
-
 pub fn adress_clean_schema() -> Arc<Schema> {
     Arc::new(Schema::new(vec![
         Field::new("longitude", DataType::Float64, false),
@@ -47,7 +40,6 @@ pub fn adress_clean_schema() -> Arc<Schema> {
         Field::new("gatunummer", DataType::Utf8, false),
     ]))
 }
-
 pub fn local_data_schema() -> Arc<Schema> {
     Arc::new(Schema::new(vec![
         Field::new("valid", DataType::Boolean, false),
@@ -64,11 +56,6 @@ pub fn local_data_schema() -> Arc<Schema> {
         Field::new("typ_av_parkering", DataType::Utf8, true),
     ]))
 }
-
-// ============================================================================
-// HELPER FUNCTIONS FOR READING
-// ============================================================================
-
 /// Extract a StringArray column from a RecordBatch
 fn get_string_column<'a>(
     batch: &'a RecordBatch,
@@ -80,7 +67,6 @@ fn get_string_column<'a>(
         .downcast_ref::<StringArray>()
         .ok_or_else(|| anyhow::anyhow!("{} column missing or wrong type", column_name))
 }
-
 /// Extract a BooleanArray column from a RecordBatch
 fn get_boolean_column<'a>(
     batch: &'a RecordBatch,
@@ -92,19 +78,14 @@ fn get_boolean_column<'a>(
         .downcast_ref::<BooleanArray>()
         .ok_or_else(|| anyhow::anyhow!("{} column missing or wrong type", column_name))
 }
-
 /// Extract a UInt8Array column from a RecordBatch
-fn get_u8_column<'a>(
-    batch: &'a RecordBatch,
-    column_name: &str,
-) -> anyhow::Result<&'a UInt8Array> {
+fn get_u8_column<'a>(batch: &'a RecordBatch, column_name: &str) -> anyhow::Result<&'a UInt8Array> {
     batch
         .column(batch.schema().index_of(column_name)?)
         .as_any()
         .downcast_ref::<UInt8Array>()
         .ok_or_else(|| anyhow::anyhow!("{} column missing or wrong type", column_name))
 }
-
 /// Extract a UInt64Array column from a RecordBatch
 fn get_u64_column<'a>(
     batch: &'a RecordBatch,
@@ -116,7 +97,6 @@ fn get_u64_column<'a>(
         .downcast_ref::<UInt64Array>()
         .ok_or_else(|| anyhow::anyhow!("{} column missing or wrong type", column_name))
 }
-
 /// Get optional string value from StringArray at index
 fn get_optional_string(array: &StringArray, index: usize) -> Option<String> {
     if array.is_null(index) {
@@ -125,7 +105,6 @@ fn get_optional_string(array: &StringArray, index: usize) -> Option<String> {
         Some(array.value(index).to_string())
     }
 }
-
 /// Get required string value from StringArray at index (returns empty string if null)
 fn get_required_string(array: &StringArray, index: usize) -> String {
     if array.is_null(index) {
@@ -134,7 +113,6 @@ fn get_required_string(array: &StringArray, index: usize) -> String {
         array.value(index).to_string()
     }
 }
-
 /// Get optional u8 value from UInt8Array at index
 fn get_optional_u8(array: &UInt8Array, index: usize) -> Option<u8> {
     if array.is_null(index) {
@@ -143,7 +121,6 @@ fn get_optional_u8(array: &UInt8Array, index: usize) -> Option<u8> {
         Some(array.value(index))
     }
 }
-
 /// Get optional u64 value from UInt64Array at index
 fn get_optional_u64(array: &UInt64Array, index: usize) -> Option<u64> {
     if array.is_null(index) {
@@ -152,7 +129,6 @@ fn get_optional_u64(array: &UInt64Array, index: usize) -> Option<u64> {
         Some(array.value(index))
     }
 }
-
 /// Get boolean value from BooleanArray at index (defaults to false if null)
 fn get_boolean_with_default(array: &BooleanArray, index: usize, default: bool) -> bool {
     if array.is_null(index) {
@@ -161,25 +137,17 @@ fn get_boolean_with_default(array: &BooleanArray, index: usize, default: bool) -
         array.value(index)
     }
 }
-
 /// Create a Parquet reader from a file
 fn create_parquet_reader(
     file: File,
 ) -> anyhow::Result<impl Iterator<Item = Result<RecordBatch, arrow::error::ArrowError>>> {
     let builder = ParquetRecordBatchReaderBuilder::try_new(file)
         .map_err(|e| anyhow::anyhow!("Failed to create Parquet reader builder: {}", e))?;
-
     let reader = builder
         .build()
         .map_err(|e| anyhow::anyhow!("Failed to build Parquet record batch reader: {}", e))?;
-
     Ok(reader)
 }
-
-// ============================================================================
-// HELPER FUNCTIONS FOR WRITING
-// ============================================================================
-
 /// Append optional string to StringBuilder
 fn append_optional_string(builder: &mut StringBuilder, value: &Option<String>) {
     match value {
@@ -187,7 +155,6 @@ fn append_optional_string(builder: &mut StringBuilder, value: &Option<String>) {
         None => builder.append_null(),
     }
 }
-
 /// Append optional u8 to UInt8Builder
 fn append_optional_u8(builder: &mut UInt8Builder, value: &Option<u8>) {
     match value {
@@ -195,7 +162,6 @@ fn append_optional_u8(builder: &mut UInt8Builder, value: &Option<u8>) {
         None => builder.append_null(),
     }
 }
-
 /// Append optional u64 to UInt64Builder
 fn append_optional_u64(builder: &mut UInt64Builder, value: &Option<u64>) {
     match value {
@@ -203,49 +169,30 @@ fn append_optional_u64(builder: &mut UInt64Builder, value: &Option<u64>) {
         None => builder.append_null(),
     }
 }
-
 /// Create ArrowWriter with standard properties
-fn create_arrow_writer(
-    path: &str,
-    schema: Arc<Schema>,
-) -> anyhow::Result<ArrowWriter<File>> {
+fn create_arrow_writer(path: &str, schema: Arc<Schema>) -> anyhow::Result<ArrowWriter<File>> {
     let file = File::create(path).map_err(|e| anyhow::anyhow!("Failed to create file: {}", e))?;
-
     let props = WriterProperties::builder()
         .set_statistics_enabled(EnabledStatistics::None)
         .build();
-
     ArrowWriter::try_new(file, schema, Some(props))
         .map_err(|e| anyhow::anyhow!("Failed to create ArrowWriter: {}", e))
 }
-
 /// Write a single batch and close the writer
-fn write_batch_and_close(
-    mut writer: ArrowWriter<File>,
-    batch: RecordBatch,
-) -> anyhow::Result<()> {
+fn write_batch_and_close(mut writer: ArrowWriter<File>, batch: RecordBatch) -> anyhow::Result<()> {
     writer
         .write(&batch)
         .map_err(|e| anyhow::anyhow!("Failed to write batch: {}", e))?;
-
     writer
         .close()
         .map_err(|e| anyhow::anyhow!("Failed to close writer: {}", e))?;
-
     Ok(())
 }
-
-// ============================================================================
-// READ FUNCTIONS
-// ============================================================================
-
 /// Read parking data from parquet file
 pub fn read_db_parquet(file: File) -> anyhow::Result<Vec<OutputData>> {
     let mut reader = create_parquet_reader(file)?;
     let mut result = Vec::new();
-
     while let Some(batch) = reader.next().transpose()? {
-        // Extract columns from the batch
         let postnummer = get_string_column(&batch, "postnummer")?;
         let address = get_string_column(&batch, "adress")?;
         let gata = get_string_column(&batch, "gata")?;
@@ -256,8 +203,6 @@ pub fn read_db_parquet(file: File) -> anyhow::Result<Vec<OutputData>> {
         let taxa = get_string_column(&batch, "taxa")?;
         let antal_platser = get_u64_column(&batch, "antal_platser")?;
         let typ_av_parkering = get_string_column(&batch, "typ_av_parkering")?;
-
-        // Iterate through rows and construct OutputData
         for i in 0..batch.num_rows() {
             let entry = OutputData {
                 postnummer: get_optional_string(postnummer, i),
@@ -274,17 +219,13 @@ pub fn read_db_parquet(file: File) -> anyhow::Result<Vec<OutputData>> {
             result.push(entry);
         }
     }
-
     Ok(result)
 }
-
 /// Read stored data from parquet file
 pub fn read_local_parquet(file: File) -> anyhow::Result<Vec<LocalData>> {
     let mut reader = create_parquet_reader(file)?;
     let mut result = Vec::new();
-
     while let Some(batch) = reader.next().transpose()? {
-        // Extract columns from the batch
         let valid = get_boolean_column(&batch, "valid")?;
         let active = get_boolean_column(&batch, "active")?;
         let postnummer = get_string_column(&batch, "postnummer")?;
@@ -297,8 +238,6 @@ pub fn read_local_parquet(file: File) -> anyhow::Result<Vec<LocalData>> {
         let taxa = get_string_column(&batch, "taxa")?;
         let antal_platser = get_u64_column(&batch, "antal_platser")?;
         let typ_av_parkering = get_string_column(&batch, "typ_av_parkering")?;
-
-        // Iterate through rows and construct LocalData
         for i in 0..batch.num_rows() {
             let entry = LocalData {
                 valid: get_boolean_with_default(valid, i, false),
@@ -317,35 +256,27 @@ pub fn read_local_parquet(file: File) -> anyhow::Result<Vec<LocalData>> {
             result.push(entry);
         }
     }
-
     Ok(result)
 }
-
 /// Read address clean data from parquet file
 pub fn read_address_parquet(file: File) -> anyhow::Result<Vec<AdressClean>> {
     let mut reader = create_parquet_reader(file)?;
     let mut result = Vec::new();
-
     while let Some(batch) = reader.next().transpose()? {
-        // Extract columns from the batch
         let longitude = batch
             .column(batch.schema().index_of("longitude")?)
             .as_any()
             .downcast_ref::<arrow::array::Float64Array>()
             .ok_or_else(|| anyhow::anyhow!("longitude column missing or wrong type"))?;
-
         let latitude = batch
             .column(batch.schema().index_of("latitude")?)
             .as_any()
             .downcast_ref::<arrow::array::Float64Array>()
             .ok_or_else(|| anyhow::anyhow!("latitude column missing or wrong type"))?;
-
         let postnummer = get_string_column(&batch, "postnummer")?;
         let adress = get_string_column(&batch, "adress")?;
         let gata = get_string_column(&batch, "gata")?;
         let gatunummer = get_string_column(&batch, "gatunummer")?;
-
-        // Iterate through rows and construct AdressClean
         for i in 0..batch.num_rows() {
             let entry = AdressClean {
                 coordinates: [
@@ -360,25 +291,15 @@ pub fn read_address_parquet(file: File) -> anyhow::Result<Vec<AdressClean>> {
             result.push(entry);
         }
     }
-
     Ok(result)
 }
-
-
-// ============================================================================
-// WRITE FUNCTIONS
-// ============================================================================
-
 /// Write OutputData to parquet file
 pub fn write_output_parquet(data: Vec<OutputData>, path: &str) -> anyhow::Result<()> {
     if data.is_empty() {
         return Err(anyhow::anyhow!("Empty output data"));
     }
-
     let schema = output_data_schema();
     let writer = create_arrow_writer(path, schema.clone())?;
-
-    // Build arrays for all columns
     let mut postnummer_builder = StringBuilder::new();
     let mut adress_builder = StringBuilder::new();
     let mut gata_builder = StringBuilder::new();
@@ -389,7 +310,6 @@ pub fn write_output_parquet(data: Vec<OutputData>, path: &str) -> anyhow::Result
     let mut taxa_builder = StringBuilder::new();
     let mut antal_platser_builder = UInt64Builder::new();
     let mut typ_av_parkering_builder = StringBuilder::new();
-
     for row in data {
         append_optional_string(&mut postnummer_builder, &row.postnummer);
         adress_builder.append_value(&row.adress);
@@ -402,7 +322,6 @@ pub fn write_output_parquet(data: Vec<OutputData>, path: &str) -> anyhow::Result
         append_optional_u64(&mut antal_platser_builder, &row.antal_platser);
         append_optional_string(&mut typ_av_parkering_builder, &row.typ_av_parkering);
     }
-
     let batch = RecordBatch::try_new(
         schema.clone(),
         vec![
@@ -418,39 +337,31 @@ pub fn write_output_parquet(data: Vec<OutputData>, path: &str) -> anyhow::Result
             Arc::new(typ_av_parkering_builder.finish()),
         ],
     )
-        .map_err(|e| anyhow::anyhow!("Failed to create record batch: {}", e))?;
-
+    .map_err(|e| anyhow::anyhow!("Failed to create record batch: {}", e))?;
     write_batch_and_close(writer, batch)
 }
-
 /// Write AdressClean to parquet file
 pub fn write_adress_clean_parquet(data: Vec<AdressClean>, path: &str) -> anyhow::Result<()> {
     if data.is_empty() {
         return Err(anyhow::anyhow!("Empty address data"));
     }
-
     let schema = adress_clean_schema();
     let writer = create_arrow_writer(path, schema.clone())?;
-
-    // Build arrays for all columns
     let mut longitude_builder = Float64Builder::new();
     let mut latitude_builder = Float64Builder::new();
     let mut postnummer_builder = StringBuilder::new();
     let mut adress_builder = StringBuilder::new();
     let mut gata_builder = StringBuilder::new();
     let mut gatunummer_builder = StringBuilder::new();
-
     for row in data {
-        // Coordinates are [longitude, latitude] based on GeoJSON standard
-        longitude_builder.append_value(row.coordinates[0].to_string().parse::<f64>().unwrap_or(0.0));
+        longitude_builder
+            .append_value(row.coordinates[0].to_string().parse::<f64>().unwrap_or(0.0));
         latitude_builder.append_value(row.coordinates[1].to_string().parse::<f64>().unwrap_or(0.0));
-
         append_optional_string(&mut postnummer_builder, &row.postnummer);
         adress_builder.append_value(&row.adress);
         gata_builder.append_value(&row.gata);
         gatunummer_builder.append_value(&row.gatunummer);
     }
-
     let batch = RecordBatch::try_new(
         schema.clone(),
         vec![
@@ -462,29 +373,21 @@ pub fn write_adress_clean_parquet(data: Vec<AdressClean>, path: &str) -> anyhow:
             Arc::new(gatunummer_builder.finish()),
         ],
     )
-        .map_err(|e| anyhow::anyhow!("Failed to create record batch: {}", e))?;
-
+    .map_err(|e| anyhow::anyhow!("Failed to create record batch: {}", e))?;
     write_batch_and_close(writer, batch)
 }
-
 /// Build LocalData into a parquet-encoded in-memory buffer
 pub fn build_local_parquet(data: Vec<LocalData>) -> anyhow::Result<Vec<u8>> {
     if data.is_empty() {
         return Err(anyhow::anyhow!("Empty local data"));
     }
-
     let schema = local_data_schema();
-
-    // Write to in-memory buffer
     let mut buffer = Vec::new();
     let props = WriterProperties::builder()
         .set_statistics_enabled(EnabledStatistics::None)
         .build();
-
     let mut writer = ArrowWriter::try_new(&mut buffer, schema.clone(), Some(props))
         .map_err(|e| anyhow::anyhow!("Failed to create ArrowWriter: {}", e))?;
-
-    // Build arrays for all columns
     let mut valid_builder = BooleanBuilder::new();
     let mut active_builder = BooleanBuilder::new();
     let mut postnummer_builder = StringBuilder::new();
@@ -497,14 +400,11 @@ pub fn build_local_parquet(data: Vec<LocalData>) -> anyhow::Result<Vec<u8>> {
     let mut taxa_builder = StringBuilder::new();
     let mut antal_platser_builder = UInt64Builder::new();
     let mut typ_av_parkering_builder = StringBuilder::new();
-
     for row in data {
         valid_builder.append_value(row.valid);
         active_builder.append_value(row.active);
-
         append_optional_string(&mut postnummer_builder, &row.postnummer);
         adress_builder.append_value(&row.adress);
-
         append_optional_string(&mut gata_builder, &row.gata);
         append_optional_string(&mut gatunummer_builder, &row.gatunummer);
         append_optional_string(&mut info_builder, &row.info);
@@ -514,7 +414,6 @@ pub fn build_local_parquet(data: Vec<LocalData>) -> anyhow::Result<Vec<u8>> {
         append_optional_u64(&mut antal_platser_builder, &row.antal_platser);
         append_optional_string(&mut typ_av_parkering_builder, &row.typ_av_parkering);
     }
-
     let batch = RecordBatch::try_new(
         schema.clone(),
         vec![
@@ -532,15 +431,12 @@ pub fn build_local_parquet(data: Vec<LocalData>) -> anyhow::Result<Vec<u8>> {
             Arc::new(typ_av_parkering_builder.finish()),
         ],
     )
-        .map_err(|e| anyhow::anyhow!("Failed to create record batch: {}", e))?;
-
+    .map_err(|e| anyhow::anyhow!("Failed to create record batch: {}", e))?;
     writer
         .write(&batch)
         .map_err(|e| anyhow::anyhow!("Failed to write batch: {}", e))?;
-
     writer
         .close()
         .map_err(|e| anyhow::anyhow!("Failed to close writer: {}", e))?;
-
     Ok(buffer)
 }
