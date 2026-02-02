@@ -204,7 +204,7 @@ use crate::ui::{
 /// - Persisting addresses to local storage
 #[component]
 pub fn App() -> Element {
-    let mut stored_addresses = use_signal::<Vec<StoredAddress>>(Vec::new));
+    let mut stored_addresses = use_signal::<Vec<StoredAddress>>(Vec::new());
 
     use_effect(move || {
         let loaded = read_addresses_from_device();
@@ -212,18 +212,41 @@ pub fn App() -> Element {
             info!("Loaded {} addresses from storage", loaded.len());
             stored_addresses.set(loaded);
         } else {
-            info!("No saved addresses, adding examples");
+            info!("No saved addresses, adding debug test addresses");
             let examples = vec![
-                StoredAddress::new(
-                    "Storgatan".to_string(),
-                    "1".to_string(),
-                    "22100".to_string(),
-                ),
-                StoredAddress::new(
-                    "Storgatan".to_string(),
-                    "10".to_string(),
-                    "22100".to_string(),
-                ),
+                StoredAddress::new("Kornettsgatan".to_string(), "18C".to_string(), "21150".to_string()), // dag 1
+                StoredAddress::new("Claesgatan".to_string(), "2B".to_string(), "21426".to_string()), // dag 2
+                StoredAddress::new("Östra Kristinelundsvägen".to_string(), "27D".to_string(), "21748".to_string()), // dag 3
+                StoredAddress::new("Karlskronaplan".to_string(), "3".to_string(), "21436".to_string()), // dag 4
+                StoredAddress::new("Västra Rönneholmsvägen".to_string(), "76C".to_string(), "21741".to_string()), // dag 5
+                StoredAddress::new("Vitemöllegatan".to_string(), "11A".to_string(), "21442".to_string()), // dag 6
+                StoredAddress::new("Docentgatan".to_string(), "1B".to_string(), "21552".to_string()), // dag 7
+                StoredAddress::new("Eriksfältsgatan".to_string(), "98B".to_string(), "21550".to_string()), // dag 8
+                StoredAddress::new("Lantmannagatan".to_string(), "50 U1".to_string(), "21448".to_string()), // dag 9
+                StoredAddress::new("Pysslinggatan".to_string(), "4".to_string(), "21238".to_string()), // dag 10
+                StoredAddress::new("Celsiusgatan".to_string(), "13A U1".to_string(), "21214".to_string()), // dag 11
+                StoredAddress::new("Kapellgatan".to_string(), "14 U4".to_string(), "21421".to_string()), // dag 12
+                StoredAddress::new("Tegnérgatan".to_string(), "25B".to_string(), "21614".to_string()), // dag 13
+                StoredAddress::new("S:t Pauli kyrkogata".to_string(), "13B".to_string(), "21149".to_string()), // dag 14
+                StoredAddress::new("Östra Stallmästaregatan".to_string(), "18B".to_string(), "21749".to_string()), // dag 15
+                StoredAddress::new("Södervärnsgatan".to_string(), "9B U1".to_string(), "21427".to_string()), // dag 16
+                StoredAddress::new("Carl Hillsgatan".to_string(), "10B".to_string(), "21756".to_string()), // dag 17
+                StoredAddress::new("Köpenhamnsvägen".to_string(), "46A".to_string(), "21771".to_string()), // dag 18
+                StoredAddress::new("Bangatan".to_string(), "13".to_string(), "21426".to_string()), // dag 19
+                StoredAddress::new("Smålandsgatan".to_string(), "20A".to_string(), "21430".to_string()), // dag 20
+                StoredAddress::new("Tycho Brahegatan".to_string(), "26".to_string(), "21612".to_string()), // dag 21
+                StoredAddress::new("Storgatan".to_string(), "43K".to_string(), "21142".to_string()), // dag 22
+                StoredAddress::new("Östergårdsgatan".to_string(), "1 U13".to_string(), "21222".to_string()), // dag 23
+                StoredAddress::new("Byggmästaregatan".to_string(), "5".to_string(), "21130".to_string()), // dag 24
+                StoredAddress::new("Lantmannagatan".to_string(), "11A".to_string(), "21444".to_string()), // dag 25
+                StoredAddress::new("Zenithgatan".to_string(), "42C".to_string(), "21214".to_string()), // dag 26
+                StoredAddress::new("Bragegatan".to_string(), "37B".to_string(), "21446".to_string()), // dag 27
+                StoredAddress::new("Idunsgatan".to_string(), "67B".to_string(), "21446".to_string()), // dag 28
+                StoredAddress::new("Värnhemsgatan".to_string(), "2A".to_string(), "21215".to_string()), // dag 29
+                StoredAddress::new("Sånekullavägen".to_string(), "36A".to_string(), "21774".to_string()), // dag 30
+                StoredAddress::new("Amiralsgatan".to_string(), "83E".to_string(), "21437".to_string()), // ingen städning men parkering
+                StoredAddress::new("Docentgatan".to_string(), "3A".to_string(), "21552".to_string()), // städning men ingen parkerings avgift
+                StoredAddress::new("Låssasgatan".to_string(), "11A".to_string(), "11111".to_string()), // false street
             ];
             if let Err(e) = write_addresses_to_device(&examples) {
                 error!("Failed to save example addresses: {}", e);
