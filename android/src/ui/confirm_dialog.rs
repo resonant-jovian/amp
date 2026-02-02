@@ -1,5 +1,4 @@
 use dioxus::prelude::*;
-
 /// Confirmation dialog component for destructive actions
 ///
 /// Displays a modal overlay with confirm/cancel buttons to prevent accidental operations.
@@ -31,26 +30,19 @@ pub fn ConfirmDialog(
     on_cancel: EventHandler<()>,
 ) -> Element {
     if !is_open {
-        return None;
+        return rsx!();
     }
-
     rsx! {
-        div { 
-            class: "modal-overlay",
-            onclick: move |_| on_cancel.call(()),
-            
-            div { 
+        div { class: "modal-overlay", onclick: move |_| on_cancel.call(()),
+            div {
                 class: "modal-container confirm-dialog",
                 onclick: move |e| e.stop_propagation(),
-                
                 div { class: "modal-header",
                     h3 { class: "modal-title", "{title}" }
                 }
-                
                 div { class: "modal-body",
                     p { "{message}" }
                 }
-                
                 div { class: "modal-actions",
                     button {
                         class: "modal-btn modal-btn-cancel",

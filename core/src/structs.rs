@@ -1,10 +1,8 @@
-use chrono::{DateTime, NaiveDate, NaiveTime, Utc};
+use chrono::{DateTime, NaiveDate, NaiveTime, TimeZone, Utc};
 use chrono_tz::{Europe::Stockholm, Tz};
 use rust_decimal::Decimal;
-
 /// Swedish timezone constant for all time operations
 pub const SWEDISH_TZ: Tz = Stockholm;
-
 #[derive(Debug, Clone)]
 pub struct AdressClean {
     pub coordinates: [Decimal; 2],
@@ -74,16 +72,16 @@ pub struct DBParams {
 /// Database struct for Android component
 /// Uses chrono timestamps to represent time intervals within a month
 /// Time is always in Swedish timezone (Europe/Stockholm) which handles DST automatically
-/// 
+///
 /// # Time Range and Validation
-/// 
+///
 /// - Valid years: 2020-2100 (prevents overflow and ensures realistic dates)
 /// - Valid months: 1-12
 /// - Valid days: 1-31 (validated by chrono)
 /// - Valid time format: "HHMM-HHMM" (e.g., "0800-1200")
 /// - All times are stored in Swedish timezone (Europe/Stockholm)
 /// - Handles summer/winter time shifts automatically
-/// 
+///
 /// # Examples
 /// ```
 /// use amp_core::structs::DB;
@@ -181,28 +179,27 @@ impl DB {
     /// # Returns
     /// - `Some(DB)` if all validations pass
     /// - `None` if validation fails (see `from_dag_tid` for details)
-    /// 
+    ///
     /// # Overflow Prevention
     /// Years are validated to be in range 2020-2100 to prevent:
     /// - DateTime overflow (chrono supports years -262144 to 262143)
     /// - Unrealistic dates that could cause calculation errors
     /// - Future-proofing while allowing reasonable historical data
     pub fn from_params(params: DBParams) -> Option<Self> {
-        // Validate year to prevent overflow
         if !(2020..=2100).contains(&params.year) {
             eprintln!("[DB] Invalid year: {} (must be 2020-2100)", params.year);
             return None;
         }
-        
-        // Validate month
         if !(1..=12).contains(&params.month) {
             eprintln!("[DB] Invalid month: {} (must be 1-12)", params.month);
             return None;
         }
-
         let parts: Vec<&str> = params.tid.split('-').collect();
         if parts.len() != 2 {
-            eprintln!("[DB] Invalid time format: '{}' (expected HHMM-HHMM)", params.tid);
+            eprintln!(
+                "[DB] Invalid time format: '{}' (expected HHMM-HHMM)",
+                params.tid
+            );
             return None;
         }
         let parse_hhmm = |s: &str| -> Option<NaiveTime> {
@@ -216,17 +213,17 @@ impl DB {
         };
         let start_naive_time = parse_hhmm(parts[0])?;
         let end_naive_time = parse_hhmm(parts[1])?;
-        
-        // Validate day of month
         let date = NaiveDate::from_ymd_opt(params.year, params.month, params.dag as u32)?;
-        
         let start_datetime = date.and_time(start_naive_time);
         let end_datetime = date.and_time(end_naive_time);
-        
-        // Convert from Swedish timezone to UTC for storage
-        let start_time = SWEDISH_TZ.from_local_datetime(&start_datetime).single()?.with_timezone(&Utc);
-        let end_time = SWEDISH_TZ.from_local_datetime(&end_datetime).single()?.with_timezone(&Utc);
-        
+        let start_time = SWEDISH_TZ
+            .from_local_datetime(&start_datetime)
+            .single()?
+            .with_timezone(&Utc);
+        let end_time = SWEDISH_TZ
+            .from_local_datetime(&end_datetime)
+            .single()?
+            .with_timezone(&Utc);
         Some(DB {
             postnummer: params.postnummer,
             adress: params.adress,
@@ -241,7 +238,7 @@ impl DB {
         })
     }
     /// Check if the restriction is currently active
-    /// 
+    ///
     /// # Arguments
     /// * `now` - Current time in UTC (will be converted to Swedish timezone for comparison)
     pub fn is_active(&self, now: DateTime<Utc>) -> bool {
@@ -263,12 +260,10 @@ impl DB {
             None
         }
     }
-    
     /// Get start time in Swedish timezone for display
     pub fn start_time_swedish(&self) -> DateTime<Tz> {
         self.start_time.with_timezone(&SWEDISH_TZ)
     }
-    
     /// Get end time in Swedish timezone for display
     pub fn end_time_swedish(&self) -> DateTime<Tz> {
         self.end_time.with_timezone(&SWEDISH_TZ)
@@ -400,42 +395,71 @@ mod tests {
         );
         assert!(!db.is_active(before));
     }
-    
     #[test]
     fn test_year_validation() {
-        // Too old
         let db = DB::from_dag_tid(
-            None, "Test".to_string(), None, None, None,
-            15, "0800-1200", None, None, None,
-            2019, 1,
+            None,
+            "Test".to_string(),
+            None,
+            None,
+            None,
+            15,
+            "0800-1200",
+            None,
+            None,
+            None,
+            2019,
+            1,
         );
         assert!(db.is_none());
-        
-        // Too far in future
         let db = DB::from_dag_tid(
-            None, "Test".to_string(), None, None, None,
-            15, "0800-1200", None, None, None,
-            2101, 1,
+            None,
+            "Test".to_string(),
+            None,
+            None,
+            None,
+            15,
+            "0800-1200",
+            None,
+            None,
+            None,
+            2101,
+            1,
         );
         assert!(db.is_none());
-        
-        // Valid range
         let db = DB::from_dag_tid(
-            None, "Test".to_string(), None, None, None,
-            15, "0800-1200", None, None, None,
-            2024, 1,
+            None,
+            "Test".to_string(),
+            None,
+            None,
+            None,
+            15,
+            "0800-1200",
+            None,
+            None,
+            None,
+            2024,
+            1,
         );
         assert!(db.is_some());
     }
-    
     #[test]
     fn test_swedish_timezone() {
         let db = DB::from_dag_tid(
-            None, "Test".to_string(), None, None, None,
-            15, "0800-1200", None, None, None,
-            2024, 1,
-        ).unwrap();
-        
+            None,
+            "Test".to_string(),
+            None,
+            None,
+            None,
+            15,
+            "0800-1200",
+            None,
+            None,
+            None,
+            2024,
+            1,
+        )
+        .unwrap();
         let swedish_time = db.start_time_swedish();
         assert_eq!(swedish_time.timezone(), SWEDISH_TZ);
     }

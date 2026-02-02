@@ -1,6 +1,5 @@
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
-
 /// Information dialog component for displaying address details
 ///
 /// Shows comprehensive address information in a modal overlay with formatted rows.
@@ -26,20 +25,14 @@ pub fn InfoDialog(
     on_close: EventHandler<()>,
 ) -> Element {
     if !is_open || address.is_none() {
-        return None;
+        return rsx!();
     }
-
     let addr = address.unwrap();
-    
     rsx! {
-        div { 
-            class: "modal-overlay",
-            onclick: move |_| on_close.call(()),
-            
-            div { 
+        div { class: "modal-overlay", onclick: move |_| on_close.call(()),
+            div {
                 class: "modal-container info-dialog",
                 onclick: move |e| e.stop_propagation(),
-                
                 div { class: "modal-header",
                     h3 { class: "modal-title", "Adressinformation" }
                     button {
@@ -48,7 +41,6 @@ pub fn InfoDialog(
                         "×"
                     }
                 }
-                
                 div { class: "modal-body info-content",
                     div { class: "info-row",
                         span { class: "info-label", "Gata:" }
@@ -64,16 +56,22 @@ pub fn InfoDialog(
                     }
                     div { class: "info-row",
                         span { class: "info-label", "Status:" }
-                        span { 
-                            class: if addr.active { "info-value status-active" } else { "info-value status-inactive" },
-                            if addr.active { "Aktiv" } else { "Inaktiv" }
+                        span { class: if addr.active { "info-value status-active" } else { "info-value status-inactive" },
+                            if addr.active {
+                                "Aktiv"
+                            } else {
+                                "Inaktiv"
+                            }
                         }
                     }
                     div { class: "info-row",
                         span { class: "info-label", "Validerad:" }
-                        span { 
-                            class: if addr.valid { "info-value status-active" } else { "info-value status-inactive" },
-                            if addr.valid { "Ja" } else { "Nej" }
+                        span { class: if addr.valid { "info-value status-active" } else { "info-value status-inactive" },
+                            if addr.valid {
+                                "Ja"
+                            } else {
+                                "Nej"
+                            }
                         }
                     }
                     if let Some(entry) = addr.matched_entry {
@@ -91,7 +89,6 @@ pub fn InfoDialog(
                         }
                     }
                 }
-                
                 div { class: "modal-actions",
                     button {
                         class: "modal-btn modal-btn-primary",

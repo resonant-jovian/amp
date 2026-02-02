@@ -1,11 +1,10 @@
 use crate::android_bridge::read_device_gps_location;
-use crate::geo::find_address_by_coordinates;
+use crate::components::geo::find_address_by_coordinates;
 use crate::ui::settings_dropdown::SettingsDropdown;
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::md_image_icons::MdBlurOn;
 use dioxus_free_icons::icons::md_maps_icons::MdAddLocationAlt;
-
 /// Top navigation bar with address input and controls
 ///
 /// Provides input fields for adding new addresses and buttons for GPS and settings.
@@ -19,7 +18,6 @@ pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Ele
     let mut address_input = use_signal(String::new);
     let mut postal_code_input = use_signal(String::new);
     let mut show_settings = use_signal(|| false);
-    
     let handle_add_click = move |_| {
         let address_str = address_input();
         let postal_code = postal_code_input();
@@ -47,7 +45,6 @@ pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Ele
         postal_code_input.set(String::new());
         info!("Address added successfully");
     };
-    
     let handle_gps_click = move |_| {
         info!("GPS button clicked - reading device location");
         if let Some((lat, lon)) = read_device_gps_location() {
@@ -73,18 +70,18 @@ pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Ele
             warn!("Could not read device location - check permissions");
         }
     };
-    
     let handle_settings_click = move |_| {
         let new_state = !show_settings();
         show_settings.set(new_state);
-        info!("Settings button clicked - dropdown now: {}", if new_state { "open" } else { "closed" });
+        info!(
+            "Settings button clicked - dropdown now: {}",
+            if new_state { "open" } else { "closed" }
+        );
     };
-    
     let handle_close_settings = move |_| {
         info!("Settings dropdown closed");
         show_settings.set(false);
     };
-    
     rsx! {
         div { class: "category-container topbar-container",
             div { class: "category-title topbar-title",
@@ -141,12 +138,7 @@ pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Ele
                     }
                 }
             }
-            
-            // Settings dropdown panel
-            SettingsDropdown {
-                is_open: show_settings(),
-                on_close: handle_close_settings,
-            }
+            SettingsDropdown { is_open: show_settings(), on_close: handle_close_settings }
         }
     }
 }

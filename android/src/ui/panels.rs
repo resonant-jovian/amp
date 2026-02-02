@@ -1,4 +1,4 @@
-use crate::countdown::{TimeBucket, bucket_for, format_countdown};
+use crate::components::countdown::{TimeBucket, bucket_for, format_countdown};
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
 /// Display an address with countdown timer in appropriate category

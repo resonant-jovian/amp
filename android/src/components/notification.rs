@@ -72,7 +72,7 @@ pub fn schedule_notification(restriction: &DB, advance_notice: Duration) {
     );
     eprintln!(
         "[Notification] Restriction ends at: {:?}",
-        restriction.end_time,
+        restriction.end_time
     );
 }
 /// Cancel all notifications for a specific address
@@ -85,7 +85,7 @@ pub fn schedule_notification(restriction: &DB, advance_notice: Duration) {
 pub fn cancel_notification(restriction: &DB) {
     eprintln!(
         "[Notification] TODO: Cancel notification for {}",
-        restriction.adress,
+        restriction.adress
     );
 }
 /// Cancel all scheduled notifications
@@ -104,7 +104,7 @@ pub fn cancel_all_notifications() {
 /// true if notifications are enabled (currently stubbed as true)
 pub fn are_notifications_enabled() -> bool {
     eprintln!("[Notification] TODO: Check if notifications enabled");
-    true // Stubbed
+    true
 }
 /// Request notification permission (Android 13+)
 ///

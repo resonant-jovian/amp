@@ -48,8 +48,8 @@ use amp_core::structs::DB;
 use chrono::{Duration, Utc};
 /// Calculate remaining duration until parking restriction ends
 ///
-//! Uses the DB struct's `time_until_end` method to calculate the duration
-//! from the current time until the restriction's end_time.
+/// Uses the DB struct's `time_until_end` method to calculate the duration
+/// from the current time until the restriction's end_time.
 ///
 /// # Arguments
 /// * `restriction` - DB entry containing restriction information with timestamps
