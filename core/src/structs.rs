@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Datelike, Utc};
 use rust_decimal::Decimal;
 
 #[derive(Debug, Clone)]
@@ -87,10 +87,7 @@ impl DB {
     /// Create a new DB entry from day and time strings
     /// 
     /// # Arguments
-    /// * `dag` - Day of month (1-31)
-    /// * `tid` - Time range string (e.g., "0800-1200")
-    /// * `year` - Year for the timestamp
-    /// * `month` - Month for the timestamp (1-12)
+    /// * `params` - DBParams struct containing all required fields
     /// 
     /// # Returns
     /// DB instance with calculated start_time and end_time from month start
