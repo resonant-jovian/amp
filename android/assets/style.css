@@ -385,6 +385,7 @@ input[type=number] {
     transform: translateY(0);
 }
 
+/* Address Item - Fixed vertical centering */
 .address-item {
     display: grid;
     grid-template-columns: 1fr auto;
@@ -401,17 +402,33 @@ input[type=number] {
     margin-bottom: 0;
 }
 
+/* Address text - now includes countdown, both centered */
 .address-text {
     font-size: 14px;
     font-weight: 500;
     color: var(--color-text);
     min-width: 0;
-    align-self: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+}
+
+.address-text > span {
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
+/* Countdown text - centered to match address text */
+.countdown-text {
+    font-weight: 700;
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    text-align: left;
+}
+
+/* Info icon button - centered vertically */
 .address-info-icon {
     width: 32px;
     height: 32px;
@@ -430,6 +447,7 @@ input[type=number] {
     box-shadow: inset 1px 1px 3px #a3b1c6, inset -1px -1px 5px #ffffff;
     outline: none !important;
     -webkit-tap-highlight-color: transparent;
+    align-self: center;
 }
 
 .address-info-icon:hover {
@@ -460,18 +478,20 @@ input[type=number] {
     box-shadow: inset 1px 1px 3px #a3b1c6, inset -1px -1px 5px #ffffff !important;
 }
 
+/* Address actions - all buttons centered vertically */
 .address-actions {
-    display: grid;
-    grid-template-columns: auto auto;
+    display: flex;
     gap: 8px;
     align-items: center;
+    justify-content: center;
     white-space: nowrap;
 }
 
+/* Toggle switch - centered vertically */
 .toggle-switch {
-    grid-column: 1;
-    align-self: center;
+    display: flex;
     align-items: center;
+    justify-content: center;
     cursor: pointer;
 }
 
@@ -567,10 +587,8 @@ input[type=number] {
     box-shadow: 0 0 15px 4px #bb4ea0;
 }
 
+/* Remove button - centered vertically */
 .btn-remove {
-    grid-column: 2;
-    align-self: center;
-    align-items: center;
     width: 32px;
     height: 32px;
     min-width: 32px;
@@ -588,8 +606,10 @@ input[type=number] {
     outline: none !important;
     -webkit-tap-highlight-color: transparent;
     display: flex;
+    align-items: center;
     justify-content: center;
     padding: 0;
+    align-self: center;
 }
 
 .btn-remove:focus {
@@ -712,11 +732,6 @@ input[type=number] {
     font-size: 14px;
 }
 
-.countdown-text {
-    font-weight: 700;
-    color: var(--color-text-secondary);
-}
-
 .address-row:last-child {
     border-bottom: none;
 }
@@ -741,15 +756,16 @@ input[type=number] {
     padding: 20px;
 }
 
-/* Modal Overlay */
+/* Modal Overlay - Blurred background */
 .modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(4px);
+    background: rgba(224, 224, 224, 0.6);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -762,11 +778,11 @@ input[type=number] {
     to { opacity: 1; }
 }
 
-/* Modal Container */
+/* Modal Container - Neumorphic design matching panels */
 .modal-container {
     background: var(--color-bg);
     border-radius: 20px;
-    box-shadow: var(--shadow-xl);
+    box-shadow: 9px 9px 16px #a3b1c6, -9px -9px 16px #ffffff;
     max-width: 90%;
     width: 400px;
     overflow: hidden;
@@ -784,10 +800,11 @@ input[type=number] {
     }
 }
 
-/* Confirm Dialog Specific */
+/* Confirm Dialog - Red theme */
 .confirm-dialog .modal-header {
     padding: 20px;
-    background: linear-gradient(135deg, #bb4ea0 0%, #d65db1 100%);
+    background: linear-gradient(135deg, #f32c25 0%, #d32f2f 100%);
+    box-shadow: 0 4px 8px rgba(243, 44, 37, 0.2);
 }
 
 .modal-title {
@@ -795,7 +812,7 @@ input[type=number] {
     font-size: 18px;
     font-weight: 700;
     color: white;
-    text-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.3);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .modal-body {
@@ -803,14 +820,17 @@ input[type=number] {
     color: var(--color-text);
     font-size: 14px;
     line-height: 1.5;
+    background: var(--color-bg);
 }
 
 .modal-actions {
     display: flex;
     gap: 12px;
     padding: 16px 20px 20px;
+    background: var(--color-bg);
 }
 
+/* Modal buttons - Neumorphic style */
 .modal-btn {
     flex: 1;
     padding: 12px 20px;
@@ -821,33 +841,46 @@ input[type=number] {
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
     outline: none !important;
+    -webkit-tap-highlight-color: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .modal-btn-cancel {
     background: var(--color-bg);
     color: var(--color-text);
-    box-shadow: inset 1px 1px 3px #a3b1c6, inset -1px -1px 5px #ffffff;
+    box-shadow: 2px 2px 4px #a3b1c6, -2px -2px 4px #ffffff;
+}
+
+.modal-btn-cancel:hover {
+    box-shadow: 4px 4px 8px #a3b1c6, -4px -4px 8px #ffffff;
 }
 
 .modal-btn-cancel:active {
-    box-shadow: var(--shadow-active);
+    box-shadow: inset 2px 2px 5px #a3b1c6, inset -2px -2px 5px #ffffff;
 }
 
 .modal-btn-confirm {
-    background: linear-gradient(135deg, #bb4ea0 0%, #d65db1 100%);
+    background: linear-gradient(135deg, #f32c25 0%, #d32f2f 100%);
     color: white;
-    box-shadow: 0 4px 8px rgba(187, 78, 160, 0.3);
+    box-shadow: 0 4px 8px rgba(243, 44, 37, 0.3);
+}
+
+.modal-btn-confirm:hover {
+    box-shadow: 0 6px 12px rgba(243, 44, 37, 0.4);
 }
 
 .modal-btn-confirm:active {
     transform: translateY(1px);
-    box-shadow: 0 2px 4px rgba(187, 78, 160, 0.3);
+    box-shadow: 0 2px 4px rgba(243, 44, 37, 0.3);
 }
 
-/* Info Dialog Specific */
+/* Info Dialog - Clean grey theme */
 .info-dialog .modal-header {
     padding: 20px;
-    background: linear-gradient(135deg, #277da1 0%, #4d908e 100%);
+    background: linear-gradient(135deg, #757575 0%, #616161 100%);
+    box-shadow: 0 4px 8px rgba(117, 117, 117, 0.2);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -868,6 +901,7 @@ input[type=number] {
     justify-content: center;
     opacity: 0.8;
     transition: opacity 0.2s ease;
+    outline: none !important;
 }
 
 .modal-close-btn:hover {
@@ -914,30 +948,35 @@ input[type=number] {
 }
 
 .modal-btn-primary {
-    background: linear-gradient(135deg, #277da1 0%, #4d908e 100%);
+    background: linear-gradient(135deg, #757575 0%, #616161 100%);
     color: white;
-    box-shadow: 0 4px 8px rgba(39, 125, 161, 0.3);
+    box-shadow: 0 4px 8px rgba(117, 117, 117, 0.3);
+}
+
+.modal-btn-primary:hover {
+    box-shadow: 0 6px 12px rgba(117, 117, 117, 0.4);
 }
 
 .modal-btn-primary:active {
     transform: translateY(1px);
-    box-shadow: 0 2px 4px rgba(39, 125, 161, 0.3);
+    box-shadow: 0 2px 4px rgba(117, 117, 117, 0.3);
 }
 
-/* Settings Dropdown Overlay */
+/* Settings Dropdown Overlay - Blurred */
 .settings-overlay {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(2px);
+    background: rgba(224, 224, 224, 0.6);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     z-index: 999;
     animation: fadeIn 0.2s ease;
 }
 
-/* Settings Dropdown Container */
+/* Settings Dropdown Container - Neumorphic with gradient header */
 .settings-dropdown {
     position: fixed;
     top: 20px;
@@ -945,8 +984,8 @@ input[type=number] {
     width: 300px;
     max-height: 80vh;
     background: var(--color-bg);
-    border-radius: 16px;
-    box-shadow: var(--shadow-xl);
+    border-radius: 20px;
+    box-shadow: 9px 9px 16px #a3b1c6, -9px -9px 16px #ffffff;
     overflow: hidden;
     animation: slideInRight 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     z-index: 1000;
@@ -963,27 +1002,34 @@ input[type=number] {
     }
 }
 
-/* Settings Header */
+/* Settings Header - Gradient matching topbar */
 .settings-header {
     padding: 20px;
-    background: linear-gradient(135deg, #bb4ea0 0%, #d65db1 100%);
+    background: linear-gradient(
+        0deg,
+        #e0e0e0 0%,
+        #e1d4dd 25%,
+        #d59aba 75%,
+        #bb4ea0 100%
+    );
     display: flex;
     justify-content: space-between;
     align-items: center;
+    box-shadow: 0 4px 8px rgba(187, 78, 160, 0.2);
 }
 
 .settings-header h3 {
     margin: 0;
     font-size: 18px;
     font-weight: 700;
-    color: white;
-    text-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.3);
+    color: #000000;
+    text-shadow: 0 0 0.5rem #bb4ea0;
 }
 
 .settings-close-btn {
     background: none;
     border: none;
-    color: white;
+    color: #000000;
     font-size: 32px;
     line-height: 1;
     cursor: pointer;
@@ -995,55 +1041,94 @@ input[type=number] {
     justify-content: center;
     opacity: 0.8;
     transition: opacity 0.2s ease;
+    outline: none !important;
+    filter: drop-shadow(0 0 0.5rem #bb4ea0);
 }
 
 .settings-close-btn:hover {
     opacity: 1;
 }
 
-/* Settings Content */
+/* Settings Content - Expandable sections */
 .settings-content {
     padding: 8px;
     max-height: calc(80vh - 80px);
     overflow-y: auto;
+    background: var(--color-bg);
 }
 
-/* Settings Item */
-.settings-item {
+/* Settings Section - Expandable */
+.settings-section {
+    margin-bottom: 4px;
+}
+
+.settings-section-header {
     width: 100%;
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 12px;
     padding: 14px 16px;
     border: none;
     background: var(--color-bg);
     color: var(--color-text);
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
     border-radius: 12px;
-    margin-bottom: 4px;
     transition: all 0.2s ease;
-    box-shadow: inset 1px 1px 3px #a3b1c6, inset -1px -1px 5px #ffffff;
+    box-shadow: 2px 2px 4px #a3b1c6, -2px -2px 4px #ffffff;
     outline: none !important;
+    -webkit-tap-highlight-color: transparent;
 }
 
-.settings-item:hover {
-    box-shadow: var(--shadow-sm);
+.settings-section-header:hover {
+    box-shadow: 4px 4px 8px #a3b1c6, -4px -4px 8px #ffffff;
 }
 
-.settings-item:active {
-    box-shadow: var(--shadow-active);
+.settings-section-header:active {
+    box-shadow: inset 2px 2px 5px #a3b1c6, inset -2px -2px 5px #ffffff;
 }
 
-.settings-item svg {
+.settings-section-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.settings-section-header svg {
     color: #bb4ea0;
     flex-shrink: 0;
 }
 
-.settings-item span {
-    flex: 1;
-    text-align: left;
+.settings-section-arrow {
+    color: var(--color-text-secondary);
+    transition: transform 0.2s ease;
+    font-size: 20px;
+}
+
+.settings-section-header[aria-expanded="true"] .settings-section-arrow {
+    transform: rotate(180deg);
+}
+
+.settings-section-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.settings-section-content[aria-hidden="false"] {
+    max-height: 500px;
+}
+
+.settings-section-body {
+    padding: 16px;
+    background: rgba(163, 177, 198, 0.05);
+    border-radius: 12px;
+    margin: 4px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--color-text);
 }
 
 /* Settings Divider */
