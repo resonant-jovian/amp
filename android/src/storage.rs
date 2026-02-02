@@ -31,24 +31,18 @@
 //! // Save back to storage
 //! storage::write_addresses_to_device(&addresses).ok();
 //! ```
-
 use crate::ui::StoredAddress;
-
 #[cfg(target_os = "android")]
 use jni::{
     JNIEnv, JavaVM,
     objects::{JClass, JObject, JString, JValue},
 };
-
 #[cfg(target_os = "android")]
 use std::sync::OnceLock;
-
 #[cfg(target_os = "android")]
 static JVM: OnceLock<JavaVM> = OnceLock::new();
-
 const PREFS_NAME: &str = "amp_parking_prefs";
 const ADDRESSES_KEY: &str = "stored_addresses";
-
 /// Initialize the JVM reference for Android storage operations
 ///
 /// This should be called once during app initialization on Android.
@@ -62,7 +56,6 @@ pub fn init_jvm(env: &JNIEnv) {
         eprintln!("[Storage] JVM initialized");
     }
 }
-
 /// Load stored addresses from persistent storage
 ///
 /// On Android, reads from SharedPreferences and deserializes JSON.
@@ -104,14 +97,12 @@ pub fn read_addresses_from_device() -> Vec<StoredAddress> {
             }
         }
     }
-    
     #[cfg(not(target_os = "android"))]
     {
         eprintln!("[Mock Storage] read_addresses_from_device (empty)");
         Vec::new()
     }
 }
-
 /// Write stored addresses to persistent storage
 ///
 /// On Android, serializes to JSON and writes to SharedPreferences.
@@ -149,14 +140,12 @@ pub fn write_addresses_to_device(addresses: &[StoredAddress]) -> Result<(), Stri
         eprintln!("[Storage] Saved {} addresses", addresses.len());
         Ok(())
     }
-    
     #[cfg(not(target_os = "android"))]
     {
         eprintln!("[Mock Storage] Would save {} addresses", addresses.len());
         Ok(())
     }
 }
-
 /// Load addresses from SharedPreferences
 ///
 /// # TODO
@@ -166,34 +155,11 @@ pub fn write_addresses_to_device(addresses: &[StoredAddress]) -> Result<(), Stri
 /// 3. Deserialize JSON to Vec<StoredAddress>
 #[cfg(target_os = "android")]
 fn load_from_shared_preferences() -> Result<Vec<StoredAddress>, String> {
-    // TODO: Implement SharedPreferences loading
-    // Reference: https://developer.android.com/training/data-storage/shared-preferences
-    //
-    // Required steps:
-    // 1. Get SharedPreferences:
-    //    ```
-    //    SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-    //    ```
-    //
-    // 2. Read JSON string:
-    //    ```
-    //    String json = prefs.getString(ADDRESSES_KEY, "[]");
-    //    ```
-    //
-    // 3. Deserialize using deserialize_addresses()
-    //
-    // JNI implementation:
-    // - Get context from Dioxus/WRY activity
-    // - Call getSharedPreferences() via JNI
-    // - Call getString() and convert JString to Rust String
-    // - Parse JSON using deserialize_addresses()
-    
     Err(
         "Android SharedPreferences not yet implemented - requires context and JNI integration"
             .to_string(),
     )
 }
-
 /// Save addresses to SharedPreferences
 ///
 /// # TODO
@@ -203,38 +169,12 @@ fn load_from_shared_preferences() -> Result<Vec<StoredAddress>, String> {
 /// 3. Write JSON string and commit
 #[cfg(target_os = "android")]
 fn save_to_shared_preferences(addresses: &[StoredAddress]) -> Result<(), String> {
-    // TODO: Implement SharedPreferences saving
-    //
-    // Required steps:
-    // 1. Serialize addresses to JSON:
-    //    ```
-    //    let json = serialize_addresses(addresses)?;
-    //    ```
-    //
-    // 2. Get SharedPreferences editor:
-    //    ```
-    //    SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-    //    SharedPreferences.Editor editor = prefs.edit();
-    //    ```
-    //
-    // 3. Put string and commit:
-    //    ```
-    //    editor.putString(ADDRESSES_KEY, json);
-    //    editor.apply(); // or editor.commit() for synchronous
-    //    ```
-    //
-    // JNI implementation:
-    // - Get context from activity
-    // - Call getSharedPreferences() -> edit() -> putString() -> apply()
-    // - Handle exceptions
-    
     eprintln!(
         "[Android Storage] TODO: Implement SharedPreferences saving ({} addresses)",
-        addresses.len()
+        addresses.len(),
     );
     Ok(())
 }
-
 /// Serialize addresses to JSON string
 ///
 /// Creates a JSON array representation of addresses for storage.
@@ -264,12 +204,10 @@ fn save_to_shared_preferences(addresses: &[StoredAddress]) -> Result<(), String>
 /// ```
 pub fn serialize_addresses(addresses: &[StoredAddress]) -> Result<String, String> {
     let mut json = String::from("[");
-    
     for (i, addr) in addresses.iter().enumerate() {
         if i > 0 {
             json.push(',');
         }
-        
         json.push_str(&format!(
             r#"{{"street":"{}","street_number":"{}","postal_code":"{}","active":{}}}"#,
             escape_json(&addr.street),
@@ -278,11 +216,9 @@ pub fn serialize_addresses(addresses: &[StoredAddress]) -> Result<String, String
             addr.active,
         ));
     }
-    
     json.push(']');
     Ok(json)
 }
-
 /// Deserialize JSON string to addresses
 ///
 /// Parses a JSON array representation back into StoredAddress instances.
@@ -294,26 +230,10 @@ pub fn serialize_addresses(addresses: &[StoredAddress]) -> Result<String, String
 /// # Notes
 /// Current implementation is a stub - needs proper JSON parser
 pub fn deserialize_addresses(json: &str) -> Result<Vec<StoredAddress>, String> {
-    // TODO: Implement JSON deserialization
-    // Options:
-    // 1. Use serde_json (add to dependencies)
-    // 2. Implement simple manual parser for our specific format
-    // 3. Use Android's JSONObject via JNI and parse on Java side
-    //
-    // Recommended: Add serde_json to Cargo.toml and use:
-    // ```
-    // #[derive(Serialize, Deserialize)]
-    // struct StoredAddress { ... }
-    //
-    // let addresses: Vec<StoredAddress> = serde_json::from_str(json)
-    //     .map_err(|e| format!("JSON parse error: {}", e))?;
-    // ```
-    
     eprintln!("[Storage] TODO: JSON deserialization not implemented");
     eprintln!("[Storage] JSON input: {}", json);
     Ok(Vec::new())
 }
-
 /// Escape special characters for JSON strings
 ///
 /// Handles backslashes, quotes, newlines, carriage returns, and tabs.
@@ -331,7 +251,6 @@ pub fn escape_json(s: &str) -> String {
         .replace('\r', "\\r")
         .replace('\t', "\\t")
 }
-
 /// Clear all stored addresses
 ///
 /// Removes all saved addresses from persistent storage.
@@ -345,19 +264,15 @@ pub fn escape_json(s: &str) -> String {
 pub fn clear_all_addresses() -> Result<(), String> {
     #[cfg(target_os = "android")]
     {
-        // TODO: Implement SharedPreferences clear
-        // editor.remove(ADDRESSES_KEY).apply()
         eprintln!("[Storage] TODO: Implement clear_all_addresses");
         Ok(())
     }
-    
     #[cfg(not(target_os = "android"))]
     {
         eprintln!("[Mock Storage] Would clear all addresses");
         Ok(())
     }
 }
-
 /// Get total number of stored addresses without loading them
 ///
 /// Efficiently checks storage without deserializing all data.
@@ -365,16 +280,12 @@ pub fn clear_all_addresses() -> Result<(), String> {
 /// # TODO
 /// Implement count without full deserialization
 pub fn count_stored_addresses() -> usize {
-    // For now, load and count
-    // TODO: Optimize by counting from JSON without full parse
     read_addresses_from_device().len()
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::ui::StoredAddress;
-    
     #[test]
     fn test_escape_json() {
         assert_eq!(escape_json(r#"test"string"#), r#"test\"string"#);
@@ -382,31 +293,25 @@ mod tests {
         assert_eq!(escape_json("tab\there"), "tab\\there");
         assert_eq!(escape_json("back\\slash"), "back\\\\slash");
     }
-    
     #[test]
     fn test_serialize_empty() {
         let result = serialize_addresses(&[]);
         assert_eq!(result.unwrap(), "[]");
     }
-    
     #[test]
     fn test_serialize_single_address() {
-        let addresses = vec![
-            StoredAddress {
-                street: "Storgatan".to_string(),
-                street_number: "10".to_string(),
-                postal_code: "22100".to_string(),
-                active: true,
-            },
-        ];
-        
+        let addresses = vec![StoredAddress {
+            street: "Storgatan".to_string(),
+            street_number: "10".to_string(),
+            postal_code: "22100".to_string(),
+            active: true,
+        }];
         let json = serialize_addresses(&addresses).unwrap();
         assert!(json.contains("Storgatan"));
         assert!(json.contains("10"));
         assert!(json.contains("22100"));
         assert!(json.contains("true"));
     }
-    
     #[test]
     fn test_serialize_multiple_addresses() {
         let addresses = vec![
@@ -423,28 +328,21 @@ mod tests {
                 active: false,
             },
         ];
-        
         let json = serialize_addresses(&addresses).unwrap();
         assert!(json.contains("Street1"));
         assert!(json.contains("Street2"));
         assert!(json.contains(","));
     }
-    
     #[test]
     fn test_read_write_non_android() {
-        // On non-Android, read should return empty
         let addresses = read_addresses_from_device();
         assert_eq!(addresses.len(), 0);
-        
-        // Write should succeed (no-op)
         let result = write_addresses_to_device(&[]);
         assert!(result.is_ok());
     }
-    
     #[test]
     fn test_count_stored_addresses() {
         let count = count_stored_addresses();
-        // On test platform, should be 0
         assert_eq!(count, 0);
     }
 }

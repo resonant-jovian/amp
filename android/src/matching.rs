@@ -19,11 +19,9 @@
 //!     MatchResult::Invalid => println!("Address not found"),
 //! }
 //! ```
-
+use crate::static_data::{get_address_data, get_static_data};
 use amp_core::structs::DB;
-use crate::static_data::{get_static_data, get_address_data};
 use std::collections::HashMap;
-
 /// Result of address matching operation
 ///
 /// Represents whether an address was found in the parking restriction database.
@@ -34,7 +32,6 @@ pub enum MatchResult {
     /// Contains a `DB` struct with parking restriction information including
     /// timestamps, address details, and parking zone information.
     Valid(DB),
-    
     /// Address not found or invalid
     ///
     /// Returned when:
@@ -43,7 +40,6 @@ pub enum MatchResult {
     /// - Data format was invalid
     Invalid,
 }
-
 impl MatchResult {
     /// Check if the result is valid
     ///
@@ -62,7 +58,6 @@ impl MatchResult {
     pub fn is_valid(&self) -> bool {
         matches!(self, MatchResult::Valid(_))
     }
-    
     /// Check if the result is invalid
     ///
     /// # Returns
@@ -70,7 +65,6 @@ impl MatchResult {
     pub fn is_invalid(&self) -> bool {
         matches!(self, MatchResult::Invalid)
     }
-    
     /// Get the DB entry if valid
     ///
     /// # Returns
@@ -91,7 +85,6 @@ impl MatchResult {
             MatchResult::Invalid => None,
         }
     }
-    
     /// Consume the result and get the DB entry if valid
     ///
     /// # Returns
@@ -103,7 +96,6 @@ impl MatchResult {
         }
     }
 }
-
 /// Get parking restriction data
 ///
 /// Returns a reference to the parking data HashMap with address keys
@@ -122,7 +114,6 @@ impl MatchResult {
 pub fn get_parking_data() -> &'static HashMap<String, DB> {
     get_static_data()
 }
-
 /// Match user input address against static correlations from server
 ///
 /// This checks if the provided address (street, street_number, postal_code) exists
@@ -165,25 +156,27 @@ pub fn get_parking_data() -> &'static HashMap<String, DB> {
 /// # Performance
 /// This is an O(1) HashMap lookup operation.
 pub fn match_address(street: &str, street_number: &str, postal_code: &str) -> MatchResult {
-    // Validate input first
     if !validate_input(street, street_number, postal_code) {
         eprintln!("[Matching] Invalid input: empty field(s)");
         return MatchResult::Invalid;
     }
-    
-    // Use the helper function from static_data for cleaner lookup
     match get_address_data(street, street_number, postal_code) {
         Some(entry) => {
-            eprintln!("[Matching] Found address: {} {} {}", street, street_number, postal_code);
+            eprintln!(
+                "[Matching] Found address: {} {} {}",
+                street, street_number, postal_code,
+            );
             MatchResult::Valid(entry.clone())
         }
         None => {
-            eprintln!("[Matching] Address not found: {} {} {}", street, street_number, postal_code);
+            eprintln!(
+                "[Matching] Address not found: {} {} {}",
+                street, street_number, postal_code,
+            );
             MatchResult::Invalid
         }
     }
 }
-
 /// Match address with fuzzy logic (case-insensitive, trimmed)
 ///
 /// More lenient version of `match_address` that:
@@ -209,42 +202,33 @@ pub fn match_address(street: &str, street_number: &str, postal_code: &str) -> Ma
 /// let r3 = match_address_fuzzy("Storgatan", "10", "22100");
 /// ```
 pub fn match_address_fuzzy(street: &str, street_number: &str, postal_code: &str) -> MatchResult {
-    // Normalize inputs
     let street_norm = street.trim().to_lowercase();
     let number_norm = street_number.trim();
     let postal_norm = postal_code.trim();
-    
-    // Validate normalized input
     if !validate_input(&street_norm, number_norm, postal_norm) {
         return MatchResult::Invalid;
     }
-    
-    // Search through all entries with case-insensitive comparison
     let data = get_static_data();
-    
     for (_, entry) in data.iter() {
-        let entry_street = entry.gata.as_ref()
+        let entry_street = entry
+            .gata
+            .as_ref()
             .map(|s| s.to_lowercase())
             .unwrap_or_default();
-        let entry_number = entry.gatunummer.as_ref()
-            .map(|s| s.as_str())
-            .unwrap_or("");
-        let entry_postal = entry.postnummer.as_ref()
-            .map(|s| s.as_str())
-            .unwrap_or("");
-        
-        if entry_street == street_norm 
-            && entry_number == number_norm 
-            && entry_postal == postal_norm {
+        let entry_number = entry.gatunummer.as_ref().map(|s| s.as_str()).unwrap_or("");
+        let entry_postal = entry.postnummer.as_ref().map(|s| s.as_str()).unwrap_or("");
+        if entry_street == street_norm && entry_number == number_norm && entry_postal == postal_norm
+        {
             eprintln!("[Matching] Fuzzy match found: {}", entry.adress);
             return MatchResult::Valid(entry.clone());
         }
     }
-    
-    eprintln!("[Matching] No fuzzy match for: {} {} {}", street, street_number, postal_code);
+    eprintln!(
+        "[Matching] No fuzzy match for: {} {} {}",
+        street, street_number, postal_code,
+    );
     MatchResult::Invalid
 }
-
 /// Validate address input fields
 ///
 /// Checks that all fields contain non-empty values after trimming whitespace.
@@ -270,11 +254,8 @@ pub fn match_address_fuzzy(street: &str, street_number: &str, postal_code: &str)
 /// assert!(!validate_input("  ", "10", "22100"));  // Whitespace only
 /// ```
 pub fn validate_input(street: &str, street_number: &str, postal_code: &str) -> bool {
-    !street.trim().is_empty() 
-        && !street_number.trim().is_empty() 
-        && !postal_code.trim().is_empty()
+    !street.trim().is_empty() && !street_number.trim().is_empty() && !postal_code.trim().is_empty()
 }
-
 /// Search for addresses matching a partial street name
 ///
 /// Returns all addresses where the street name contains the search term.
@@ -298,11 +279,9 @@ pub fn validate_input(street: &str, street_number: &str, postal_code: &str) -> b
 /// ```
 pub fn search_by_street(partial_street: &str) -> Vec<DB> {
     let search_term = partial_street.trim().to_lowercase();
-    
     if search_term.is_empty() {
         return Vec::new();
     }
-    
     get_static_data()
         .values()
         .filter(|db| {
@@ -314,7 +293,6 @@ pub fn search_by_street(partial_street: &str) -> Vec<DB> {
         .cloned()
         .collect()
 }
-
 /// Get all addresses in a specific postal code
 ///
 /// Convenience wrapper around `static_data::get_addresses_in_postal_code`
@@ -335,17 +313,14 @@ pub fn search_by_street(partial_street: &str) -> Vec<DB> {
 /// ```
 pub fn get_addresses_in_area(postal_code: &str) -> Vec<DB> {
     use crate::static_data::get_addresses_in_postal_code;
-    
     get_addresses_in_postal_code(postal_code)
         .into_iter()
         .cloned()
         .collect()
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    
     #[test]
     fn test_validate_input() {
         assert!(validate_input("Storgatan", "10", "22100"));
@@ -354,31 +329,35 @@ mod tests {
         assert!(!validate_input("Storgatan", "10", ""));
         assert!(!validate_input("  ", "10", "22100"));
     }
-    
     #[test]
     fn test_validate_input_whitespace() {
         assert!(validate_input(" Storgatan ", " 10 ", " 22100 "));
     }
-    
     #[test]
     fn test_match_result_is_valid() {
-        let valid = MatchResult::Valid(DB::from_dag_tid(
-            Some("22100".to_string()),
-            "Test".to_string(),
-            None, None, None,
-            15, "0800-1200",
-            None, None, None,
-            2024, 1,
-        ).unwrap());
-        
+        let valid = MatchResult::Valid(
+            DB::from_dag_tid(
+                Some("22100".to_string()),
+                "Test".to_string(),
+                None,
+                None,
+                None,
+                15,
+                "0800-1200",
+                None,
+                None,
+                None,
+                2024,
+                1,
+            )
+            .unwrap(),
+        );
         assert!(valid.is_valid());
         assert!(!valid.is_invalid());
-        
         let invalid = MatchResult::Invalid;
         assert!(invalid.is_invalid());
         assert!(!invalid.is_valid());
     }
-    
     #[test]
     fn test_match_result_as_ref() {
         let db = DB::from_dag_tid(
@@ -387,51 +366,54 @@ mod tests {
             Some("Test Street".to_string()),
             Some("10".to_string()),
             None,
-            15, "0800-1200",
-            None, None, None,
-            2024, 1,
-        ).unwrap();
-        
+            15,
+            "0800-1200",
+            None,
+            None,
+            None,
+            2024,
+            1,
+        )
+        .unwrap();
         let valid = MatchResult::Valid(db.clone());
         assert!(valid.as_ref().is_some());
         assert_eq!(valid.as_ref().unwrap().adress, "Test Street 10");
-        
         let invalid = MatchResult::Invalid;
         assert!(invalid.as_ref().is_none());
     }
-    
     #[test]
     fn test_match_result_into_inner() {
         let db = DB::from_dag_tid(
             Some("22100".to_string()),
             "Test".to_string(),
-            None, None, None,
-            15, "0800-1200",
-            None, None, None,
-            2024, 1,
-        ).unwrap();
-        
+            None,
+            None,
+            None,
+            15,
+            "0800-1200",
+            None,
+            None,
+            None,
+            2024,
+            1,
+        )
+        .unwrap();
         let valid = MatchResult::Valid(db);
         let inner = valid.into_inner();
         assert!(inner.is_some());
-        
         let invalid = MatchResult::Invalid;
         assert!(invalid.into_inner().is_none());
     }
-    
     #[test]
     fn test_search_by_street_empty() {
         let results = search_by_street("");
         assert_eq!(results.len(), 0);
-        
         let results = search_by_street("  ");
         assert_eq!(results.len(), 0);
     }
-    
     #[test]
     fn test_get_parking_data() {
         let data = get_parking_data();
-        // Should return empty HashMap in test environment
         assert!(data.len() >= 0);
     }
 }

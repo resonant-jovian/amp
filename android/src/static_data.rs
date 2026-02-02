@@ -11,16 +11,13 @@
 //! # Migration Note
 //! This version uses the new DB struct. Old code using `dag` and `tid`
 //! should be updated to use `start_time` and `end_time` from DB entries.
-
-use amp_core::structs::DB;
 use crate::components::file::read_local_data;
+use amp_core::structs::DB;
 use chrono::Utc;
 use std::collections::HashMap;
 use std::sync::OnceLock;
-
 /// Cached parking data using new DB struct
 static PARKING_DATA: OnceLock<HashMap<String, DB>> = OnceLock::new();
-
 /// Get static parking data
 ///
 /// Returns a reference to the cached parking restriction database.
@@ -57,7 +54,6 @@ pub fn get_static_data() -> &'static HashMap<String, DB> {
         }
     })
 }
-
 /// Load parking data from local.parquet file
 ///
 /// Reads the LocalData from the app assets and converts it to
@@ -74,14 +70,10 @@ pub fn get_static_data() -> &'static HashMap<String, DB> {
 fn load_parking_data() -> anyhow::Result<HashMap<String, DB>> {
     let local_data = read_local_data()?;
     let mut map = HashMap::new();
-    
-    // Get current date for timestamp generation
     let now = Utc::now();
     let year = now.year();
     let month = now.month();
-    
     for item in local_data {
-        // Extract required fields, skip if missing
         let gata = match item.gata {
             Some(g) => g,
             None => {
@@ -89,44 +81,47 @@ fn load_parking_data() -> anyhow::Result<HashMap<String, DB>> {
                 continue;
             }
         };
-        
         let gatunummer = match item.gatunummer {
             Some(gn) => gn,
             None => {
-                eprintln!("[Static Data] Skipping entry for {}: missing gatunummer", gata);
+                eprintln!(
+                    "[Static Data] Skipping entry for {}: missing gatunummer",
+                    gata,
+                );
                 continue;
             }
         };
-        
         let postnummer = match item.postnummer {
             Some(pn) => pn,
             None => {
-                eprintln!("[Static Data] Skipping entry for {} {}: missing postnummer", gata, gatunummer);
+                eprintln!(
+                    "[Static Data] Skipping entry for {} {}: missing postnummer",
+                    gata, gatunummer,
+                );
                 continue;
             }
         };
-        
         let dag = match item.dag {
             Some(d) => d,
             None => {
-                eprintln!("[Static Data] Skipping entry for {} {}: missing dag", gata, gatunummer);
+                eprintln!(
+                    "[Static Data] Skipping entry for {} {}: missing dag",
+                    gata, gatunummer,
+                );
                 continue;
             }
         };
-        
-        // Default to full day if time not specified
         let tid = item.tid.unwrap_or_else(|| {
-            eprintln!("[Static Data] Using default time range for {} {}", gata, gatunummer);
+            eprintln!(
+                "[Static Data] Using default time range for {} {}",
+                gata, gatunummer,
+            );
             String::from("0000-2359")
         });
-        
-        // Create address key for HashMap lookup
         let key = format!("{}_{}_{}", gata, gatunummer, postnummer);
-        
-        // Convert to DB struct using from_dag_tid
         match DB::from_dag_tid(
             Some(postnummer.clone()),
-            format!("{} {}", gata, gatunummer),  // Full address
+            format!("{} {}", gata, gatunummer),
             Some(gata.clone()),
             Some(gatunummer.clone()),
             item.info,
@@ -144,20 +139,17 @@ fn load_parking_data() -> anyhow::Result<HashMap<String, DB>> {
             None => {
                 eprintln!(
                     "[Static Data] Failed to parse time for {} {}: dag={}, tid={}",
-                    gata, gatunummer, dag, tid
+                    gata, gatunummer, dag, tid,
                 );
                 continue;
             }
         }
     }
-    
     if map.is_empty() {
         eprintln!("[Static Data] WARNING: No valid parking data loaded");
     }
-    
     Ok(map)
 }
-
 /// Reload parking data from disk
 ///
 /// Forces a reload of the parking data cache. Useful for testing
@@ -178,16 +170,10 @@ fn load_parking_data() -> anyhow::Result<HashMap<String, DB>> {
 pub fn reload_parking_data() -> anyhow::Result<usize> {
     let data = load_parking_data()?;
     let count = data.len();
-    
-    // This will replace the old cache if it exists
-    // Note: OnceLock doesn't support replacement, so this is more of a
-    // documentation placeholder. In production, consider using RwLock instead.
     eprintln!("[Static Data] Reload requested but OnceLock doesn't support replacement");
     eprintln!("[Static Data] Would reload {} entries", count);
-    
     Ok(count)
 }
-
 /// Get parking data for a specific address
 ///
 /// Looks up parking restriction data by street, street number, and postal code.
@@ -212,7 +198,6 @@ pub fn get_address_data(gata: &str, gatunummer: &str, postnummer: &str) -> Optio
     let key = format!("{}_{}_{}", gata, gatunummer, postnummer);
     get_static_data().get(&key)
 }
-
 /// Get all addresses within a specific postal code
 ///
 /// Returns all parking restriction entries for the given postal code.
@@ -241,7 +226,6 @@ pub fn get_addresses_in_postal_code(postnummer: &str) -> Vec<&'static DB> {
         })
         .collect()
 }
-
 /// Get count of loaded parking entries
 ///
 /// Returns the number of parking restriction entries currently loaded.
@@ -259,69 +243,55 @@ pub fn get_addresses_in_postal_code(postnummer: &str) -> Vec<&'static DB> {
 pub fn count_entries() -> usize {
     get_static_data().len()
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use chrono::Utc;
-    
     #[test]
     fn test_address_key_format() {
         let key = format!("{}_{}_{}", "Storgatan", "10", "22100");
         assert_eq!(key, "Storgatan_10_22100");
     }
-    
     #[test]
     fn test_get_static_data() {
-        // This will return empty map in test environment
         let data = get_static_data();
-        assert!(data.len() >= 0);  // Always true but tests it's callable
+        assert!(data.len() >= 0);
     }
-    
     #[test]
     fn test_count_entries() {
         let count = count_entries();
         assert!(count >= 0);
     }
-    
     #[test]
     fn test_db_struct_usage() {
-        // Test that we can create and use DB struct
         let db = DB::from_dag_tid(
             Some("22100".to_string()),
             "Storgatan 10".to_string(),
             Some("Storgatan".to_string()),
             Some("10".to_string()),
             Some("Test restriction".to_string()),
-            15,  // day
-            "0800-1200",  // time
+            15,
+            "0800-1200",
             Some("Taxa C".to_string()),
             Some(10),
             Some("Längsgående".to_string()),
             2024,
             1,
         );
-        
         assert!(db.is_some());
         let db = db.unwrap();
         assert_eq!(db.gata, Some("Storgatan".to_string()));
-        
-        // Test time-aware methods
         let now = Utc::now();
         let _is_active = db.is_active(now);
         let _time_until_end = db.time_until_end(now);
     }
-    
     #[test]
     fn test_get_address_data_not_found() {
-        // Should return None for non-existent address in test env
         let result = get_address_data("NonExistent", "999", "99999");
         assert!(result.is_none());
     }
-    
     #[test]
     fn test_get_addresses_in_postal_code_empty() {
-        // Should return empty vec in test env
         let results = get_addresses_in_postal_code("99999");
         assert_eq!(results.len(), 0);
     }

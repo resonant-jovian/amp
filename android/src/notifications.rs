@@ -30,22 +30,17 @@
 //!     Err(e) => eprintln!("Failed: {}", e),
 //! }
 //! ```
-
 #[cfg(target_os = "android")]
 use jni::{
     JNIEnv,
     objects::{JObject, JString, JValue},
 };
-
-use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::OnceLock;
-
+use std::sync::atomic::{AtomicI32, Ordering};
 /// Counter for generating unique notification IDs
 static NOTIFICATION_ID_COUNTER: AtomicI32 = AtomicI32::new(1);
-
 #[cfg(target_os = "android")]
 static JVM: OnceLock<jni::JavaVM> = OnceLock::new();
-
 /// Notification channel importance levels (Android 8.0+)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NotificationImportance {
@@ -60,10 +55,8 @@ pub enum NotificationImportance {
     /// Makes sound and appears, may use full screen (IMPORTANCE_MAX)
     Max = 5,
 }
-
 const DEFAULT_CHANNEL_ID: &str = "amp_parking_default";
 const DEFAULT_CHANNEL_NAME: &str = "Parking Notifications";
-
 /// Initialize JVM reference for notification operations
 ///
 /// Must be called during app startup on Android.
@@ -74,7 +67,6 @@ pub fn init_jvm(env: &JNIEnv) {
         eprintln!("[Notifications] JVM initialized");
     }
 }
-
 /// Send an Android notification
 ///
 /// Displays a notification to the user with the specified title and body.
@@ -103,21 +95,24 @@ pub fn init_jvm(env: &JNIEnv) {
 /// ```
 pub fn send_android_notification(title: &str, body: &str) -> Result<i32, String> {
     let notification_id = NOTIFICATION_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
-    
     #[cfg(target_os = "android")]
     {
         send_notification_android(notification_id, title, body)?;
-        eprintln!("[Notifications] Sent #{}: {} - {}", notification_id, title, body);
+        eprintln!(
+            "[Notifications] Sent #{}: {} - {}",
+            notification_id, title, body
+        );
         Ok(notification_id)
     }
-    
     #[cfg(not(target_os = "android"))]
     {
-        eprintln!("[Mock Notification #{}] {}: {}", notification_id, title, body);
+        eprintln!(
+            "[Mock Notification #{}] {}: {}",
+            notification_id, title, body
+        );
         Ok(notification_id)
     }
 }
-
 /// Send notification implementation using JNI
 ///
 /// # TODO
@@ -128,44 +123,12 @@ pub fn send_android_notification(title: &str, body: &str) -> Result<i32, String>
 /// 4. Post notification to manager
 #[cfg(target_os = "android")]
 fn send_notification_android(id: i32, title: &str, body: &str) -> Result<(), String> {
-    // TODO: Implement Android notification posting
-    // Reference: https://developer.android.com/develop/ui/views/notifications/build-notification
-    //
-    // Required steps:
-    // 1. Get NotificationManager:
-    //    ```
-    //    NotificationManager manager = (NotificationManager)
-    //        context.getSystemService(Context.NOTIFICATION_SERVICE);
-    //    ```
-    //
-    // 2. Build notification:
-    //    ```
-    //    NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
-    //        .setSmallIcon(R.drawable.notification_icon)
-    //        .setContentTitle(title)
-    //        .setContentText(body)
-    //        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-    //        .setAutoCancel(true);
-    //    ```
-    //
-    // 3. Post notification:
-    //    ```
-    //    manager.notify(id, builder.build());
-    //    ```
-    //
-    // JNI implementation notes:
-    // - Use JVM.get() to attach current thread
-    // - Get context from Dioxus/WRY activity reference
-    // - Call Java methods using env.call_method()
-    // - Handle exceptions with env.exception_check()
-    
     eprintln!(
         "[Android Notifications] TODO: Implement JNI notification posting for #{}: {} - {}",
-        id, title, body
+        id, title, body,
     );
     Ok(())
 }
-
 /// Cancel a notification by ID
 ///
 /// Removes a previously displayed notification from the notification tray.
@@ -192,26 +155,24 @@ pub fn cancel_notification(notification_id: i32) -> Result<(), String> {
         eprintln!("[Notifications] Cancelled #{}", notification_id);
         Ok(())
     }
-    
     #[cfg(not(target_os = "android"))]
     {
-        eprintln!("[Mock Notifications] Would cancel notification #{}", notification_id);
+        eprintln!(
+            "[Mock Notifications] Would cancel notification #{}",
+            notification_id
+        );
         Ok(())
     }
 }
-
 /// Cancel notification implementation using JNI
 ///
 /// # TODO
 /// Implement notification cancellation
 #[cfg(target_os = "android")]
 fn cancel_notification_android(id: i32) -> Result<(), String> {
-    // TODO: Implement notification cancellation
-    // NotificationManager.cancel(id)
     eprintln!("[Android Notifications] TODO: Cancel notification #{}", id);
     Ok(())
 }
-
 /// Send notification with action to open location in maps
 ///
 /// Creates a notification that opens the specified address in a maps
@@ -234,30 +195,23 @@ pub fn send_notification_with_map_action(
     address: &str,
 ) -> Result<i32, String> {
     let notification_id = NOTIFICATION_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
-    
     #[cfg(target_os = "android")]
     {
-        // TODO: Implement notification with PendingIntent
-        // 1. Create Intent with ACTION_VIEW and geo: URI
-        // 2. Wrap in PendingIntent
-        // 3. Add to notification using setContentIntent()
         eprintln!(
             "[Android Notifications] TODO: Map notification #{}: {} - {} ({})",
-            notification_id, title, body, address
+            notification_id, title, body, address,
         );
         Ok(notification_id)
     }
-    
     #[cfg(not(target_os = "android"))]
     {
         eprintln!(
             "[Mock Notification #{}] {}: {} (would open: {})",
-            notification_id, title, body, address
+            notification_id, title, body, address,
         );
         Ok(notification_id)
     }
 }
-
 /// Create notification channel (Android 8.0+)
 ///
 /// Required for notifications on Android Oreo (API 26) and above.
@@ -288,42 +242,13 @@ pub fn send_notification_with_map_action(
 /// Implement NotificationChannel creation for Android 8.0+
 #[cfg(target_os = "android")]
 pub fn create_notification_channel(channel_id: &str, channel_name: &str, importance: i32) {
-    // TODO: Implement notification channel creation
-    // Reference: https://developer.android.com/develop/ui/views/notifications/channels
-    //
-    // Required steps (Android 8.0+ only):
-    // 1. Check SDK version: Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
-    // 2. Create NotificationChannel:
-    //    ```
-    //    NotificationChannel channel = new NotificationChannel(
-    //        channel_id,
-    //        channel_name,
-    //        importance
-    //    );
-    //    ```
-    // 3. Configure channel (optional):
-    //    ```
-    //    channel.setDescription("Parking restriction reminders");
-    //    channel.enableVibration(true);
-    //    ```
-    // 4. Register with NotificationManager:
-    //    ```
-    //    NotificationManager manager = (NotificationManager)
-    //        context.getSystemService(Context.NOTIFICATION_SERVICE);
-    //    manager.createNotificationChannel(channel);
-    //    ```
-    
     eprintln!(
         "[Android Notifications] TODO: Create channel '{}' ({}) with importance {}",
-        channel_id, channel_name, importance
+        channel_id, channel_name, importance,
     );
 }
-
 #[cfg(not(target_os = "android"))]
-pub fn create_notification_channel(_channel_id: &str, _channel_name: &str, _importance: i32) {
-    // No-op on non-Android platforms
-}
-
+pub fn create_notification_channel(_channel_id: &str, _channel_name: &str, _importance: i32) {}
 /// Initialize default notification channel
 ///
 /// Convenience function to set up the default channel used by the app.
@@ -335,7 +260,6 @@ pub fn init_default_channel() {
         NotificationImportance::Default as i32,
     );
 }
-
 /// Send notification with custom channel
 ///
 /// # TODO
@@ -346,19 +270,15 @@ pub fn send_notification_with_channel(
     title: &str,
     body: &str,
 ) -> Result<i32, String> {
-    // TODO: Implement channel-specific notification
-    // Use NotificationCompat.Builder(context, channel_id)
     eprintln!(
         "[Notifications] TODO: Send to channel '{}': {} - {}",
-        channel_id, title, body
+        channel_id, title, body,
     );
     Err("Not implemented".to_string())
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    
     #[test]
     fn test_send_notification_non_android() {
         let result = send_android_notification("Test", "Message");
@@ -366,20 +286,17 @@ mod tests {
         let id = result.unwrap();
         assert!(id > 0);
     }
-    
     #[test]
     fn test_cancel_notification() {
         let result = cancel_notification(1);
         assert!(result.is_ok());
     }
-    
     #[test]
     fn test_notification_id_increment() {
         let id1 = send_android_notification("Test 1", "Body 1").unwrap();
         let id2 = send_android_notification("Test 2", "Body 2").unwrap();
         assert!(id2 > id1);
     }
-    
     #[test]
     fn test_notification_importance() {
         assert_eq!(NotificationImportance::Default as i32, 3);
