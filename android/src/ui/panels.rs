@@ -12,7 +12,7 @@ fn AddressItem(addr: StoredAddress, index: usize, on_remove: EventHandler<usize>
     let matched = &addr.matched_entry;
     let countdown = matched
         .as_ref()
-        .and_then(|e| format_countdown(e.day, &e.time))
+        .and_then(|e| format_countdown(e.dag, &e.tid))
         .unwrap_or_else(|| "...".to_string());
     let address_display = format!(
         "{} {}, {}",
@@ -36,7 +36,7 @@ pub fn ActivePanel(addresses: Vec<StoredAddress>) -> Element {
         .filter(|a| a.valid && a.active)
         .filter(|a| {
             if let Some(entry) = &a.matched_entry {
-                matches!(bucket_for(entry.day, &entry.time), TimeBucket::Now)
+                matches!(bucket_for(entry.dag, &entry.tid), TimeBucket::Now)
             } else {
                 false
             }
@@ -83,7 +83,7 @@ pub fn SixHoursPanel(addresses: Vec<StoredAddress>) -> Element {
         .filter(|a| a.valid && a.active)
         .filter(|a| {
             if let Some(entry) = &a.matched_entry {
-                matches!(bucket_for(entry.day, &entry.time), TimeBucket::Within6Hours)
+                matches!(bucket_for(entry.dag, &entry.tid), TimeBucket::Within6Hours)
             } else {
                 false
             }
@@ -130,7 +130,7 @@ pub fn OneDayPanel(addresses: Vec<StoredAddress>) -> Element {
         .filter(|a| a.valid && a.active)
         .filter(|a| {
             if let Some(entry) = &a.matched_entry {
-                matches!(bucket_for(entry.day, &entry.time), TimeBucket::Within1Day)
+                matches!(bucket_for(entry.dag, &entry.tid), TimeBucket::Within1Day)
             } else {
                 false
             }
@@ -177,7 +177,7 @@ pub fn OneMonthPanel(addresses: Vec<StoredAddress>) -> Element {
         .filter(|a| a.valid && a.active)
         .filter(|a| {
             if let Some(entry) = &a.matched_entry {
-                matches!(bucket_for(entry.day, &entry.time), TimeBucket::Within1Month)
+                matches!(bucket_for(entry.dag, &entry.tid), TimeBucket::Within1Month)
             } else {
                 false
             }
