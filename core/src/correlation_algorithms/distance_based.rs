@@ -3,9 +3,7 @@
 use crate::correlation_algorithms::common::*;
 use crate::correlation_algorithms::{CorrelationAlgo, ParkeringCorrelationAlgo};
 use crate::structs::{AdressClean, MiljoeDataClean, ParkeringsDataClean};
-
 pub struct DistanceBasedAlgo;
-
 impl CorrelationAlgo for DistanceBasedAlgo {
     fn correlate(
         &self,
@@ -16,7 +14,6 @@ impl CorrelationAlgo for DistanceBasedAlgo {
             address.coordinates[0].to_f64()?,
             address.coordinates[1].to_f64()?,
         ];
-
         parking_lines
             .iter()
             .enumerate()
@@ -34,15 +31,12 @@ impl CorrelationAlgo for DistanceBasedAlgo {
             })
             .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
     }
-
     fn name(&self) -> &'static str {
         "Distance-Based"
     }
 }
-
 /// Distance-based algorithm for parkering data
 pub struct DistanceBasedParkeringAlgo;
-
 impl ParkeringCorrelationAlgo for DistanceBasedParkeringAlgo {
     fn correlate(
         &self,
@@ -53,7 +47,6 @@ impl ParkeringCorrelationAlgo for DistanceBasedParkeringAlgo {
             address.coordinates[0].to_f64()?,
             address.coordinates[1].to_f64()?,
         ];
-
         parking_lines
             .iter()
             .enumerate()
@@ -71,7 +64,6 @@ impl ParkeringCorrelationAlgo for DistanceBasedParkeringAlgo {
             })
             .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
     }
-
     fn name(&self) -> &'static str {
         "Distance-Based (Parkering)"
     }

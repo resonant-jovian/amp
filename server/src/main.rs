@@ -3,7 +3,7 @@
 use amp_core::api::api;
 use amp_core::benchmark::Benchmarker;
 use amp_core::checksum::DataChecksum;
-use amp_core::correlation_algorithms::rtree_spatial::RTreeParkeringAlgo;
+use amp_core::correlation_algorithms::rtree_spatial::RTreeSpatialParkeringAlgo;
 use amp_core::correlation_algorithms::{
     CorrelationAlgo, DistanceBasedAlgo, DistanceBasedParkeringAlgo, GridNearestAlgo,
     GridNearestParkeringAlgo, KDTreeParkeringAlgo, KDTreeSpatialAlgo, OverlappingChunksAlgo,
@@ -373,7 +373,7 @@ fn correlate_parkering_dataset(
                 .collect()
         }
         AlgorithmChoice::RTree => {
-            let algo = RTreeParkeringAlgo::new(zones);
+            let algo = RTreeSpatialParkeringAlgo::new(zones);
             addresses
                 .par_iter()
                 .filter_map(|addr| {
