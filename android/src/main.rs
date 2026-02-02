@@ -1,4 +1,3 @@
-use dioxus::prelude::*;
 pub mod android_bridge;
 pub mod components;
 pub mod countdown;

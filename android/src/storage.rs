@@ -79,120 +79,23 @@ pub fn write_addresses_to_device(addresses: &[StoredAddress]) -> Result<(), Stri
 }
 #[cfg(target_os = "android")]
 fn load_from_shared_preferences() -> Result<Vec<StoredAddress>, String> {
-    // TODO: Proper Android context initialization needed
-    // For now, return error to fall back to empty state
-    Err("Android SharedPreferences not yet implemented - needs proper context initialization".to_string())
-    
-    /* This code will be enabled once we have proper Android context:
-    let vm = JVM.get().ok_or("JVM not initialized")?;
-    let mut env = vm
-        .attach_current_thread()
-        .map_err(|e| format!("Failed to attach thread: {:?}", e))?;
-    
-    // Get application context from somewhere (needs proper initialization)
-    let context = todo!("Need to get Android application context");
-    
-    let prefs_name = env
-        .new_string("amp_prefs")
-        .map_err(|e| format!("Failed to create string: {:?}", e))?;
-    let mode = JValue::Int(0);
-    let prefs = env
-        .call_method(
-            &context,
-            "getSharedPreferences",
-            "(Ljava/lang/String;I)Landroid/content/SharedPreferences;",
-            &[JValue::Object(&prefs_name), mode],
-        )
-        .map_err(|e| format!("Failed to get SharedPreferences: {:?}", e))?
-        .l()
-        .map_err(|e| format!("Failed to convert to object: {:?}", e))?;
-    let key = env
-        .new_string("stored_addresses")
-        .map_err(|e| format!("Failed to create key: {:?}", e))?;
-    let default = env
-        .new_string("[]")
-        .map_err(|e| format!("Failed to create default: {:?}", e))?;
-    let json_obj = env
-        .call_method(
-            prefs,
-            "getString",
-            "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;",
-            &[JValue::Object(&key), JValue::Object(&default)],
-        )
-        .map_err(|e| format!("Failed to get string: {:?}", e))?
-        .l()
-        .map_err(|e| format!("Failed to convert to object: {:?}", e))?;
-    let json_jstring: JString = json_obj.into();
-    let json_str: String = env
-        .get_string(&json_jstring)
-        .map_err(|e| format!("Failed to get Rust string: {:?}", e))?
-        .into();
-    deserialize_addresses(&json_str)
-    */
+    Err(
+        "Android SharedPreferences not yet implemented - needs proper context initialization"
+            .to_string(),
+    )
 }
 #[cfg(target_os = "android")]
 fn save_to_shared_preferences(addresses: &[StoredAddress]) -> Result<(), String> {
-    // TODO: Proper Android context initialization needed
-    // For now, return Ok to avoid errors (data won't persist but app will work)
-    eprintln!("[Android] Would save {} addresses (persistence not yet implemented)", addresses.len());
+    eprintln!(
+        "[Android] Would save {} addresses (persistence not yet implemented)",
+        addresses.len(),
+    );
     Ok(())
-    
-    /* This code will be enabled once we have proper Android context:
-    let vm = JVM.get().ok_or("JVM not initialized")?;
-    let mut env = vm
-        .attach_current_thread()
-        .map_err(|e| format!("Failed to attach thread: {:?}", e))?;
-    let json_str = serialize_addresses(addresses)?;
-    
-    // Get application context from somewhere (needs proper initialization)
-    let context = todo!("Need to get Android application context");
-    
-    let prefs_name = env
-        .new_string("amp_prefs")
-        .map_err(|e| format!("Failed to create string: {:?}", e))?;
-    let mode = JValue::Int(0);
-    let prefs = env
-        .call_method(
-            &context,
-            "getSharedPreferences",
-            "(Ljava/lang/String;I)Landroid/content/SharedPreferences;",
-            &[JValue::Object(&prefs_name), mode],
-        )
-        .map_err(|e| format!("Failed to get SharedPreferences: {:?}", e))?
-        .l()
-        .map_err(|e| format!("Failed to convert to object: {:?}", e))?;
-    let editor = env
-        .call_method(
-            prefs,
-            "edit",
-            "()Landroid/content/SharedPreferences$Editor;",
-            &[],
-        )
-        .map_err(|e| format!("Failed to get editor: {:?}", e))?
-        .l()
-        .map_err(|e| format!("Failed to convert to object: {:?}", e))?;
-    let key = env
-        .new_string("stored_addresses")
-        .map_err(|e| format!("Failed to create key: {:?}", e))?;
-    let value = env
-        .new_string(&json_str)
-        .map_err(|e| format!("Failed to create value: {:?}", e))?;
-    env.call_method(
-        &editor,
-        "putString",
-        "(Ljava/lang/String;Ljava/lang/String;)Landroid/content/SharedPreferences$Editor;",
-        &[JValue::Object(&key), JValue::Object(&value)],
-    )
-    .map_err(|e| format!("Failed to put string: {:?}", e))?;
-    env.call_method(editor, "apply", "()V", &[])
-        .map_err(|e| format!("Failed to apply: {:?}", e))?;
-    Ok(())
-    */
 }
-
 /// Serialize addresses to JSON string
 ///
 /// Creates a simple JSON array representation of addresses for storage.
+#[allow(dead_code)]
 fn serialize_addresses(addresses: &[StoredAddress]) -> Result<String, String> {
     let mut json = String::from("[");
     for (i, addr) in addresses.iter().enumerate() {
@@ -210,18 +113,16 @@ fn serialize_addresses(addresses: &[StoredAddress]) -> Result<String, String> {
     json.push(']');
     Ok(json)
 }
-
 /// Deserialize JSON string to addresses
 ///
 /// Parses a JSON array representation back into StoredAddress instances.
+#[allow(dead_code)]
 fn deserialize_addresses(json: &str) -> Result<Vec<StoredAddress>, String> {
-    // This is a simplified parser - a full implementation would use serde_json
-    // For now, return empty vec and log that proper deserialization needed
     eprintln!("JSON deserialization not fully implemented: {}", json);
     Ok(Vec::new())
 }
-
 /// Escape special characters for JSON strings
+#[allow(dead_code)]
 fn escape_json(s: &str) -> String {
     s.replace('\\', "\\\\")
         .replace('"', "\\\"")
@@ -229,17 +130,14 @@ fn escape_json(s: &str) -> String {
         .replace('\r', "\\r")
         .replace('\t', "\\t")
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn test_escape_json() {
         assert_eq!(escape_json(r#"test"string"#), r#"test\"string"#);
         assert_eq!(escape_json("line1\nline2"), "line1\\nline2");
     }
-    
     #[test]
     fn test_serialize_empty() {
         let result = serialize_addresses(&[]);

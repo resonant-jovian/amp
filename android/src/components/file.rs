@@ -1,9 +1,14 @@
-use amp_core::parquet::{read_address_parquet, read_db_parquet, read_local_parquet, build_local_parquet};
+#[allow(unused_imports)]
+use amp_core::parquet::{
+    build_local_parquet, read_address_parquet, read_db_parquet, read_local_parquet,
+};
 use amp_core::structs::{AdressClean, LocalData, OutputData};
-use anyhow::Result;
+#[allow(unused_imports)]
 use anyhow::Context;
-use std::fs::File;
+use anyhow::Result;
+#[allow(unused_imports)]
 use std::fs;
+use std::fs::File;
 use std::path::PathBuf;
 #[cfg(target_os = "android")]
 pub fn get_dir() -> anyhow::Result<PathBuf> {
@@ -11,11 +16,9 @@ pub fn get_dir() -> anyhow::Result<PathBuf> {
     use jni::objects::{JObject, JString};
     let (tx, rx) = std::sync::mpsc::channel();
     fn run(env: &mut JNIEnv<'_>, activity: &JObject<'_>) -> anyhow::Result<PathBuf> {
-        // getFilesDir() returns java.io.File, not String
         let files_dir = env
             .call_method(activity, "getFilesDir", "()Ljava/io/File;", &[])?
             .l()?;
-        // Call getAbsolutePath() on the File object to get the String path
         let files_dir_path: JString<'_> = env
             .call_method(&files_dir, "getAbsolutePath", "()Ljava/lang/String;", &[])?
             .l()?
