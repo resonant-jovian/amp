@@ -471,6 +471,7 @@ input[type=number] {
 .toggle-switch {
     grid-column: 1;
     align-self: center;
+    align-items: center;
     cursor: pointer;
 }
 
@@ -569,6 +570,7 @@ input[type=number] {
 .btn-remove {
     grid-column: 2;
     align-self: center;
+    align-items: center;
     width: 32px;
     height: 32px;
     min-width: 32px;
@@ -586,7 +588,6 @@ input[type=number] {
     outline: none !important;
     -webkit-tap-highlight-color: transparent;
     display: flex;
-    align-items: center;
     justify-content: center;
     padding: 0;
 }

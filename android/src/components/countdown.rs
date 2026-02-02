@@ -174,25 +174,26 @@ pub fn time_until_start(restriction: &DB) -> Option<Duration> {
 /// ```
 pub fn format_countdown(restriction: &DB) -> Option<String> {
     let remaining = remaining_duration(restriction)?;
-    
-    // Determine bucket to use appropriate formatting
     let bucket = bucket_for(restriction);
-    
     match bucket {
-        // Active: Show hours, minutes, seconds for maximum urgency awareness
-        TimeBucket::Now => {
+        TimeBucket::Now  => {
             let hours = remaining.num_hours();
             let minutes = remaining.num_minutes() % 60;
             let seconds = remaining.num_seconds() % 60;
             Some(format!("{}h {:02}m {:02}s", hours, minutes, seconds))
         }
-        // Within 6 hours: Show hours and minutes only
         TimeBucket::Within6Hours => {
             let hours = remaining.num_hours();
             let minutes = remaining.num_minutes() % 60;
-            Some(format!("{}h {:02}m", hours, minutes))
+            let seconds = remaining.num_seconds() % 60;
+            Some(format!("{}h {:02}m {:02}s", hours, minutes, seconds))
         }
-        // Longer durations: Show days, hours, minutes
+        TimeBucket::Within1Day => {
+            let hours = remaining.num_hours();
+            let minutes = remaining.num_minutes() % 60;
+            let seconds = remaining.num_seconds() % 60;
+            Some(format!("{}h {:02}m {:02}s", hours, minutes, seconds))
+        }
         _ => {
             let days = remaining.num_days();
             let hours = remaining.num_hours() % 24;
