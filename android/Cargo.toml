@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 amp-core = { path = "../core" }
 dioxus.workspace = true
+dioxus-native.workspace = true
 dioxus-free-icons.workspace = true
 chrono.workspace = true
 jni.workspace = true

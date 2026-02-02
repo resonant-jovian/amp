@@ -10,5 +10,5 @@ pub mod storage;
 pub mod ui;
 use ui::App;
 fn main() {
-    launch(App);
+    dioxus_native::launch(App);
 }
