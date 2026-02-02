@@ -332,10 +332,7 @@ where
         std::collections::HashMap::new();
     for restriction in restrictions {
         let bucket = bucket_for(restriction);
-        groups
-            .entry(bucket)
-            .or_insert_with(Vec::new)
-            .push(restriction);
+        groups.entry(bucket).or_default().push(restriction);
     }
     groups
 }
@@ -419,7 +416,7 @@ mod tests {
     fn test_is_currently_active() {
         let db = create_test_db(15, "0800-1200");
         let result = is_currently_active(&db);
-        assert!(result || !result);
+        assert!(result);
     }
     #[test]
     fn test_time_until_start() {
@@ -429,7 +426,7 @@ mod tests {
     }
     #[test]
     fn test_group_by_bucket() {
-        let restrictions = vec![
+        let restrictions = [
             create_test_db(15, "0800-1200"),
             create_test_db(20, "1400-1800"),
             create_test_db(25, "0900-1700"),

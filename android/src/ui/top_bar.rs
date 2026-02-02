@@ -48,12 +48,17 @@ pub fn TopBar(mut on_add_address: EventHandler<(String, String, String)>) -> Ele
             info!("Got location: lat={}, lon={}", lat, lon);
             if let Some(entry) = find_address_by_coordinates(lat, lon) {
                 info!(
-                    "Found address: {} {}, {}",
+                    "Found address: {:?} {:?}, {:?}",
                     entry.gata, entry.gatunummer, entry.postnummer
                 );
-                let full_address = format!("{} {}", entry.gata, entry.gatunummer);
+                let full_address = format!("{:?} {:?}", entry.gata, entry.gatunummer);
                 address_input.set(full_address);
-                postal_code_input.set(entry.postnummer.clone());
+                postal_code_input.set(
+                    entry
+                        .postnummer
+                        .clone()
+                        .expect("failed to set postal code input"),
+                );
                 info!("Address fields auto-populated from GPS");
             } else {
                 warn!("No address found near GPS location");

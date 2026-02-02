@@ -1,6 +1,5 @@
-use chrono::{DateTime, Datelike, Utc};
+use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
-
 #[derive(Debug, Clone)]
 pub struct AdressClean {
     pub coordinates: [Decimal; 2],
@@ -9,7 +8,6 @@ pub struct AdressClean {
     pub gata: String,
     pub gatunummer: String,
 }
-
 #[derive(Debug, Clone)]
 pub struct MiljoeDataClean {
     pub coordinates: [[Decimal; 2]; 2],
@@ -17,7 +15,6 @@ pub struct MiljoeDataClean {
     pub tid: String,
     pub dag: u8,
 }
-
 #[derive(Debug, Clone)]
 pub struct ParkeringsDataClean {
     pub coordinates: [[Decimal; 2]; 2],
@@ -25,7 +22,6 @@ pub struct ParkeringsDataClean {
     pub antal_platser: u64,
     pub typ_av_parkering: String,
 }
-
 #[derive(Debug, Clone)]
 pub struct OutputData {
     pub postnummer: Option<String>,
@@ -39,7 +35,6 @@ pub struct OutputData {
     pub antal_platser: Option<u64>,
     pub typ_av_parkering: Option<String>,
 }
-
 #[derive(Debug, Clone)]
 pub struct LocalData {
     pub valid: bool,
@@ -55,7 +50,6 @@ pub struct LocalData {
     pub antal_platser: Option<u64>,
     pub typ_av_parkering: Option<String>,
 }
-
 /// Parameters for creating a DB entry from day and time strings
 #[derive(Debug, Clone)]
 pub struct DBParams {
@@ -72,7 +66,6 @@ pub struct DBParams {
     pub year: i32,
     pub month: u32,
 }
-
 /// Database struct for Android component
 /// Uses chrono timestamps to represent time intervals within a month
 /// Time is counted from second 0 of the month (start of month)
@@ -99,7 +92,6 @@ pub struct DB {
     /// Type of parking (e.g., "Längsgående 6")
     pub typ_av_parkering: Option<String>,
 }
-
 impl DB {
     /// Create a new DB entry from day and time strings (legacy interface)
     ///
@@ -141,7 +133,6 @@ impl DB {
             month,
         })
     }
-
     /// Create a new DB entry from DBParams struct (preferred interface)
     ///
     /// # Arguments
@@ -151,12 +142,10 @@ impl DB {
     /// DB instance with calculated start_time and end_time from month start
     pub fn from_params(params: DBParams) -> Option<Self> {
         use chrono::{NaiveDate, NaiveTime};
-
         let parts: Vec<&str> = params.tid.split('-').collect();
         if parts.len() != 2 {
             return None;
         }
-
         let parse_hhmm = |s: &str| -> Option<NaiveTime> {
             let s = s.trim();
             if s.len() != 4 {
@@ -166,17 +155,13 @@ impl DB {
             let minute: u32 = s[2..4].parse().ok()?;
             NaiveTime::from_hms_opt(hour, minute, 0)
         };
-
         let start_naive_time = parse_hhmm(parts[0])?;
         let end_naive_time = parse_hhmm(parts[1])?;
-
         let date = NaiveDate::from_ymd_opt(params.year, params.month, params.dag as u32)?;
         let start_datetime = date.and_time(start_naive_time);
         let end_datetime = date.and_time(end_naive_time);
-
         let start_time = DateTime::<Utc>::from_naive_utc_and_offset(start_datetime, Utc);
         let end_time = DateTime::<Utc>::from_naive_utc_and_offset(end_datetime, Utc);
-
         Some(DB {
             postnummer: params.postnummer,
             adress: params.adress,
@@ -190,12 +175,10 @@ impl DB {
             typ_av_parkering: params.typ_av_parkering,
         })
     }
-
     /// Check if the restriction is currently active
     pub fn is_active(&self, now: DateTime<Utc>) -> bool {
         now >= self.start_time && now < self.end_time
     }
-
     /// Get duration until restriction starts (if in future)
     pub fn time_until_start(&self, now: DateTime<Utc>) -> Option<chrono::Duration> {
         if now < self.start_time {
@@ -204,7 +187,6 @@ impl DB {
             None
         }
     }
-
     /// Get duration until restriction ends (if active or in future)
     pub fn time_until_end(&self, now: DateTime<Utc>) -> Option<chrono::Duration> {
         if now < self.end_time {
@@ -214,7 +196,6 @@ impl DB {
         }
     }
 }
-
 /// Result of correlation for a single address
 #[derive(Debug, Clone)]
 pub struct CorrelationResult {
@@ -223,13 +204,11 @@ pub struct CorrelationResult {
     pub miljo_match: Option<(f64, String)>,
     pub parkering_match: Option<(f64, String)>,
 }
-
 impl OutputData {
     /// Check if this address has any matches
     pub fn has_match(&self) -> bool {
         self.info.is_some() || self.taxa.is_some()
     }
-
     /// Get source description
     pub fn dataset_source(&self) -> &'static str {
         match (self.info.is_some(), self.taxa.is_some()) {
@@ -240,13 +219,11 @@ impl OutputData {
         }
     }
 }
-
 pub struct OutputDataWithDistance {
     pub data: OutputData,
     pub miljo_distance: Option<f64>,
     pub parkering_distance: Option<f64>,
 }
-
 impl OutputDataWithDistance {
     pub fn closest_distance(&self) -> Option<f64> {
         match (self.miljo_distance, self.parkering_distance) {
@@ -257,7 +234,6 @@ impl OutputDataWithDistance {
         }
     }
 }
-
 impl CorrelationResult {
     /// Get source description
     pub fn dataset_source(&self) -> &'static str {
@@ -269,11 +245,9 @@ impl CorrelationResult {
         }
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn test_db_from_dag_tid() {
         let db = DB::from_dag_tid(
@@ -290,12 +264,10 @@ mod tests {
             2024,
             1,
         );
-
         assert!(db.is_some());
         let db = db.unwrap();
         assert_eq!(db.adress, "Åhusgatan1");
     }
-
     #[test]
     fn test_db_from_params() {
         let db = DB::from_params(DBParams {
@@ -312,12 +284,10 @@ mod tests {
             year: 2024,
             month: 1,
         });
-
         assert!(db.is_some());
         let db = db.unwrap();
         assert_eq!(db.adress, "Åhusgatan1");
     }
-
     #[test]
     fn test_db_is_active() {
         let db = DB::from_dag_tid(
@@ -335,7 +305,6 @@ mod tests {
             1,
         )
         .unwrap();
-
         let during = DateTime::<Utc>::from_naive_utc_and_offset(
             chrono::NaiveDate::from_ymd_opt(2024, 1, 15)
                 .unwrap()
@@ -344,7 +313,6 @@ mod tests {
             Utc,
         );
         assert!(db.is_active(during));
-
         let before = DateTime::<Utc>::from_naive_utc_and_offset(
             chrono::NaiveDate::from_ymd_opt(2024, 1, 15)
                 .unwrap()

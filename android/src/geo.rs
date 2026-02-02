@@ -7,12 +7,9 @@
 //! This module needs to be updated to use the read_address_parquet function
 //! to load coordinate data from the address parquet file instead of the
 //! parking restrictions data.
-
 use amp_core::structs::DB;
-
 /// Earth's radius in kilometers (mean radius)
 const EARTH_RADIUS_KM: f64 = 6371.0;
-
 /// Find address by GPS coordinates
 ///
 /// Searches the address database for the closest address
@@ -36,13 +33,10 @@ const EARTH_RADIUS_KM: f64 = 6371.0;
 /// }
 /// ```
 pub fn find_address_by_coordinates(lat: f64, lon: f64) -> Option<DB> {
-    eprintln!(
-        "[Geo] TODO: Implement coordinate-based address lookup using read_address_parquet"
-    );
+    eprintln!("[Geo] TODO: Implement coordinate-based address lookup using read_address_parquet",);
     eprintln!("[Geo] Requested coordinates: lat={}, lon={}", lat, lon);
     None
 }
-
 /// Calculate Haversine distance between two coordinates
 ///
 /// Uses the Haversine formula to calculate the great-circle distance
@@ -70,17 +64,13 @@ pub fn haversine_distance(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
     let lon1_rad = lon1.to_radians();
     let lat2_rad = lat2.to_radians();
     let lon2_rad = lon2.to_radians();
-
     let dlat = lat2_rad - lat1_rad;
     let dlon = lon2_rad - lon1_rad;
-
     let a =
         (dlat / 2.0).sin().powi(2) + lat1_rad.cos() * lat2_rad.cos() * (dlon / 2.0).sin().powi(2);
     let c = 2.0 * a.sqrt().atan2((1.0 - a).sqrt());
-
     EARTH_RADIUS_KM * c
 }
-
 /// Find all addresses within radius
 ///
 /// Returns all addresses within the specified radius
@@ -96,51 +86,38 @@ pub fn haversine_distance(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
 ///
 /// # TODO
 /// Implement using read_address_parquet to load coordinates from address data.
-pub fn find_addresses_within_radius(
-    lat: f64,
-    lon: f64,
-    radius_km: f64,
-) -> Vec<(f64, DB)> {
+pub fn find_addresses_within_radius(lat: f64, lon: f64, radius_km: f64) -> Vec<(f64, DB)> {
     eprintln!(
         "[Geo] TODO: Implement radius search using read_address_parquet (lat={}, lon={}, radius={}km)",
-        lat, lon, radius_km
+        lat, lon, radius_km,
     );
     Vec::new()
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn test_haversine_distance_same_point() {
         let distance = haversine_distance(57.7089, 11.9746, 57.7089, 11.9746);
         assert!(distance < 0.001);
     }
-
     #[test]
     fn test_haversine_distance_known() {
-        // Distance between Göteborg and Stockholm
         let distance = haversine_distance(57.7089, 11.9746, 59.3293, 18.0686);
         assert!(distance > 460.0 && distance < 480.0);
     }
-
     #[test]
     fn test_haversine_distance_small() {
         let distance = haversine_distance(57.7089, 11.9746, 57.7099, 11.9746);
         assert!(distance > 0.1 && distance < 0.2);
     }
-
     #[test]
     fn test_find_address_by_coordinates_stub() {
-        // This is currently stubbed
         let result = find_address_by_coordinates(57.7089, 11.9746);
         assert!(result.is_none());
     }
-
     #[test]
     fn test_find_addresses_within_radius_stub() {
-        // This is currently stubbed
         let results = find_addresses_within_radius(57.7089, 11.9746, 1.0);
         assert_eq!(results.len(), 0);
     }

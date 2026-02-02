@@ -31,7 +31,7 @@ pub enum MatchResult {
     ///
     /// Contains a `DB` struct with parking restriction information including
     /// timestamps, address details, and parking zone information.
-    Valid(DB),
+    Valid(Box<DB>),
     /// Address not found or invalid
     ///
     /// Returned when:
@@ -91,7 +91,7 @@ impl MatchResult {
     /// Some(DB) if Valid, None if Invalid
     pub fn into_inner(self) -> Option<DB> {
         match self {
-            MatchResult::Valid(db) => Some(db),
+            MatchResult::Valid(db) => Some(*db),
             MatchResult::Invalid => None,
         }
     }
@@ -166,7 +166,7 @@ pub fn match_address(street: &str, street_number: &str, postal_code: &str) -> Ma
                 "[Matching] Found address: {} {} {}",
                 street, street_number, postal_code,
             );
-            MatchResult::Valid(entry.clone())
+            MatchResult::Valid(Box::from(entry.clone()))
         }
         None => {
             eprintln!(
@@ -215,12 +215,12 @@ pub fn match_address_fuzzy(street: &str, street_number: &str, postal_code: &str)
             .as_ref()
             .map(|s| s.to_lowercase())
             .unwrap_or_default();
-        let entry_number = entry.gatunummer.as_ref().map(|s| s.as_str()).unwrap_or("");
-        let entry_postal = entry.postnummer.as_ref().map(|s| s.as_str()).unwrap_or("");
+        let entry_number = entry.gatunummer.as_deref().unwrap_or("");
+        let entry_postal = entry.postnummer.as_deref().unwrap_or("");
         if entry_street == street_norm && entry_number == number_norm && entry_postal == postal_norm
         {
             eprintln!("[Matching] Fuzzy match found: {}", entry.adress);
-            return MatchResult::Valid(entry.clone());
+            return MatchResult::Valid(Box::from(entry.clone()));
         }
     }
     eprintln!(
@@ -335,7 +335,7 @@ mod tests {
     }
     #[test]
     fn test_match_result_is_valid() {
-        let valid = MatchResult::Valid(
+        let valid = MatchResult::Valid(Box::from(
             DB::from_dag_tid(
                 Some("22100".to_string()),
                 "Test".to_string(),
@@ -351,7 +351,7 @@ mod tests {
                 1,
             )
             .unwrap(),
-        );
+        ));
         assert!(valid.is_valid());
         assert!(!valid.is_invalid());
         let invalid = MatchResult::Invalid;
@@ -375,7 +375,7 @@ mod tests {
             1,
         )
         .unwrap();
-        let valid = MatchResult::Valid(db.clone());
+        let valid = MatchResult::Valid(Box::from(db.clone()));
         assert!(valid.as_ref().is_some());
         assert_eq!(valid.as_ref().unwrap().adress, "Test Street 10");
         let invalid = MatchResult::Invalid;
@@ -398,7 +398,7 @@ mod tests {
             1,
         )
         .unwrap();
-        let valid = MatchResult::Valid(db);
+        let valid = MatchResult::Valid(Box::from(db));
         let inner = valid.into_inner();
         assert!(inner.is_some());
         let invalid = MatchResult::Invalid;
@@ -410,10 +410,5 @@ mod tests {
         assert_eq!(results.len(), 0);
         let results = search_by_street("  ");
         assert_eq!(results.len(), 0);
-    }
-    #[test]
-    fn test_get_parking_data() {
-        let data = get_parking_data();
-        assert!(data.len() >= 0);
     }
 }
