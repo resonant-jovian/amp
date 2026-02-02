@@ -6,7 +6,7 @@ use crate::correlation_algorithms::{CorrelationAlgo, ParkeringCorrelationAlgo};
 use crate::structs::{AdressClean, MiljoeDataClean, ParkeringsDataClean};
 use std::collections::HashMap;
 const CHUNK_SIZE: f64 = 0.01;
-const OVERLAP_FACTOR: f64 = 0.2;
+const _OVERLAP_FACTOR: f64 = 0.2;
 pub struct OverlappingChunksAlgo {
     chunks: HashMap<(i32, i32), Vec<usize>>,
 }
@@ -165,7 +165,7 @@ mod tests {
     }
     #[test]
     fn test_overlap_coverage() {
-        let overlap_size = CHUNK_SIZE * OVERLAP_FACTOR;
+        let overlap_size = CHUNK_SIZE * _OVERLAP_FACTOR;
         assert!(overlap_size > 0.0);
         assert!(overlap_size < CHUNK_SIZE);
     }
