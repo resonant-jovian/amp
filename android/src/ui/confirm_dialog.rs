@@ -38,7 +38,7 @@ pub fn ConfirmDialog(
                 class: "modal-container confirm-dialog",
                 onclick: move |e| e.stop_propagation(),
                 div { class: "modal-header",
-                    h3 { class: "modal-title", "{title}" }
+                    h3 { class: "confirm-dialog-title", "{title}" }
                 }
                 div { class: "modal-body",
                     p { "{message}" }

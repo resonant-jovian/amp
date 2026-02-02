@@ -410,7 +410,7 @@ input[type=number] {
     min-width: 0;
     align-self: center;
     display: flex;
-    flex-direction: column;
+    align-items: center;
     gap: 4px;
 }
 
@@ -425,6 +425,7 @@ input[type=number] {
     font-weight: 700;
     color: var(--color-text-secondary);
     font-size: 13px;
+    align-self: center;
 }
 
 /* Info icon button - vertically centered (reference style) */
@@ -804,12 +805,19 @@ input[type=number] {
     box-shadow: 0 4px 8px rgba(243, 44, 37, 0.2);
 }
 
-.modal-title {
+.modal-title h3{
     margin: 0;
     font-size: 18px;
     font-weight: 700;
-    color: white;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    color: #000000;
+    text-shadow: 0 0 0.5rem #bb4ea0;
+}
+.confirm-dialog-title h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: #ffffff;
+    text-shadow: 0 0 0.5rem #737373;
 }
 
 .modal-body {
@@ -843,24 +851,25 @@ input[type=number] {
     align-items: center;
     justify-content: center;
     white-space: nowrap;
+    box-shadow: inset 1px 1px 3px #a3b1c6, inset -1px -1px 5px #ffffff;
 }
 
 .modal-btn-cancel {
     background: var(--color-bg);
     color: var(--color-text);
-    box-shadow: 2px 2px 4px #a3b1c6, -2px -2px 4px #ffffff;
+    box-shadow: inset 1px 1px 3px #a3b1c6, inset -1px -1px 5px #ffffff;
 }
 
 .modal-btn-cancel:hover {
-    box-shadow: 4px 4px 8px #a3b1c6, -4px -4px 8px #ffffff;
+    box-shadow: inset 1px 1px 5px #F32C25FF, inset -1px -1px 5px #d32f2f;
 }
 
 .modal-btn-cancel:active {
-    box-shadow: inset 2px 2px 5px #a3b1c6, inset -2px -2px 5px #ffffff;
+    box-shadow: inset 1px 1px 5px #F32C25FF, inset -1px -1px 5px #d32f2f;
 }
 
 .modal-btn-cancel:focus {
-    box-shadow: var(--shadow-active);
+    box-shadow: inset 1px 1px 5px #F32C25FF, inset -1px -1px 5px #d32f2f;
 }
 
 .modal-btn-confirm {
@@ -885,17 +894,23 @@ input[type=number] {
 /* Info Dialog - Clean grey theme */
 .info-dialog .modal-header {
     padding: 20px;
-    background: linear-gradient(135deg, #757575 0%, #616161 100%);
-    box-shadow: 0 4px 8px rgba(117, 117, 117, 0.2);
     display: flex;
     justify-content: space-between;
     align-items: center;
+    background: linear-gradient(
+            0deg,
+            #e0e0e0 0%,
+            #e1d4dd 25%,
+            #d59aba 75%,
+            #bb4ea0 100%
+    );
+    box-shadow: 0 4px 8px rgba(187, 78, 160, 0.2);
 }
 
 .modal-close-btn {
     background: none;
     border: none;
-    color: white;
+    color: #000000;
     font-size: 32px;
     line-height: 1;
     cursor: pointer;
@@ -908,6 +923,7 @@ input[type=number] {
     opacity: 0.8;
     transition: opacity 0.2s ease;
     outline: none !important;
+    filter: drop-shadow(0 0 0.5rem #bb4ea0);
 }
 
 .modal-close-btn:hover {
@@ -956,15 +972,15 @@ input[type=number] {
 .modal-btn-primary {
     background: var(--color-bg);
     color: var(--color-text);
-    box-shadow: 2px 2px 4px #a3b1c6, -2px -2px 4px #ffffff;
+    box-shadow: inset 1px 1px 3px #a3b1c6, inset -1px -1px 5px #ffffff;
 }
 
 .modal-btn-primary:hover {
-    box-shadow: 4px 4px 8px #a3b1c6, -4px -4px 8px #ffffff;
+    box-shadow: var(--shadow-active);
 }
 
 .modal-btn-primary:active {
-    box-shadow: inset 2px 2px 5px #a3b1c6, inset -2px -2px 5px #ffffff;
+    box-shadow: var(--shadow-active);
 }
 
 .modal-btn-primary:focus {
@@ -1143,8 +1159,7 @@ input[type=number] {
 
 .settings-section-body {
     padding: 16px;
-    margin: 4px;
-    margin-top: 8px;
+    margin: 8px 4px 4px;
     background: var(--color-bg);
     border-radius: 12px;
     box-shadow: inset 2px 2px 5px #a3b1c6, inset -2px -2px 5px #ffffff;
