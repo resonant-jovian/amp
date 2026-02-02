@@ -11,15 +11,17 @@ pub fn get_dir() -> anyhow::Result<PathBuf> {
     use jni::objects::{JObject, JString};
     let (tx, rx) = std::sync::mpsc::channel();
     fn run(env: &mut JNIEnv<'_>, activity: &JObject<'_>) -> anyhow::Result<PathBuf> {
+        // getFilesDir() returns java.io.File, not String
         let files_dir = env
-            .call_method(activity, "getFilesDir", "()Ljava/lang/String;", &[])?
+            .call_method(activity, "getFilesDir", "()Ljava/io/File;", &[])?
             .l()?;
-        let files_dir: JString<'_> = env
-            .call_method(files_dir, "getAbsolutePath", "()Ljava/lang/String;", &[])?
+        // Call getAbsolutePath() on the File object to get the String path
+        let files_dir_path: JString<'_> = env
+            .call_method(&files_dir, "getAbsolutePath", "()Ljava/lang/String;", &[])?
             .l()?
             .into();
-        let files_dir: String = env.get_string(&files_dir)?.into();
-        Ok(PathBuf::from(files_dir))
+        let files_dir_str: String = env.get_string(&files_dir_path)?.into();
+        Ok(PathBuf::from(files_dir_str))
     }
     dioxus::mobile::wry::prelude::dispatch(move |env, activity, _webview| {
         tx.send(run(env, activity)).unwrap()
