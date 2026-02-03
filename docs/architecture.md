@@ -1,197 +1,232 @@
 # Architecture
 
-AMP follows a modular architecture with clear separation between correlation logic, CLI tooling, and mobile apps.
+AMP uses a workspace-based architecture with shared core library and multiple frontend applications.
 
-## System Overview
+## System Components
 
 ```
-┌────────────────────────────────┐
-│     Malmö Open Data APIs      │
-│  (Adresser, Miljöparkering)  │
-└──────────────┬─────────────────┘
-               │
-               │ HTTP/GeoJSON
-               │
-       ┌───────┴───────┐
-       │   amp_core    │
-       │ (Rust Library)│
-       └─────┬───┬──────┘
-            │    │
-    ┌───────┼────┼───────┐
-    │       │    │        │
-┌───┴───┐  │    │   ┌───┴───┐
-│ Server │  │    │   │Android│
-│  (CLI) │  │    └───┤  iOS  │
-└───────┘  │        └───────┘
-         Parquet
+┌────────────────────────┐
+│   Malmö Open Data API   │
+│  (GeoJSON datasets)      │
+└─────────┬──────────────┘
+         │
+         │ fetch & parse
+         │
+         ↓
+┌─────────┴─────────────┐
+│      amp_core           │
+│                        │
+│  • API client         │
+│  • Data structures    │
+│  • Algorithms         │
+│  • Parquet I/O        │
+└───────┬────────────────┘
+       │
+       ├──────────────┬───────────────┬───────────┐
+       │              │               │           │
+       ↓              ↓               ↓           ↓
+┌──────────┐  ┌─────────┐  ┌────────┐  ┌───────┐
+│ amp_server │  │ android │  │  ios  │  │ ... │
+│   (CLI)    │  │ (Dioxus)│  │(Dioxus)│  │     │
+└──────────┘  └─────────┘  └────────┘  └───────┘
 ```
 
-## Core Components
+## Core Library (`amp_core`)
 
-### 1. Core Library (`amp_core`)
+Provides reusable functionality for all frontend applications.
 
-The foundational Rust library providing:
+### Modules
 
-- **Data Structures** (`structs.rs`)
-  - `Address`: Street address with coordinates
-  - `MiljoParkering`: Parking restriction zone
-  - `Segment`: Line segment for zone boundaries
+- **`api`** — HTTP client for fetching GeoJSON from Malmö Open Data API
+- **`structs`** — Core data structures (`DB`, `AdressClean`, `MiljoeDataClean`, etc.)
+- **`parquet`** — Read/write operations for Apache Parquet format
+- **`correlation_algorithms`** — Geospatial correlation implementations
+- **`benchmark`** — Performance measurement utilities
+- **`checksum`** — SHA-256 validation for data integrity
 
-- **Correlation Algorithms** (`correlation_algorithms/`)
-  - `KDTreeSpatialAlgo`: Fast spatial indexing (default)
-  - `RTreeSpatialAlgo`: R-tree based spatial queries
-  - `DistanceBasedAlgo`: Simple distance calculation
-  - `RaycastingAlgo`: Point-in-polygon testing
-  - `GridNearestAlgo`: Grid-based spatial partitioning
-  - `OverlappingChunksAlgo`: Chunked processing for large datasets
-
-- **API Integration** (`api.rs`)
-  - Fetches GeoJSON from Malmö Open Data
-  - Parses addresses and parking zones
-  - Validates data integrity with checksums
-
-- **Parquet Storage** (`parquet.rs`)
-  - Converts GeoJSON to efficient Parquet format
-  - Used for offline mobile app data
-
-See [Core Library README](../core/README.md) for API details.
-
-### 2. CLI Tool (`amp_server`)
-
-Command-line interface for:
-
-- **Testing** (`test` command)
-  - Visual verification via browser
-  - Compares results against official StadsAtlas
-  - Configurable algorithm and distance thresholds
-
-- **Correlation** (`correlate` command)
-  - Batch processing of addresses
-  - Algorithm selection and benchmarking
-
-- **Data Updates** (`check-updates` command)
-  - Detects when Open Data has changed
-  - Validates checksums
-
-See [CLI Usage](cli-usage.md) for command reference.
-
-### 3. Mobile Apps
-
-Both Android and iOS apps share ~85% of code:
-
-**Shared Components:**
-- Address matching logic
-- Parking deadline countdown
-- Parquet data loading
-- All UI components
-
-**Platform-Specific:**
-- GPS/location services
-- Notifications
-- Persistent storage
-
-See [Android README](../android/README.md) and [iOS README](../ios/README.md).
+See [Core Library Documentation](../core/README.md) for API details.
 
 ## Data Flow
 
-### CLI Workflow
-
-1. Fetch GeoJSON from Malmö APIs
-2. Parse into internal data structures
-3. Initialize chosen correlation algorithm
-4. Process addresses in parallel (Rayon)
-5. Output results (JSON, visual browser tabs)
-
-### Mobile App Workflow
-
-1. Load embedded Parquet files at startup
-2. User enters address or uses GPS
-3. Match address to stored data (fuzzy matching)
-4. Find nearest parking zone (correlation)
-5. Calculate deadline and display
-6. Schedule notification
-
-## Algorithm Selection
-
-Algorithms are selected via the `CorrelationAlgo` trait:
+### 1. Data Acquisition
 
 ```rust
-pub trait CorrelationAlgo: Send + Sync {
-    fn correlate(
-        &self, 
-        address: &Address, 
-        zones: &[MiljoParkering]
-    ) -> Option<(usize, f64)>;
+// Fetch from Malmö Open Data API
+let addresses = api::fetch_addresses().await?;
+let miljo_zones = api::fetch_miljo_zones().await?;
+let parkering_zones = api::fetch_parkering_zones().await?;
+```
+
+### 2. Data Storage (Parquet)
+
+```rust
+// Write to efficient columnar format
+parquet::write_addresses(&addresses, "addresses.parquet")?;
+parquet::write_miljo(&miljo_zones, "miljo.parquet")?;
+parquet::write_parkering(&parkering_zones, "parkering.parquet")?;
+```
+
+### 3. Correlation
+
+```rust
+use amp_core::correlation_algorithms::*;
+
+// Load data
+let addresses = parquet::read_addresses("addresses.parquet")?;
+let miljo = parquet::read_miljo("miljo.parquet")?;
+let parkering = parquet::read_parkering("parkering.parquet")?;
+
+// Run algorithm
+let results = kdtree_spatial::correlate(&addresses, &miljo, &parkering, 100.0);
+```
+
+See [Algorithms Documentation](algorithms.md) for algorithm details.
+
+## Application Architecture
+
+### CLI Tool (`amp_server`)
+
+Command-line interface for testing and data management.
+
+**Commands:**
+- `test` — Visual testing with browser windows
+- `correlate` — Run correlation and output results
+- `benchmark` — Performance comparison of algorithms
+- `serve` — Start HTTP server for web interface
+
+See [CLI Documentation](../server/README.md).
+
+### Mobile Apps (Android/iOS)
+
+Offline-first applications built with Dioxus framework.
+
+**Features:**
+- Address search with autocomplete
+- Real-time restriction checking
+- Offline data storage (bundled Parquet files)
+- Shared UI components between platforms
+
+**Architecture:**
+```
+UI Layer (RSX components)
+    ↓
+State Management (Signals)
+    ↓
+Data Access (amp_core)
+    ↓
+Storage (Parquet files in assets/)
+```
+
+See [Android Documentation](../android/README.md) and [iOS Documentation](../ios/README.md).
+
+## Data Structures
+
+### Core Types
+
+#### `DB`
+Represents a parking restriction with time intervals.
+
+```rust
+pub struct DB {
+    pub adress: String,
+    pub gata: Option<String>,
+    pub gatunummer: Option<String>,
+    pub info: Option<String>,              // Miljödata restriction
+    pub start_time: DateTime<Utc>,         // UTC timestamp
+    pub end_time: DateTime<Utc>,           // UTC timestamp
+    pub taxa: Option<String>,              // Parking zone
+    pub antal_platser: Option<u64>,        // Number of spots
+    pub typ_av_parkering: Option<String>,  // Parking type
 }
 ```
 
-**Performance Characteristics:**
+**Time Handling:**
+- All times stored as UTC timestamps
+- Swedish timezone (Europe/Stockholm) for display
+- Automatic DST handling via `chrono-tz`
 
-| Algorithm | Build Time | Query Time | Memory | Best For |
-|-----------|------------|------------|--------|----------|
-| KD-Tree   | O(n log n) | O(log n)   | Medium | Default choice |
-| R-Tree    | O(n log n) | O(log n)   | Medium | Dense zones |
-| Distance  | O(1)       | O(n)       | Low    | Small datasets |
-| Grid      | O(n)       | O(1)       | High   | Uniform distribution |
-| Raycasting| O(1)       | O(n)       | Low    | Polygon zones |
+#### `AdressClean`
+Cleaned address data from Malmö database.
 
-See [Algorithms](algorithms.md) for detailed comparisons.
-
-## Code Organization
-
-### Naming Conventions
-
-- **Code**: English (variables, functions, types)
-- **UI**: Swedish (user-facing strings)
-- **Documentation**: English (all markdown files)
-
-This maintains code maintainability while preserving Swedish context for end users.
-
-### Module Structure
-
-```
-core/src/
-├── lib.rs                    # Public API
-├── structs.rs                # Core data types
-├── api.rs                    # Data fetching
-├── parquet.rs                # Parquet conversion
-├── checksum.rs               # Data validation
-├── benchmark.rs              # Performance testing
-└── correlation_algorithms/   # Algorithm implementations
-    ├── mod.rs                # Trait definition
-    ├── common.rs             # Shared utilities
-    ├── kdtree_spatial.rs     # KD-Tree
-    ├── rtree_spatial.rs      # R-Tree
-    ├── distance_based.rs     # Distance
-    ├── raycasting.rs         # Raycasting
-    ├── grid_nearest.rs       # Grid
-    └── overlapping_chunks.rs # Chunks
+```rust
+pub struct AdressClean {
+    pub coordinates: [Decimal; 2],  // [longitude, latitude]
+    pub adress: String,
+    pub gata: String,
+    pub gatunummer: String,
+}
 ```
 
-## Dependencies
+#### `MiljoeDataClean` / `ParkeringsDataClean`
+Restriction zones as line segments.
 
-### Core Dependencies
-- `rust_decimal`: High-precision coordinates
-- `rayon`: Parallel processing
-- `rstar`: R-tree spatial indexing
-- `kiddo`: KD-tree implementation
-- `geodesy`: Coordinate transformations
+```rust
+pub struct MiljoeDataClean {
+    pub coordinates: [[Decimal; 2]; 2],  // Line segment
+    pub info: String,                     // Restriction text
+    pub tid: String,                      // Time range ("0800-1200")
+    pub dag: u8,                          // Day of month (1-31)
+}
+```
 
-### Mobile Dependencies
-- `dioxus`: Cross-platform UI framework
-- `parquet`: Efficient data storage
-- `arrow`: Parquet data access
+See [Data Format Documentation](data-format.md) for storage details.
 
-### CLI Dependencies
-- `clap`: Command-line argument parsing
-- `tokio`: Async runtime
-- `reqwest`: HTTP client
+## Configuration
 
-See workspace `Cargo.toml` for version details.
+### Workspace (`Cargo.toml`)
+
+```toml
+[workspace]
+members = ["core", "android", "ios", "server"]
+resolver = "2"
+
+[workspace.dependencies]
+rust_decimal = { version = "1.40.0", features = ["serde", "maths"] }
+dioxus = { version = "0.7.3", features = ["mobile", "router"] }
+geojson = "0.24.2"
+parquet = "57.2.0"
+# ... (see root Cargo.toml for full list)
+```
+
+### Dioxus Configuration
+
+Mobile app configuration in `android/Dioxus.toml` and `ios/Dioxus.toml`:
+
+```toml
+[application]
+name = "amp"
+default_platform = "android"  # or "ios"
+
+[android]
+package = "se.skaggbyran.malmo.amp"
+
+[bundle]
+identifier = "se.skaggbyran.malmo.amp"
+```
+
+## Performance Considerations
+
+### Algorithm Selection
+
+| Algorithm | Speed | Accuracy | Use Case |
+|-----------|-------|----------|----------|
+| **KD-Tree** | Fast | High | Production (recommended) |
+| **R-Tree** | Fast | High | Alternative spatial index |
+| **Grid** | Fast | Medium | Quick approximation |
+| **Distance** | Slow | Low | Baseline comparison |
+
+See [Algorithms Documentation](algorithms.md) for benchmarks.
+
+### Data Storage
+
+- **Parquet** — Columnar format with compression (90% smaller than GeoJSON)
+- **Checksums** — SHA-256 validation prevents corrupted data
+- **Bundled Assets** — Mobile apps include Parquet files for offline use
 
 ## Related Documentation
 
-- [Algorithms](algorithms.md) — Algorithm details and benchmarks
-- [API Integration](api-integration.md) — Data source details
-- [Data Format](data-format.md) — Parquet structure
-- [Testing](testing.md) — Testing strategies
+- **[Algorithms](algorithms.md)** — Correlation algorithm details
+- **[Data Format](data-format.md)** — Parquet schema and structure
+- **[Building](building.md)** — Build instructions
+- **[Testing](testing.md)** — Testing methodology
+- **[API Integration](api-integration.md)** — Malmö Open Data API
