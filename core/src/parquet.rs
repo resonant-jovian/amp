@@ -9,6 +9,7 @@ use arrow::{
     datatypes::{DataType, Field, Schema},
     record_batch::RecordBatch,
 };
+use bytes::Bytes;
 use parquet::{
     arrow::ArrowWriter,
     arrow::arrow_reader::ParquetRecordBatchReaderBuilder,
@@ -256,6 +257,71 @@ pub fn read_local_parquet(file: File) -> anyhow::Result<Vec<LocalData>> {
             result.push(entry);
         }
     }
+    Ok(result)
+}
+/// Read LocalData from embedded bytes (for Android debug mode)
+///
+/// This function is similar to read_local_parquet but takes a byte slice
+/// instead of a File, making it suitable for reading from embedded assets.
+///
+/// # Arguments
+/// * `bytes` - Byte slice containing the parquet file data
+///
+/// # Returns
+/// Vector of LocalData entries
+///
+/// # Example
+/// ```no_run
+/// use amp_core::parquet::read_local_parquet_from_bytes;
+///
+/// const DEBUG_DATA: &[u8] = include_bytes!("debug.parquet");
+/// let data = read_local_parquet_from_bytes(DEBUG_DATA).unwrap();
+/// ```
+pub fn read_local_parquet_from_bytes(bytes: &[u8]) -> anyhow::Result<Vec<LocalData>> {
+    let bytes_obj = Bytes::copy_from_slice(bytes);
+    let builder = ParquetRecordBatchReaderBuilder::try_new(bytes_obj)
+        .map_err(|e| anyhow::anyhow!("Failed to create Parquet reader builder: {}", e))?;
+    let reader = builder
+        .build()
+        .map_err(|e| anyhow::anyhow!("Failed to build Parquet record batch reader: {}", e))?;
+    
+    let mut result = Vec::new();
+    
+    for batch_result in reader {
+        let batch = batch_result.map_err(|e| anyhow::anyhow!("Failed to read batch: {}", e))?;
+        
+        let valid = get_boolean_column(&batch, "valid")?;
+        let active = get_boolean_column(&batch, "active")?;
+        let postnummer = get_string_column(&batch, "postnummer")?;
+        let address = get_string_column(&batch, "adress")?;
+        let gata = get_string_column(&batch, "gata")?;
+        let gatunummer = get_string_column(&batch, "gatunummer")?;
+        let info = get_string_column(&batch, "info")?;
+        let dag = get_u8_column(&batch, "dag")?;
+        let tid = get_string_column(&batch, "tid")?;
+        let taxa = get_string_column(&batch, "taxa")?;
+        let antal_platser = get_u64_column(&batch, "antal_platser")?;
+        let typ_av_parkering = get_string_column(&batch, "typ_av_parkering")?;
+        
+        for i in 0..batch.num_rows() {
+            let entry = LocalData {
+                valid: get_boolean_with_default(valid, i, false),
+                active: get_boolean_with_default(active, i, false),
+                postnummer: get_optional_string(postnummer, i),
+                adress: get_required_string(address, i),
+                gata: get_optional_string(gata, i),
+                gatunummer: get_optional_string(gatunummer, i),
+                info: get_optional_string(info, i),
+                tid: get_optional_string(tid, i),
+                dag: get_optional_u8(dag, i),
+                taxa: get_optional_string(taxa, i),
+                antal_platser: get_optional_u64(antal_platser, i),
+                typ_av_parkering: get_optional_string(typ_av_parkering, i),
+            };
+            result.push(entry);
+        }
+    }
+    
     Ok(result)
 }
 /// Read address clean data from parquet file
