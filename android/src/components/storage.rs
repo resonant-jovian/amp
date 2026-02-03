@@ -50,11 +50,13 @@
 //! storage::write_addresses_to_device(&addresses).ok();
 //! ```
 use crate::ui::StoredAddress;
+#[allow(unused_imports)]
 use amp_core::parquet::{build_local_parquet, read_local_parquet};
 use amp_core::structs::LocalData;
 use std::fs::{self};
 use std::path::PathBuf;
 use std::sync::Mutex;
+#[allow(unused_imports)]
 use std::fs::File;
 /// Thread-safe storage mutex to prevent concurrent access issues
 static STORAGE_LOCK: Mutex<()> = Mutex::new(());
