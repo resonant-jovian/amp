@@ -1,215 +1,311 @@
 # Testing Guide
 
-AMP uses multiple testing strategies: visual browser testing, unit tests, and continuous integration.
+AMP provides visual and automated testing for correlation algorithms.
 
 ## Visual Testing
 
-### Overview
-
-Visual testing opens browser tabs comparing AMP correlation results against official Malmö StadsAtlas maps.
+Compare algorithm results against official Malmö StadsAtlas maps.
 
 ### Quick Start
 
 ```bash
-# Test 5 random addresses
-cargo run -- test --windows 5
+# Default: 10 windows, KD-Tree algorithm
+cargo run --release -- test
+
+# Custom algorithm and parameters
+cargo run --release -- test --algorithm rtree --cutoff 100 --windows 15
 ```
 
-Each address opens **two tabs:**
-1. **Official StadsAtlas**: Shows actual parking zones
-2. **Correlation Result**: AMP's computed match with distance
+### How It Works
 
-### Verification Process
-
-1. **Look at Tab 1 (StadsAtlas)**
-   - Locate the address marker
-   - Identify visible parking zone (usually colored)
-   - Note restriction text if visible
-
-2. **Compare with Tab 2 (Result)**
-   - Check if zone ID matches visual inspection
-   - Verify distance seems reasonable
-   - Confirm restriction text matches map
-
-3. **Mark as Pass/Fail**
-   - ✓ Pass: Zone matches visual inspection
-   - ✗ Fail: Wrong zone or distance too large
-
-### Testing Different Algorithms
-
-```bash
-# Test KD-Tree (default)
-cargo run -- test --algorithm kdtree --windows 10
-
-# Test R-Tree
-cargo run -- test --algorithm rtree --windows 10
-
-# Compare results for same addresses
+```
+1. Select random addresses
+2. Run correlation algorithm
+3. Open browser windows:
+   ├─> Algorithm result (left)
+   └─> StadsAtlas official map (right)
+4. Manually verify accuracy
 ```
 
-### Testing Distance Thresholds
+### Command Options
 
 ```bash
-# Strict (25m)
-cargo run -- test --cutoff 25 --windows 10
+amp_server test [OPTIONS]
 
-# Default (50m)
-cargo run -- test --cutoff 50 --windows 10
-
-# Permissive (100m)
-cargo run -- test --cutoff 100 --windows 10
+Options:
+  --algorithm <ALGORITHM>  Algorithm to test [default: kdtree]
+                          [possible: kdtree, rtree, grid, distance]
+  --cutoff <METERS>       Search radius in meters [default: 100]
+  --windows <COUNT>       Number of test windows [default: 10]
+  --seed <SEED>          Random seed for reproducibility
 ```
 
-**Expected behavior:**
-- Lower cutoff: Fewer matches, higher accuracy
-- Higher cutoff: More matches, possible false positives
+### Example Sessions
 
-## Unit Tests
+**Test KD-Tree with 100m cutoff:**
+```bash
+cargo run --release -- test
+```
 
-### Running Tests
+**Compare R-Tree vs KD-Tree:**
+```bash
+# Run each and compare results
+cargo run --release -- test --algorithm rtree
+cargo run --release -- test --algorithm kdtree
+```
+
+**Stress test with 50m cutoff:**
+```bash
+cargo run --release -- test --cutoff 50 --windows 20
+```
+
+**Reproducible testing:**
+```bash
+cargo run --release -- test --seed 42
+```
+
+### Interpreting Results
+
+**Browser windows show:**
+- **Left panel** — Algorithm result with correlation info
+- **Right panel** — Official StadsAtlas map for same address
+
+**What to check:**
+- ✅ **Correct match** — Restriction zone matches StadsAtlas
+- ✅ **Correct distance** — Distance calculation reasonable
+- ❌ **False positive** — Algorithm found zone, StadsAtlas shows none
+- ❌ **False negative** — Algorithm missed zone, StadsAtlas shows one
+- ❌ **Wrong zone** — Algorithm found different zone than StadsAtlas
+
+### Accuracy Metrics
+
+Manually track results:
+
+```
+Correct matches:    8 / 10 = 80%
+False positives:    1 / 10 = 10%
+False negatives:    1 / 10 = 10%
+```
+
+**Target accuracy:** >90% for production use
+
+## Automated Tests
+
+Unit and integration tests using standard Rust testing.
+
+### Run All Tests
 
 ```bash
-# All tests
 cargo test --release
-
-# Specific module
-cargo test --lib correlation_algorithms
-
-# Specific algorithm
-cargo test --lib correlation_algorithms::kdtree
-
-# With output
-cargo test -- --nocapture
 ```
+
+### Run Specific Tests
+
+```bash
+# Core library tests
+cargo test -p amp_core
+
+# Algorithm tests only
+cargo test -p amp_core correlation_algorithms
+
+# Specific test function
+cargo test test_db_from_dag_tid
+```
+
+### Test Categories
+
+#### Unit Tests
+
+**Location:** `core/src/*.rs` (inline with `#[cfg(test)]`)
+
+**Example:**
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_db_from_dag_tid() {
+        let db = DB::from_dag_tid(
+            Some("21438".to_string()),
+            "Åhusgatan 1".to_string(),
+            Some("Åhusgatan".to_string()),
+            Some("1".to_string()),
+            Some("Parkering förbjuden".to_string()),
+            17,
+            "1200-1600",
+            Some("Taxa C".to_string()),
+            Some(26),
+            Some("Längsgående 6".to_string()),
+            2024,
+            1,
+        );
+        assert!(db.is_some());
+    }
+}
+```
+
+#### Integration Tests
+
+**Location:** `core/src/correlation_tests.rs`
+
+**Tests:**
+- Algorithm correctness
+- Distance calculations
+- Edge cases (null values, empty datasets)
+- Performance benchmarks
 
 ### Test Coverage
 
-**Core Library Tests** (`core/src/correlation_tests.rs`):
-- Distance calculation accuracy
-- Algorithm correctness for known addresses
-- Edge cases (boundary conditions)
-- Performance benchmarks
+```bash
+# Install tarpaulin
+cargo install cargo-tarpaulin
 
-**API Tests** (`core/src/api.rs`):
-- GeoJSON parsing
-- Data structure conversion
-- Error handling
+# Generate coverage report
+cargo tarpaulin --out Html --output-dir coverage
 
-**Parquet Tests** (`core/src/parquet.rs`):
-- Serialization/deserialization
-- Data integrity
+# Open report
+open coverage/index.html
+```
+
+## Benchmarking
+
+Compare algorithm performance.
+
+### Run Benchmarks
+
+```bash
+cargo run --release -p amp_server -- benchmark
+```
+
+### Output Format
+
+```
+Algorithm    | Time (ms) | Throughput | Accuracy | Memory
+-------------|-----------|------------|----------|--------
+KD-Tree      | 1,200     | 83,333/s   | 95%      | 45 MB
+R-Tree       | 1,450     | 68,965/s   | 94%      | 52 MB
+Grid         | 980       | 102,040/s  | 89%      | 38 MB
+Distance     | 245,000   | 408/s      | 100%     | 28 MB
+```
+
+### Custom Benchmarks
+
+**Location:** `core/src/benchmark.rs`
+
+```rust
+use amp_core::benchmark;
+
+let addresses = load_addresses()?;
+let zones = load_zones()?;
+
+let result = benchmark::run_benchmark(
+    "Custom Test",
+    || my_algorithm(&addresses, &zones, 100.0)
+);
+
+println!("Time: {} ms", result.duration_ms);
+println!("Throughput: {} addr/s", result.throughput);
+```
+
+## Performance Testing
+
+### Memory Profiling
+
+```bash
+# Install valgrind
+sudo apt install valgrind  # Linux
+brew install valgrind      # macOS
+
+# Profile memory usage
+valgrind --tool=massif cargo run --release -- correlate
+
+# View results
+ms_print massif.out.*
+```
+
+### CPU Profiling
+
+```bash
+# Install perf (Linux)
+sudo apt install linux-tools-generic
+
+# Profile CPU usage
+perf record cargo run --release -- correlate
+perf report
+```
+
+### Flamegraph
+
+```bash
+# Install cargo-flamegraph
+cargo install flamegraph
+
+# Generate flamegraph
+cargo flamegraph --bin amp_server -- correlate
+
+# Open flamegraph.svg
+open flamegraph.svg
+```
 
 ## Continuous Integration
 
 ### GitHub Actions
 
-All commits trigger automated CI:
+**Workflow:** `.github/workflows/test.yml`
 
-[![CI](https://github.com/resonant-jovian/amp/actions/workflows/ci.yml/badge.svg)](https://github.com/resonant-jovian/amp/actions/workflows/ci.yml)
+```yaml
+name: Test
 
-**Pipeline steps:**
-1. **Format Check**: `cargo fmt --check`
-2. **Linting**: `cargo clippy -- -D warnings`
-3. **Tests**: `cargo test --all-targets --all-features`
-4. **Build**: Release builds for all platforms
+on: [push, pull_request]
 
-### Local CI Validation
-
-Run the same checks locally:
-
-```bash
-# Format and lint
-./scripts/fmt_fix_clippy.sh
-
-# Run tests
-cargo test --release
-
-# Full validation
-./validate.sh
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      
+      - name: Run tests
+        run: cargo test --release
+      
+      - name: Run clippy
+        run: cargo clippy -- -D warnings
+      
+      - name: Check formatting
+        run: cargo fmt -- --check
 ```
 
-## Benchmarking
-
-### Interactive Benchmarks
+### Pre-commit Hooks
 
 ```bash
-# Compare all algorithms
-cargo run --release -p amp_server -- benchmark
+# Install pre-commit
+pip install pre-commit
 
-# Custom sample size
-cargo run -- benchmark --sample-size 5000
+# Install hooks
+pre-commit install
+
+# Run manually
+pre-commit run --all-files
 ```
-
-### Benchmark Metrics
-
-**Build Time**: Time to preprocess zones (KD-tree, R-tree, grid)  
-**Query Time**: Average time per address lookup  
-**Total Time**: Build + Query time  
-**Matches**: Number of addresses matched within threshold
-
-### Expected Performance
-
-On modern hardware (M1/M2 Mac, recent Intel/AMD):
-
-| Algorithm | Build | Query/addr | Total (1000 addrs) |
-|-----------|-------|------------|-----------------|
-| KD-Tree   | 200-300ms | 0.01-0.02ms | ~250ms |
-| R-Tree    | 250-350ms | 0.01-0.03ms | ~300ms |
-| Distance  | <1ms | 1-3ms | 1000-3000ms |
-| Grid      | 100-200ms | <0.01ms | ~200ms |
-| Raycasting | <1ms | 2-5ms | 2000-5000ms |
-
-## Test Data
-
-### Data Sources
-
-Tests use real data from Malmö Open Data:
-- **Addresses**: ~45,000 entries
-- **Miljöparkering**: ~800 zones
-- **Parkeringsavgifter**: ~600 zones
-
-### Test Address Selection
-
-Random sampling with distribution:
-- 60% urban center (dense zones)
-- 30% suburban areas (sparse zones)
-- 10% edge cases (boundaries, gaps)
 
 ## Validation Checklist
 
-Before committing:
+Before releasing:
 
-- [ ] `cargo fmt` passes
-- [ ] `cargo clippy` has no warnings
-- [ ] `cargo test` passes all tests
-- [ ] Visual testing confirms accuracy
-- [ ] Benchmarks show reasonable performance
+- [ ] All unit tests pass
+- [ ] Visual testing shows >90% accuracy
+- [ ] Benchmarks meet performance targets
+- [ ] No clippy warnings
+- [ ] Code formatted with rustfmt
 - [ ] Documentation updated
+- [ ] Changelog updated
 
-## Troubleshooting Tests
-
-### "Test failed: distance too large"
-
-**Cause**: Algorithm matched distant zone  
-**Solution**: Review algorithm logic, adjust threshold
-
-### "Test timed out"
-
-**Cause**: Slow algorithm on large dataset  
-**Solution**: Use release build (`--release`), reduce sample size
-
-### "Browser tabs not opening"
-
-**Cause**: No default browser set  
-**Solution**: Manually check URLs in console output
-
-### "Checksum mismatch"
-
-**Cause**: Test data changed  
-**Solution**: Update checksums: `cargo run -- check-updates`
+See `validate.sh` for automated validation.
 
 ## Related Documentation
 
-- [CLI Usage](cli-usage.md) — Test command reference
-- [Algorithms](algorithms.md) — What to test
-- [Architecture](architecture.md) — Testing infrastructure
+- **[Algorithms](algorithms.md)** — Algorithm details
+- **[Architecture](architecture.md)** — System overview
+- **[Building](building.md)** — Build instructions
+- **[CLI Usage](../server/README.md)** — Command reference

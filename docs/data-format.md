@@ -1,274 +1,279 @@
 # Data Format
 
-AMP uses Apache Parquet for efficient offline data storage in mobile apps.
+AMP uses Apache Parquet for efficient storage of geospatial data.
 
 ## Why Parquet?
 
 **Advantages:**
-- **Columnar format**: Fast queries on specific fields
-- **Compression**: ~10x smaller than JSON
-- **Schema evolution**: Add fields without breaking old apps
-- **Fast loading**: Faster than JSON parsing
-- **Cross-platform**: Works on Android, iOS, CLI
+- **Columnar storage** — Efficient compression and queries
+- **90% size reduction** — Compared to GeoJSON
+- **Fast reads** — Skip irrelevant columns
+- **Type safety** — Schema enforced at read/write
+- **Cross-platform** — Supported by many tools
 
 **Comparison:**
-
-| Format | Size | Load Time | Query Speed |
-|--------|------|-----------|-------------|
-| JSON   | 12 MB | 450ms | Slow (full scan) |
-| Parquet | 1.2 MB | 80ms | Fast (columnar) |
-| SQLite | 3.5 MB | 120ms | Medium (indexed) |
+| Format | Size (MB) | Read Time (ms) | Write Time (ms) |
+|--------|-----------|----------------|------------------|
+| GeoJSON | 250 | 1,200 | 800 |
+| Parquet | 25 | 150 | 200 |
 
 ## File Structure
 
-### addresses.parquet
+### Addresses (`addresses.parquet`)
 
 **Schema:**
-```
-address: string (nullable)
-postal_code: string (nullable)
-postal_area: string (nullable)
-x: double (nullable)
-y: double (nullable)
-```
-
-**Example Row:**
-```json
-{
-  "address": "Amiralsgatan 1",
-  "postal_code": "21139",
-  "postal_area": "Malmö",
-  "x": 115234.56,
-  "y": 6166789.12
-}
-```
-
-**Usage:**
 ```rust
-use amp_core::parquet::read_addresses;
-
-let addresses = read_addresses("addresses.parquet")?;
-for addr in addresses {
-    println!("{}: ({}, {})", addr.adress, addr.x, addr.y);
+struct AdressClean {
+    coordinates: [Decimal; 2],  // [longitude, latitude]
+    postnummer: Option<String>, // Postal code
+    adress: String,             // Full address
+    gata: String,               // Street name
+    gatunummer: String,         // Street number
 }
 ```
 
-### zones.parquet
+**Source:** Malmö address database via Open Data API
+
+**Example data:**
+```
+coordinates     | postnummer | adress              | gata        | gatunummer
+[13.003, 55.60] | 21438      | Åhusgatan 1        | Åhusgatan   | 1
+[12.994, 55.61] | 21439      | Beijerskajen 10    | Beijerskajen| 10
+```
+
+### Miljödata (`miljo.parquet`)
+
+Environmental parking restrictions (street cleaning).
 
 **Schema:**
-```
-zone_id: int32 (nullable)
-restriction: string (nullable)
-segments: list<struct<start_x: double, start_y: double, end_x: double, end_y: double>>
-```
-
-**Example Row:**
-```json
-{
-  "zone_id": 42,
-  "restriction": "förbjudet 08-12 1,15,29",
-  "segments": [
-    {"start_x": 115200.0, "start_y": 6166800.0, "end_x": 115250.0, "end_y": 6166850.0},
-    {"start_x": 115250.0, "start_y": 6166850.0, "end_x": 115300.0, "end_y": 6166900.0}
-  ]
+```rust
+struct MiljoeDataClean {
+    coordinates: [[Decimal; 2]; 2], // Line segment
+    info: String,                    // Restriction text
+    tid: String,                     // Time range "HHMM-HHMM"
+    dag: u8,                         // Day of month (1-31)
 }
 ```
 
-**Usage:**
-```rust
-use amp_core::parquet::read_zones;
+**Example data:**
+```
+coordinates                              | info                    | tid        | dag
+[[13.003, 55.60], [13.004, 55.601]]    | Parkering förbjuden     | 0800-1200  | 15
+[[12.994, 55.61], [12.995, 55.611]]    | Renhållning             | 1200-1600  | 17
+```
 
-let zones = read_zones("zones.parquet")?;
-for zone in zones {
-    println!("Zone {}: {} segments", zone.id, zone.segments.len());
+**Time format:**
+- `tid`: "HHMM-HHMM" (e.g., "0800-1200" = 8 AM to 12 PM)
+- `dag`: Day of month when restriction applies
+
+### Parkering (`parkering.parquet`)
+
+Regular parking zones (paid parking).
+
+**Schema:**
+```rust
+struct ParkeringsDataClean {
+    coordinates: [[Decimal; 2]; 2],  // Line segment
+    taxa: String,                     // Zone identifier (A-E)
+    antal_platser: u64,               // Number of spots
+    typ_av_parkering: String,         // Type (e.g., "Längsgående 6")
 }
 ```
 
-## Conversion Pipeline
+**Example data:**
+```
+coordinates                              | taxa   | antal_platser | typ_av_parkering
+[[13.003, 55.60], [13.004, 55.601]]    | Taxa C | 26            | Längsgående 6
+[[12.994, 55.61], [12.995, 55.611]]    | Taxa A | 15            | Vinkel 45
+```
 
-### GeoJSON to Parquet
+**Taxa zones:**
+- **Taxa A** — 30 kr/hour (city center)
+- **Taxa B** — 25 kr/hour
+- **Taxa C** — 20 kr/hour
+- **Taxa D** — 15 kr/hour
+- **Taxa E** — 10 kr/hour (outskirts)
 
-1. **Fetch GeoJSON** from Malmö Open Data APIs
-2. **Parse** into Rust structs (`Address`, `MiljoParkering`)
-3. **Convert** to Arrow schema
-4. **Write** Parquet with compression
+## Database Format (Mobile Apps)
 
-**Code:**
+Mobile apps use transformed data with timestamps.
+
+**Schema:**
 ```rust
-use amp_core::parquet::write_addresses_parquet;
-
-let addresses = fetch_addresses_from_api()?;
-write_addresses_parquet(&addresses, "addresses.parquet")?;
-```
-
-### Build Integration
-
-Mobile apps include Parquet files in assets:
-
-**Android:**
-```toml
-# android/Dioxus.toml
-[assets]
-include = ["assets/addresses.parquet", "assets/zones.parquet"]
-```
-
-**iOS:**
-```toml
-# ios/Dioxus.toml
-[assets]
-include = ["assets/addresses.parquet", "assets/zones.parquet"]
-```
-
-See [Android README](../android/README.md) for build process.
-
-## Loading in Mobile Apps
-
-### Android
-
-```rust
-use amp_core::parquet::read_addresses;
-
-pub fn load_static_data() -> Result<(Vec<Address>, Vec<MiljoParkering>)> {
-    let addresses = read_addresses("assets://addresses.parquet")?;
-    let zones = read_zones("assets://zones.parquet")?;
-    Ok((addresses, zones))
+struct DB {
+    postnummer: Option<String>,
+    adress: String,
+    gata: Option<String>,
+    gatunummer: Option<String>,
+    info: Option<String>,              // Miljödata restriction
+    start_time: DateTime<Utc>,         // UTC timestamp
+    end_time: DateTime<Utc>,           // UTC timestamp
+    taxa: Option<String>,              // Parking zone
+    antal_platser: Option<u64>,        // Number of spots
+    typ_av_parkering: Option<String>,  // Parking type
 }
 ```
 
-### iOS
+**Time handling:**
+- Stored as UTC timestamps
+- Displayed in Swedish timezone (Europe/Stockholm)
+- Automatic DST handling via `chrono-tz`
 
+**Conversion:**
 ```rust
-use amp_core::parquet::read_addresses;
-
-pub fn load_static_data() -> Result<(Vec<Address>, Vec<MiljoParkering>)> {
-    let addresses = read_addresses("assets://addresses.parquet")?;
-    let zones = read_zones("assets://zones.parquet")?;
-    Ok((addresses, zones))
-}
+let db = DB::from_dag_tid(
+    postnummer,
+    adress,
+    gata,
+    gatunummer,
+    info,
+    15,              // day of month
+    "0800-1200",     // time range
+    taxa,
+    antal_platser,
+    typ_av_parkering,
+    2024,            // year
+    1,               // month
+)?;
 ```
 
-## Compression
+See [Architecture](architecture.md) for `DB` struct details.
 
-Parquet supports multiple compression codecs:
+## Reading and Writing
 
-| Codec | Ratio | Speed | Mobile Support |
-|-------|-------|-------|----------------|
-| Snappy | 3-5x | Fast | ✓ |
-| Gzip | 8-12x | Medium | ✓ |
-| Zstd | 10-15x | Fast | ✓ |
-| LZ4 | 2-4x | Very Fast | ✓ |
+### Writing Parquet
 
-**AMP uses Snappy** (default):
-- Good compression (5x typical)
-- Fast decompression (critical for mobile)
-- Universal support
+```rust
+use amp_core::parquet;
+
+// Write addresses
+let addresses: Vec<AdressClean> = fetch_addresses()?;
+parquet::write_addresses(&addresses, "addresses.parquet")?;
+
+// Write miljödata
+let miljo: Vec<MiljoeDataClean> = fetch_miljo()?;
+parquet::write_miljo(&miljo, "miljo.parquet")?;
+
+// Write parkering
+let parkering: Vec<ParkeringsDataClean> = fetch_parkering()?;
+parquet::write_parkering(&parkering, "parkering.parquet")?;
+```
+
+### Reading Parquet
+
+```rust
+use amp_core::parquet;
+
+let addresses = parquet::read_addresses("addresses.parquet")?;
+let miljo = parquet::read_miljo("miljo.parquet")?;
+let parkering = parquet::read_parkering("parkering.parquet")?;
+```
+
+### Checksum Validation
+
+```rust
+use amp_core::checksum;
+
+// Calculate checksum
+let checksum = checksum::calculate_file("addresses.parquet")?;
+
+// Validate against expected
+let expected = "abc123...";
+assert_eq!(checksum, expected);
+```
+
+Checksums stored in `server/checksums.json`.
+
+## Data Pipeline
+
+```
+1. Fetch from API
+   └─> GeoJSON format
+       ├─> addresses.json (250 MB)
+       ├─> miljo.json (80 MB)
+       └─> parkering.json (60 MB)
+
+2. Parse and Clean
+   └─> Extract relevant fields
+       └─> Convert coordinates to Decimal
+
+3. Write Parquet
+   └─> Compressed columnar format
+       ├─> addresses.parquet (28 MB)
+       ├─> miljo.parquet (9 MB)
+       └─> parkering.parquet (7 MB)
+
+4. Calculate Checksums
+   └─> SHA-256 hashes
+       └─> checksums.json
+
+5. Bundle in Apps
+   └─> Copy to assets/
+       ├─> android/assets/
+       └─> ios/assets/
+```
+
+## Coordinate System
+
+**Format:** WGS84 (EPSG:4326)
+- **Longitude:** X-axis, range [-180, 180]
+- **Latitude:** Y-axis, range [-90, 90]
+
+**Malmö bounds:**
+- Longitude: [12.9, 13.1]
+- Latitude: [55.5, 55.7]
+
+**Precision:**
+- Stored as `Decimal` (arbitrary precision)
+- Converted to `f64` for calculations
+- 6 decimal places ≈ 10cm accuracy
 
 ## Schema Evolution
 
-### Adding Fields
+Parquet supports schema evolution:
 
-Parquet supports backward-compatible schema changes:
+**Adding fields:**
+- New fields default to `None`
+- Old files remain readable
 
-**Before:**
-```
-address: string
-postal_code: string
-x: double
-y: double
-```
+**Removing fields:**
+- Old files ignore missing fields
+- Use `Option<T>` for future compatibility
 
-**After:**
-```
-address: string
-postal_code: string
-postal_area: string  // NEW FIELD
-x: double
-y: double
-altitude: double     // NEW FIELD (nullable)
-```
+**Best practices:**
+- Always use `Option<T>` for new fields
+- Never rename fields (add new, deprecate old)
+- Version schemas in file metadata
 
-Old apps ignore new fields. New apps handle missing fields as `null`.
+## Tools
 
-### Breaking Changes
-
-Avoid:
-- Removing fields
-- Changing field types
-- Renaming fields
-
-If necessary, version the files: `addresses_v2.parquet`
-
-## File Locations
-
-### Mobile Apps
-
-```
-android/assets/
-├── addresses.parquet
-└── zones.parquet
-
-ios/assets/
-├── addresses.parquet
-└── zones.parquet
-```
-
-### CLI (Generated)
-
-```
-server/
-├── addresses.parquet      # Generated from API
-└── zones.parquet           # Generated from API
-```
-
-CLI tools regenerate these on each run (not committed to git).
-
-## Debugging Parquet Files
-
-### View Schema
+### View Parquet Files
 
 ```bash
-# Using parquet-tools (Python)
-pip install parquet-tools
+# Install parquet-tools
+cargo install parquet-tools
+
+# View schema
 parquet-tools schema addresses.parquet
+
+# View data
+parquet-tools head addresses.parquet -n 10
 ```
 
-### Inspect Data
+### Convert to CSV
 
 ```bash
-parquet-tools show addresses.parquet --head 10
+parquet-tools csv addresses.parquet > addresses.csv
 ```
 
-### Convert to JSON
+### Inspect Metadata
 
 ```bash
-parquet-tools json addresses.parquet > addresses.json
+parquet-tools meta addresses.parquet
 ```
-
-## Performance Tips
-
-1. **Lazy Loading**: Load only needed columns
-   ```rust
-   // Load only addresses, skip coordinates
-   let addrs = read_addresses_names_only("addresses.parquet")?;
-   ```
-
-2. **Predicate Pushdown**: Filter during read
-   ```rust
-   // Load only Malmö addresses
-   let addrs = read_addresses_filtered("addresses.parquet", |a| {
-       a.postal_area == "Malmö"
-   })?;
-   ```
-
-3. **Memory Mapping**: Use `mmap` for large files
-   ```rust
-   let file = File::open("addresses.parquet")?;
-   let mmap = unsafe { MmapOptions::new().map(&file)? };
-   let reader = SerializedFileReader::new(Bytes::from(mmap.to_vec()))?;
-   ```
 
 ## Related Documentation
 
-- [API Integration](api-integration.md) — Where data comes from
-- [Architecture](architecture.md) — How Parquet fits in system
-- [Android README](../android/README.md) — Mobile app integration
+- **[Architecture](architecture.md)** — System overview
+- **[API Integration](api-integration.md)** — Data fetching
+- **[Core Library](../core/README.md)** — Parquet API reference

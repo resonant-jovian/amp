@@ -1,234 +1,275 @@
 # API Integration
 
-AMP fetches parking zone data from Malmö Stad's Open Data platform using ArcGIS REST APIs.
+AMP fetches geospatial data from Malmö Open Data API.
 
 ## Data Sources
 
-### 1. Adresser (Addresses)
+All datasets provided by [Malmö Open Data](https://malmo.se/opendata).
 
-**Endpoint:**
-```
-https://kartor.malmo.se/arcgisserver/rest/services/Geoarbeten/GeoarbeteMalmo/MapServer/3/query
-```
+### 1. Addresses
 
-**Parameters:**
-- `where`: `1=1` (fetch all)
-- `outFields`: `*` (all attributes)
-- `outSR`: `3006` (SWEREF99 TM)
-- `f`: `geojson`
+**Endpoint:** `https://opendata.malmo.se/api/3/action/datastore_search`
 
-**Data Structure:**
-```json
-{
-  "type": "FeatureCollection",
-  "features": [
-    {
-      "type": "Feature",
-      "geometry": {
-        "type": "Point",
-        "coordinates": [115234.5, 6166789.2]
-      },
-      "properties": {
-        "ADRESS": "Amiralsgatan 1",
-        "POSTNR": "21139",
-        "POSTORT": "Malmö",
-        "KOMMUN": "Malmö"
-      }
-    }
-  ]
-}
-```
+**Dataset ID:** `d41fb5ea-a7bc-4e00-b31a-4c799e05de11`
 
-**Parsed to:**
-```rust
-pub struct Address {
-    pub adress: String,      // "Amiralsgatan 1"
-    pub postnr: String,      // "21139"
-    pub postort: String,     // "Malmö"
-    pub x: Decimal,          // 115234.5
-    pub y: Decimal,          // 6166789.2
-}
-```
+**Description:** Complete address database for Malmö with coordinates.
 
-### 2. Miljöparkering (Environmental Parking)
+**Fields used:**
+- `POINT_X` — Longitude (WGS84)
+- `POINT_Y` — Latitude (WGS84)
+- `POSTNUMMER` — Postal code
+- `ADRESS` — Full address
+- `GATA` — Street name
+- `GATUNUMMER` — Street number
 
-**Endpoint:**
-```
-https://kartor.malmo.se/arcgisserver/rest/services/TK/TK_Parkering_Extern/MapServer/5/query
-```
+### 2. Miljöparkeringar (Environmental Parking)
 
-**Data Structure:**
-```json
-{
-  "type": "FeatureCollection",
-  "features": [
-    {
-      "type": "Feature",
-      "geometry": {
-        "type": "MultiLineString",
-        "coordinates": [
-          [[115200, 6166800], [115250, 6166850]]
-        ]
-      },
-      "properties": {
-        "GILTIGHET": "förbjudet 08-12 1,15,29",
-        "STARTTID": "08:00",
-        "SLUTTID": "12:00",
-        "DATUM": "1,15,29"
-      }
-    }
-  ]
-}
-```
+**Endpoint:** GeoJSON API
 
-**Parsed to:**
-```rust
-pub struct MiljoParkering {
-    pub giltighet: String,         // "förbjudet 08-12 1,15,29"
-    pub segments: Vec<Segment>,    // Line segments from MultiLineString
-}
+**URL:** `https://geodata.malmo.se/datasets/malmo-stad::miljoparkeringar.geojson`
 
-pub struct Segment {
-    pub start: (Decimal, Decimal),
-    pub end: (Decimal, Decimal),
-}
-```
+**Description:** Time-restricted parking zones for street cleaning.
+
+**Fields used:**
+- `geometry` — LineString coordinates
+- `INFO` — Restriction description
+- `TID` — Time range ("HHMM-HHMM")
+- `DAG` — Day of month (1-31)
 
 ### 3. Parkeringsavgifter (Parking Fees)
 
-**Endpoint:**
-```
-https://kartor.malmo.se/arcgisserver/rest/services/TK/TK_Parkering_Extern/MapServer/0/query
-```
+**Endpoint:** GeoJSON API
 
-**Contains:**
-- Fee zones (Taxa A-E)
-- Pricing information
-- Operating hours
+**URL:** `https://geodata.malmo.se/datasets/malmo-stad::parkeringsavgifter.geojson`
 
-**Currently unused** in mobile app (future feature).
+**Description:** Paid parking zones with taxa information.
 
-## Fetching Data
+**Fields used:**
+- `geometry` — LineString coordinates
+- `TAXA` — Zone identifier (A-E)
+- `ANTAL_PLATSER` — Number of parking spots
+- `TYP_AV_PARKERING` — Type (e.g., "Längsgående 6")
 
-### From CLI
+## Implementation
 
-```bash
-# Fetch and correlate
-cargo run --release -p amp_server -- correlate
+### API Client
 
-# Check for updates
-cargo run --release -p amp_server -- check-updates
-```
-
-### From Code
+**Location:** `core/src/api.rs`
 
 ```rust
-use amp_core::api::api_miljo_only;
+use amp_core::api;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Fetch addresses and zones
-    let (addresses, zones) = api_miljo_only()?;
-    
-    println!("Fetched {} addresses", addresses.len());
-    println!("Fetched {} zones", zones.len());
-    
-    Ok(())
-}
-```
-
-## Data Validation
-
-### Checksum Verification
-
-AMP stores SHA-256 checksums to detect data updates:
-
-```json
-{
-  "adresser": "a1b2c3d4e5f6...",
-  "miljoparkering": "1a2b3c4d5e6f...",
-  "parkeringsavgifter": "9z8y7x6w5v..."
-}
-```
-
-**Location:** `server/checksums.json`
-
-**Validation:**
-```bash
-cargo run -- check-updates
+// Fetch all datasets
+let addresses = api::fetch_addresses().await?;
+let miljo = api::fetch_miljo_zones().await?;
+let parkering = api::fetch_parkering_zones().await?;
 ```
 
 ### Error Handling
 
-The API module handles:
-- **Network failures**: Retry with exponential backoff
-- **Parse errors**: Log and skip malformed features
-- **Missing fields**: Use defaults or skip entry
-- **Invalid coordinates**: Filter out-of-bounds points
+```rust
+match api::fetch_addresses().await {
+    Ok(addresses) => {
+        println!("Fetched {} addresses", addresses.len());
+    }
+    Err(e) => {
+        eprintln!("Failed to fetch addresses: {}", e);
+    }
+}
+```
 
-## Coordinate System
+### Rate Limiting
 
-### SWEREF99 TM (EPSG:3006)
+Malmö Open Data API has no documented rate limits, but use respectful practices:
 
-**Projection:** Transverse Mercator  
-**Units:** Meters  
-**Coverage:** Sweden
+- **Cache data locally** (Parquet files)
+- **Batch requests** when possible
+- **Use exponential backoff** on errors
 
-**Malmö Bounds:**
-- X (Easting): 115,000 - 120,000
-- Y (Northing): 6,165,000 - 6,170,000
-
-**Why SWEREF99:**
-- Official Swedish coordinate system
-- Meters simplify distance calculations
-- Direct from Malmö Open Data (no conversion needed)
-
-### WGS84 Conversion
-
-Mobile apps use GPS (WGS84/EPSG:4326):
+### Retry Logic
 
 ```rust
-use geodesy::prelude::*;
+use tokio::time::{sleep, Duration};
 
-// WGS84 to SWEREF99 TM
-let proj = Proj::new("EPSG:4326", "EPSG:3006")?;
-let (x, y) = proj.forward((lon, lat))?;
+let mut retries = 0;
+let max_retries = 3;
+
+loop {
+    match api::fetch_addresses().await {
+        Ok(data) => break Ok(data),
+        Err(e) if retries < max_retries => {
+            retries += 1;
+            let delay = Duration::from_secs(2u64.pow(retries));
+            eprintln!("Retry {}/{}: {:?}", retries, max_retries, e);
+            sleep(delay).await;
+        }
+        Err(e) => break Err(e),
+    }
+}
 ```
 
-## Data Update Frequency
+## Data Processing
 
-Malmö Stad updates datasets:
-- **Adresser**: Monthly (new buildings)
-- **Miljöparkering**: Quarterly (zone changes)
-- **Parkeringsavgifter**: Annually (pricing updates)
+### Parsing GeoJSON
 
-Recommend checking for updates monthly:
+```rust
+use geojson::{GeoJson, Feature};
+
+let geojson_str = fetch_raw_geojson(url).await?;
+let geojson = geojson_str.parse::<GeoJson>()?;
+
+if let GeoJson::FeatureCollection(collection) = geojson {
+    for feature in collection.features {
+        // Extract properties
+        let properties = feature.properties.unwrap();
+        let info = properties.get("INFO")?.as_str()?;
+        
+        // Extract geometry
+        if let Some(geom) = feature.geometry {
+            // Process LineString coordinates
+        }
+    }
+}
+```
+
+### Coordinate Conversion
+
+```rust
+use rust_decimal::Decimal;
+
+// GeoJSON uses f64, convert to Decimal for precision
+let lon_f64: f64 = coords[0];
+let lat_f64: f64 = coords[1];
+
+let lon = Decimal::from_f64_retain(lon_f64).unwrap();
+let lat = Decimal::from_f64_retain(lat_f64).unwrap();
+
+let coordinates = [lon, lat];
+```
+
+## Data Updates
+
+### Update Workflow
 
 ```bash
-# Cron job example
-0 0 1 * * cd /path/to/amp && cargo run -- check-updates
+# 1. Fetch latest data from API
+cargo run --release -p amp_server -- fetch
+
+# 2. Verify checksums changed
+diff server/checksums.json.old server/checksums.json
+
+# 3. Test with new data
+cargo run --release -- test
+
+# 4. Update mobile app assets
+cp server/*.parquet android/assets/
+cp server/*.parquet ios/assets/
+
+# 5. Rebuild apps
+./scripts/build.sh
 ```
 
-## Rate Limiting
+### Update Frequency
 
-Malmö Open Data has no explicit rate limits, but:
-- **Be respectful**: Don't hammer the API
-- **Cache locally**: Use checksums to avoid redundant fetches
-- **Batch requests**: Fetch all data at once
+**Recommended:** Monthly
 
-## Offline Mode
+**Reasons:**
+- Street cleaning schedules change seasonally
+- New addresses added regularly
+- Parking zones occasionally updated
 
-Mobile apps work offline using embedded Parquet files:
+### Checksum Validation
 
-1. **Development**: Fetch data via API
-2. **Build**: Convert to Parquet (`amp_core::parquet`)
-3. **Embed**: Include in app assets
-4. **Runtime**: Load from Parquet (no network)
+```rust
+use amp_core::checksum;
 
-See [Data Format](data-format.md) for Parquet details.
+// Calculate checksum for new file
+let new_checksum = checksum::calculate_file("addresses.parquet")?;
+
+// Load expected checksums
+let checksums = checksum::load_checksums("checksums.json")?;
+
+// Compare
+if new_checksum != checksums.addresses {
+    println!("⚠️  Data changed! Update required.");
+}
+```
+
+Checksums stored in `server/checksums.json`.
+
+## API Response Examples
+
+### Addresses Response
+
+```json
+{
+  "result": {
+    "records": [
+      {
+        "POINT_X": "13.003456",
+        "POINT_Y": "55.604523",
+        "POSTNUMMER": "21438",
+        "ADRESS": "Åhusgatan 1",
+        "GATA": "Åhusgatan",
+        "GATUNUMMER": "1"
+      }
+    ]
+  }
+}
+```
+
+### Miljöparkeringar GeoJSON
+
+```json
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [13.003456, 55.604523],
+          [13.004567, 55.605634]
+        ]
+      },
+      "properties": {
+        "INFO": "Parkering förbjuden",
+        "TID": "0800-1200",
+        "DAG": 15
+      }
+    }
+  ]
+}
+```
+
+### Parkeringsavgifter GeoJSON
+
+```json
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [13.003456, 55.604523],
+          [13.004567, 55.605634]
+        ]
+      },
+      "properties": {
+        "TAXA": "Taxa C",
+        "ANTAL_PLATSER": 26,
+        "TYP_AV_PARKERING": "Längsgående 6"
+      }
+    }
+  ]
+}
+```
 
 ## Related Documentation
 
-- [Architecture](architecture.md) — How API fits in system
-- [Data Format](data-format.md) — Parquet structure
-- [CLI Usage](cli-usage.md) — Running data fetches
+- **[Data Format](data-format.md)** — Parquet storage details
+- **[Architecture](architecture.md)** — System overview
+- **[Core Library](../core/README.md)** — API client reference
