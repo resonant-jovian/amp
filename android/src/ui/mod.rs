@@ -4,13 +4,19 @@ pub mod info_dialog;
 pub mod panels;
 pub mod settings_dropdown;
 pub mod top_bar;
+
 use crate::components::address_utils::normalize_string;
-use crate::components::matching::{MatchResult, match_address};
+use crate::components::lifecycle::{handle_active_toggle, handle_address_change, LifecycleManager};
+use crate::components::matching::{match_address, MatchResult};
 use crate::components::storage::{read_addresses_from_device, write_addresses_to_device};
+use crate::components::validity::check_and_update_validity;
 use amp_core::structs::DB;
 use dioxus::prelude::*;
+use std::sync::{Arc, Mutex};
 use uuid::Uuid;
+
 static CSS: Asset = asset!("/assets/style.css");
+
 /// Maximum Levenshtein distance for fuzzy matching
 /// Lower values = stricter matching
 /// Represents a locally stored address with validation and activation state
@@ -40,6 +46,7 @@ pub struct StoredAddress {
     /// The matched database entry (if valid)
     pub matched_entry: Option<DB>,
 }
+
 impl StoredAddress {
     /// Create a new stored address and attempt to match against database
     ///
@@ -71,6 +78,7 @@ impl StoredAddress {
         }
     }
 }
+
 /// Convert UUID to usize for ID storage
 ///
 /// Uses the first 8 bytes of the UUID as a usize.
@@ -81,6 +89,7 @@ fn uuid_to_usize(uuid: &Uuid) -> usize {
         bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
     ])
 }
+
 /// Fuzzy match address against database using Levenshtein distance
 ///
 /// Implements multi-stage matching strategy:
@@ -157,11 +166,13 @@ fn fuzzy_match_address(street: &str, street_number: &str, postal_code: &str) -> 
     );
     None
 }
+
 use crate::ui::{
     addresses::Addresses,
     panels::{ActivePanel, InvalidPanel, OneDayPanel, OneMonthPanel, SixHoursPanel},
     top_bar::TopBar,
 };
+
 /// Main application component
 ///
 /// Manages a list of stored addresses and provides UI for:
@@ -170,14 +181,36 @@ use crate::ui::{
 /// - Removing addresses
 /// - Displaying addresses in categorized panels by urgency
 /// - Persisting addresses to local storage
+/// - Background lifecycle management
 #[component]
 pub fn App() -> Element {
     let mut stored_addresses = use_signal::<Vec<StoredAddress>>(Vec::new);
+    let lifecycle_manager = use_signal::<Option<Arc<Mutex<LifecycleManager>>>>(|| None);
+    
+    // Initialize lifecycle manager and load addresses on first render
     use_effect(move || {
+        // Create and start lifecycle manager
+        let mut manager = LifecycleManager::new();
+        manager.start();
+        let manager_arc = Arc::new(Mutex::new(manager));
+        lifecycle_manager.set(Some(manager_arc.clone()));
+        
+        // Load addresses from storage
         let loaded = read_addresses_from_device();
         if !loaded.is_empty() {
             info!("Loaded {} addresses from storage", loaded.len());
-            stored_addresses.set(loaded);
+            
+            // Check and update validity on load
+            let mut addresses_to_check = loaded.clone();
+            if check_and_update_validity(&mut addresses_to_check) {
+                // Save if validity changed
+                if let Err(e) = write_addresses_to_device(&addresses_to_check) {
+                    error!("Failed to save validity updates: {}", e);
+                }
+                stored_addresses.set(addresses_to_check);
+            } else {
+                stored_addresses.set(loaded);
+            }
         } else {
             info!("No saved addresses, adding debug test addresses");
             let examples = vec![
@@ -353,6 +386,22 @@ pub fn App() -> Element {
             stored_addresses.set(examples);
         }
     });
+    
+    // Check for daily tasks periodically
+    use_effect(move || {
+        if let Some(manager_arc) = lifecycle_manager.read().as_ref() {
+            if let Ok(manager) = manager_arc.lock() {
+                if manager.check_and_run_daily_tasks() {
+                    // Reload addresses after daily tasks
+                    let loaded = read_addresses_from_device();
+                    if !loaded.is_empty() {
+                        stored_addresses.set(loaded);
+                    }
+                }
+            }
+        }
+    });
+    
     let handle_add_address = move |args: (String, String, String)| {
         let (street, street_number, postal_code) = args;
         info!(
@@ -370,24 +419,26 @@ pub fn App() -> Element {
         if !is_duplicate {
             info!("Adding new address, total now: {}", addrs.len() + 1);
             addrs.push(new_addr);
-            if let Err(e) = write_addresses_to_device(&addrs) {
-                error!("Failed to persist addresses after add: {}", e);
-            }
+            
+            // Trigger lifecycle handler for address change
+            handle_address_change(&addrs);
         } else {
             warn!("Duplicate address detected (case-insensitive), not adding");
         }
     };
+    
     let handle_toggle_active = move |id: usize| {
         info!("toggle_active called for id {}", id);
         let mut addrs = stored_addresses.write();
         if let Some(addr) = addrs.iter_mut().find(|a| a.id == id) {
             addr.active = !addr.active;
             info!("Address {} now active: {}", id, addr.active);
-            if let Err(e) = write_addresses_to_device(&addrs) {
-                error!("Failed to persist addresses after toggle: {}", e);
-            }
+            
+            // Trigger lifecycle handler for active toggle
+            handle_active_toggle(&addrs);
         }
     };
+    
     let handle_remove_address = move |id: usize| {
         info!("remove_address called for id {}", id);
         let mut addrs = stored_addresses.write();
@@ -397,11 +448,12 @@ pub fn App() -> Element {
                 "Removed address: {} {}, {}",
                 removed.street, removed.street_number, removed.postal_code
             );
-            if let Err(e) = write_addresses_to_device(&addrs) {
-                error!("Failed to persist addresses after remove: {}", e);
-            }
+            
+            // Trigger lifecycle handler for address change
+            handle_address_change(&addrs);
         }
     };
+    
     rsx! {
         Stylesheet { href: CSS }
         TopBar { on_add_address: handle_add_address }
