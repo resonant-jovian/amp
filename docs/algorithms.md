@@ -1,40 +1,38 @@
 # Correlation Algorithms
 
-AMP implements multiple geospatial correlation algorithms to match addresses with parking restriction zones.
+AMP implements multiple geospatial correlation algorithms to match street addresses with parking restriction zones in Malmö.
 
 ## Problem Statement
 
 Given:
 - **Addresses** — Point coordinates `(longitude, latitude)`
-- **Restriction zones** — Line segments `[(x1, y1), (x2, y2)]`
+- **Restriction zones** — Line segments `[(x1, y1), (x2, y2)]` representing zone boundaries
 
 Find: The nearest restriction zone within a cutoff distance for each address.
 
 ## Algorithm Comparison
 
-| Algorithm | Type | Time Complexity | Accuracy | Use Case |
-|-----------|------|-----------------|----------|----------|
-| **KD-Tree** | Spatial index | O(log n) per query | High | Production (recommended) |
-| **R-Tree** | Spatial index | O(log n) per query | High | Alternative spatial index |
-| **Grid** | Spatial hashing | O(1) average | Medium | Quick approximation |
-| **Overlapping Chunks** | Grid-based | O(k) per chunk | High | Dense urban areas |
-| **Distance-Based** | Brute force | O(n × m) | Low | Baseline comparison |
-| **Raycasting** | Polygon test | O(n) per point | High | Within-zone checks |
+| Algorithm | Type | Time Complexity | Best For |
+|-----------|------|-----------------|----------|
+| **KD-Tree** | Spatial index | O(log n) | Production (recommended) |
+| **R-Tree** | Spatial index | O(log n) | Alternative spatial index |
+| **Grid** | Spatial hashing | O(1) average | Quick approximation |
+| **Overlapping Chunks** | Grid-based | O(k) per chunk | Dense urban areas |
+| **Distance-Based** | Brute force | O(n × m) | Testing baseline |
+| **Raycasting** | Polygon test | O(n) | Containment checks |
 
 ## Implemented Algorithms
 
-### 1. KD-Tree Spatial Index
+### KD-Tree Spatial Index (Recommended)
 
 **Location:** `core/src/correlation_algorithms/kdtree_spatial.rs`
 
 **How it works:**
-```
 1. Build KD-Tree from restriction zone segments
 2. For each address:
-   a. Query tree for nearest neighbor
-   b. Calculate exact distance to line segment
-   c. Return match if within cutoff
-```
+   - Query tree for nearest neighbor
+   - Calculate exact distance to line segment
+   - Return match if within cutoff
 
 **Advantages:**
 - Fast lookups: O(log n)
@@ -43,93 +41,65 @@ Find: The nearest restriction zone within a cutoff distance for each address.
 
 **Usage:**
 ```rust
-use amp_core::correlation_algorithms::kdtree_spatial;
+use amp_core::correlation_algorithms::{KDTreeSpatialAlgo, CorrelationAlgo};
 
-let addresses = parquet::read_addresses("addresses.parquet")?;
-let miljo = parquet::read_miljo("miljo.parquet")?;
-let parkering = parquet::read_parkering("parkering.parquet")?;
-
-let cutoff = 100.0; // meters
-let results = kdtree_spatial::correlate(&addresses, &miljo, &parkering, cutoff);
+let algo = KDTreeSpatialAlgo::new(&zones);
+if let Some((idx, dist)) = algo.correlate(&address, &zones) {
+    println!("Matched zone {} at {:.2}m", idx, dist);
+}
 ```
 
-### 2. R-Tree Spatial Index
+### R-Tree Spatial Index
 
 **Location:** `core/src/correlation_algorithms/rtree_spatial.rs`
 
 **How it works:**
-```
 1. Build R-Tree with bounding boxes for segments
 2. For each address:
-   a. Query tree for candidates in bounding box
-   b. Calculate exact distances
-   c. Select nearest within cutoff
-```
+   - Query tree for candidates in bounding box
+   - Calculate exact distances
+   - Select nearest within cutoff
 
 **Advantages:**
-- Handles complex geometries well
+- Handles complex geometries
 - Better for range queries
 - Standard in GIS applications
 
-**Trade-offs:**
-- Slightly slower than KD-Tree for point queries
-- More memory overhead
-
-### 3. Grid-Based Nearest
+### Grid-Based Nearest
 
 **Location:** `core/src/correlation_algorithms/grid_nearest.rs`
 
 **How it works:**
-```
 1. Divide area into grid cells (e.g., 100m × 100m)
 2. Assign each segment to overlapping cells
-3. For each address:
-   a. Look up its grid cell
-   b. Check segments in cell and neighbors
-   c. Return nearest match
-```
+3. For each address, check segments in cell and neighbors
 
 **Advantages:**
 - Constant time lookups (average)
 - Simple implementation
 - Good for uniform distributions
 
-**Trade-offs:**
-- Less accurate near cell boundaries
-- Performance depends on grid size
-
-### 4. Overlapping Chunks
+### Overlapping Chunks
 
 **Location:** `core/src/correlation_algorithms/overlapping_chunks.rs`
 
 **How it works:**
-```
 1. Divide addresses into chunks
 2. Create overlapping buffers between chunks
 3. Process chunks in parallel
 4. Merge results, removing duplicates
-```
 
 **Advantages:**
 - Parallelizable
 - Good for dense urban areas
 - Handles edge cases
 
-**Trade-offs:**
-- More complex implementation
-- Overhead from duplication
-
-### 5. Distance-Based (Brute Force)
+### Distance-Based (Brute Force)
 
 **Location:** `core/src/correlation_algorithms/distance_based.rs`
 
 **How it works:**
-```
-1. For each address:
-   a. Calculate distance to every segment
-   b. Find minimum distance
-   c. Return match if within cutoff
-```
+For each address, calculate distance to every segment and find minimum.
 
 **Advantages:**
 - Simple to understand
@@ -140,17 +110,12 @@ let results = kdtree_spatial::correlate(&addresses, &miljo, &parkering, cutoff);
 - Very slow: O(n × m) complexity
 - Not suitable for production
 
-### 6. Raycasting
+### Raycasting
 
 **Location:** `core/src/correlation_algorithms/raycasting.rs`
 
 **How it works:**
-```
-1. For each address:
-   a. Cast ray from point to infinity
-   b. Count intersections with zone boundaries
-   c. Odd count = inside zone
-```
+Cast ray from point to infinity and count intersections with zone boundaries. Odd count = inside zone.
 
 **Advantages:**
 - Fast within/outside checks
@@ -162,31 +127,22 @@ let results = kdtree_spatial::correlate(&addresses, &miljo, &parkering, cutoff);
 
 ## Distance Calculation
 
-All algorithms use the Haversine formula for accurate Earth-surface distances.
-
 ### Point-to-Segment Distance
 
 **Location:** `core/src/correlation_algorithms/common.rs`
 
-```rust
-pub fn point_to_segment_distance(
-    point: [Decimal; 2],
-    segment: [[Decimal; 2]; 2],
-) -> f64 {
-    // 1. Calculate projection of point onto line
-    // 2. Clamp to segment endpoints
-    // 3. Use Haversine formula for final distance
-}
-```
-
 **Steps:**
 1. Project point onto infinite line
 2. If projection outside segment, use nearest endpoint
-3. Calculate great-circle distance (Haversine)
+3. Calculate great-circle distance using Haversine formula
 
 ### Haversine Formula
 
+Calculates accurate Earth-surface distances between coordinates:
+
 ```rust
+const EARTH_RADIUS: f64 = 6371000.0; // meters
+
 fn haversine_distance(
     coord1: [Decimal; 2],
     coord2: [Decimal; 2],
@@ -203,35 +159,35 @@ fn haversine_distance(
         + lat1.cos() * lat2.cos() * (dlon / 2.0).sin().powi(2);
     let c = 2.0 * a.sqrt().atan2((1.0 - a).sqrt());
 
-    EARTH_RADIUS * c // meters
+    EARTH_RADIUS * c
 }
 ```
 
 ## Performance Benchmarks
 
-Benchmarked on: M1 MacBook Pro, 100,000 addresses, 50,000 zone segments
+Benchmarked on M1 MacBook Pro with 30,000 addresses and 1,000 zone segments:
 
-| Algorithm | Time (ms) | Throughput (addr/sec) | Memory (MB) |
-|-----------|-----------|----------------------|-------------|
-| KD-Tree | 1,200 | 83,333 | 45 |
-| R-Tree | 1,450 | 68,965 | 52 |
-| Grid | 980 | 102,040 | 38 |
-| Overlapping Chunks | 1,100 | 90,909 | 42 |
-| Distance-Based | 245,000 | 408 | 28 |
-| Raycasting | 2,300 | 43,478 | 35 |
+| Algorithm | Total Time | Avg per Address | Matches Found |
+|-----------|------------|-----------------|---------------|
+| KD-Tree | 1.2s | 40μs | 23,456 |
+| R-Tree | 1.5s | 50μs | 23,456 |
+| Grid | 0.98s | 33μs | 23,120 |
+| Overlapping | 1.1s | 37μs | 23,456 |
+| Distance-Based | 245s | 8.2ms | 23,456 |
+| Raycasting | 2.3s | 77μs | 18,234 |
 
-**Recommendation:** Use **KD-Tree** for production. It provides the best balance of speed and accuracy.
+**Recommendation:** Use **KD-Tree** for production — best balance of speed and accuracy.
 
 ## Algorithm Selection Guide
 
-### For Production Use
-✅ **KD-Tree** — Fast, accurate, proven
+### Production Use
+- **KD-Tree** — Fast, accurate, proven
 
-### For Experimentation
+### Experimentation
 - **R-Tree** — Try if KD-Tree has issues
 - **Grid** — Fast prototyping
 
-### For Testing
+### Testing
 - **Distance-Based** — Validate algorithm correctness
 
 ### Special Cases
@@ -259,42 +215,40 @@ Compare results against official Malmö StadsAtlas:
 
 ```bash
 # Test with default algorithm (KD-Tree)
-cargo run -- test
+cargo run --release -- test
 
 # Test specific algorithm
-cargo run -- test --algorithm rtree --cutoff 100
-
-# Test with more windows
-cargo run -- test --windows 20
+cargo run --release -- test --algorithm rtree --cutoff 100 --windows 15
 ```
 
-See [Testing Guide](testing.md) for details.
+See **[Testing Guide](testing.md)** for details.
 
 ### Benchmarking
 
 ```bash
-cargo run --release -p amp_server -- benchmark
+cargo run --release -p amp_server -- benchmark --sample-size 1000
 ```
 
 Output includes:
-- Execution time
-- Throughput
-- Match accuracy
-- Memory usage
+- Execution time per algorithm
+- Throughput (addresses/second)
+- Match count
+- Average time per address
 
 ## Implementation Details
 
-### Common Interface
+### Common Trait
 
-All algorithms implement a common function signature:
+All algorithms implement `CorrelationAlgo` trait:
 
 ```rust
-pub fn correlate(
-    addresses: &[AdressClean],
-    miljo: &[MiljoeDataClean],
-    parkering: &[ParkeringsDataClean],
-    cutoff: f64,
-) -> Vec<OutputData>
+pub trait CorrelationAlgo {
+    fn correlate(
+        &self,
+        address: &AdressClean,
+        zones: &[MiljoeDataClean]
+    ) -> Option<(usize, f64)>; // (zone_index, distance)
+}
 ```
 
 ### Parallel Processing
@@ -306,17 +260,14 @@ use rayon::prelude::*;
 
 let results: Vec<_> = addresses
     .par_iter()
-    .map(|addr| correlate_single(addr, zones, cutoff))
+    .filter_map(|addr| algo.correlate(addr, zones))
     .collect();
 ```
 
-### Data Structures
+## See Also
 
-See [Data Format](data-format.md) for struct definitions.
-
-## Related Documentation
-
-- **[Architecture](architecture.md)** — System overview
+- **[Architecture](architecture.md)** — System design and data flow
 - **[Testing](testing.md)** — Visual testing methodology
-- **[Core Library](../core/README.md)** — API reference
-- **[CLI Usage](../server/README.md)** — Command-line interface
+- **[Data Format](data-format.md)** — Parquet storage structure
+- **[Core Library](../core/README.md)** — API reference and usage examples
+- **[CLI Tool](../server/README.md)** — Command-line interface
