@@ -52,20 +52,20 @@
 use crate::ui::StoredAddress;
 #[allow(unused_imports)]
 use amp_core::parquet::{build_local_parquet, read_local_parquet};
+#[allow(unused_imports)]
 use amp_core::structs::LocalData;
+#[allow(unused_imports)]
+use std::fs::File;
+#[allow(unused_imports)]
 use std::fs::{self};
 use std::path::PathBuf;
 use std::sync::Mutex;
-#[allow(unused_imports)]
-use std::fs::File;
 /// Thread-safe storage mutex to prevent concurrent access issues
 static STORAGE_LOCK: Mutex<()> = Mutex::new(());
-
 #[cfg(target_os = "android")]
 const LOCAL_PARQUET_NAME: &str = "local.parquet";
 #[cfg(target_os = "android")]
 const BACKUP_PARQUET_NAME: &str = "local.parquet.backup";
-
 /// Get the storage directory path for the Android app
 ///
 /// Returns the app's internal data directory on Android.
@@ -74,6 +74,7 @@ const BACKUP_PARQUET_NAME: &str = "local.parquet.backup";
 fn get_storage_dir() -> Result<PathBuf, String> {
     std::env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))
 }
+#[allow(unused)]
 #[cfg(not(target_os = "android"))]
 fn get_storage_dir() -> Result<PathBuf, String> {
     std::env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))
@@ -377,6 +378,7 @@ pub fn count_stored_addresses() -> usize {
 }
 #[cfg(test)]
 mod tests {
+    #[allow(unused_imports)]
     use super::*;
     #[test]
     #[cfg(target_os = "android")]
