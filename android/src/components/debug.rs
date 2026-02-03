@@ -25,10 +25,8 @@
 use crate::ui::StoredAddress;
 use amp_core::parquet::read_local_parquet_from_bytes;
 use amp_core::structs::LocalData;
-
 /// Debug parquet file embedded in the app
 static DEBUG_PARQUET: &[u8] = include_bytes!("../../assets/data/debug.parquet");
-
 /// Load debug addresses from embedded debug.parquet file
 ///
 /// Reads the debug.parquet file that contains example addresses for testing.
@@ -64,7 +62,6 @@ pub fn load_debug_addresses() -> Vec<StoredAddress> {
         }
     }
 }
-
 /// Convert LocalData from parquet to StoredAddress
 fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
     let (street, street_number) = if let Some(gata) = &data.gata {
@@ -88,14 +85,12 @@ fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
         matched_entry: None,
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
     #[test]
     fn test_load_debug_addresses() {
         let addresses = load_debug_addresses();
-        assert!(addresses.len() >= 0);
         for addr in &addresses {
             assert!(!addr.street.is_empty(), "Address should have a street name");
         }

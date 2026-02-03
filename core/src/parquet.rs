@@ -284,12 +284,9 @@ pub fn read_local_parquet_from_bytes(bytes: &[u8]) -> anyhow::Result<Vec<LocalDa
     let reader = builder
         .build()
         .map_err(|e| anyhow::anyhow!("Failed to build Parquet record batch reader: {}", e))?;
-    
     let mut result = Vec::new();
-    
     for batch_result in reader {
         let batch = batch_result.map_err(|e| anyhow::anyhow!("Failed to read batch: {}", e))?;
-        
         let valid = get_boolean_column(&batch, "valid")?;
         let active = get_boolean_column(&batch, "active")?;
         let postnummer = get_string_column(&batch, "postnummer")?;
@@ -302,7 +299,6 @@ pub fn read_local_parquet_from_bytes(bytes: &[u8]) -> anyhow::Result<Vec<LocalDa
         let taxa = get_string_column(&batch, "taxa")?;
         let antal_platser = get_u64_column(&batch, "antal_platser")?;
         let typ_av_parkering = get_string_column(&batch, "typ_av_parkering")?;
-        
         for i in 0..batch.num_rows() {
             let entry = LocalData {
                 valid: get_boolean_with_default(valid, i, false),
@@ -321,7 +317,6 @@ pub fn read_local_parquet_from_bytes(bytes: &[u8]) -> anyhow::Result<Vec<LocalDa
             result.push(entry);
         }
     }
-    
     Ok(result)
 }
 /// Read address clean data from parquet file

@@ -78,13 +78,13 @@ pub fn SettingsDropdown(
                             span { "Debugläge" }
                             span { class: "settings-toggle-hint", "(Exempeladresser)" }
                         }
-                        label { class: "settings-toggle-switch",
+                        label { class: "toggle-switch",
                             input {
                                 r#type: "checkbox",
                                 checked: debug_mode,
                                 onchange: move |_| on_toggle_debug.call(()),
                             }
-                            span { class: "settings-toggle-slider" }
+                            span { class: "switch-thumb" }
                         }
                     }
                     div { class: "settings-divider" }

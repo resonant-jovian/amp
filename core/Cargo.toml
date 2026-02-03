@@ -22,3 +22,4 @@ reqwest.workspace = true
 tokio.workspace = true
 rstar.workspace = true
 strsim.workspace = true
+bytes.workspace = true
