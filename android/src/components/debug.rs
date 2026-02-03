@@ -25,8 +25,13 @@
 use crate::ui::StoredAddress;
 use amp_core::parquet::read_local_parquet;
 use amp_core::structs::LocalData;
+use std::fs::File;
+use std::io::Write;
+use uuid::Uuid;
+
 /// Debug parquet file embedded in the app
 static DEBUG_PARQUET: &[u8] = include_bytes!("../../assets/data/debug.parquet");
+
 /// Load debug addresses from embedded debug.parquet file
 ///
 /// Reads the debug.parquet file that contains example addresses for testing.
@@ -43,25 +48,62 @@ static DEBUG_PARQUET: &[u8] = include_bytes!("../../assets/data/debug.parquet");
 /// println!("Loaded {} debug addresses", debug_addrs.len());
 /// ```
 pub fn load_debug_addresses() -> Vec<StoredAddress> {
-    match read_local_parquet(DEBUG_PARQUET) {
-        Ok(local_data) => {
-            eprintln!(
-                "[Debug] Loaded {} debug addresses from parquet",
-                local_data.len(),
-            );
-            local_data
-                .into_iter()
-                .enumerate()
-                .filter(|(_, data)| !data.adress.is_empty())
-                .map(|(idx, data)| from_local_data(data, idx))
-                .collect()
-        }
+    // Write embedded bytes to temporary file
+    let temp_path = format!("/tmp/debug_{}.parquet", Uuid::new_v4());
+    
+    let mut temp_file = match File::create(&temp_path) {
+        Ok(f) => f,
         Err(e) => {
-            eprintln!("[Debug] Failed to load debug addresses: {}", e);
-            Vec::new()
+            eprintln!("[Debug] Failed to create temp file: {}", e);
+            return Vec::new();
         }
+    };
+    
+    if let Err(e) = temp_file.write_all(DEBUG_PARQUET) {
+        eprintln!("[Debug] Failed to write to temp file: {}", e);
+        let _ = std::fs::remove_file(&temp_path);
+        return Vec::new();
     }
+    
+    drop(temp_file); // Close file before reading
+    
+    // Read from temporary file
+    let local_data = match File::open(&temp_path) {
+        Ok(file) => match read_local_parquet(file) {
+            Ok(data) => {
+                eprintln!(
+                    "[Debug] Loaded {} debug addresses from parquet",
+                    data.len(),
+                );
+                data
+            }
+            Err(e) => {
+                eprintln!("[Debug] Failed to read parquet: {}", e);
+                let _ = std::fs::remove_file(&temp_path);
+                return Vec::new();
+            }
+        },
+        Err(e) => {
+            eprintln!("[Debug] Failed to open temp file: {}", e);
+            let _ = std::fs::remove_file(&temp_path);
+            return Vec::new();
+        }
+    };
+    
+    // Clean up temp file
+    let _ = std::fs::remove_file(&temp_path);
+    
+    // Convert LocalData to StoredAddress
+    let addresses = local_data
+        .into_iter()
+        .enumerate()
+        .filter(|(_, data)| !data.adress.is_empty())
+        .map(|(idx, data)| from_local_data(data, idx))
+        .collect();
+    
+    addresses
 }
+
 /// Convert LocalData from parquet to StoredAddress
 fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
     let (street, street_number) = if let Some(gata) = &data.gata {
@@ -85,6 +127,7 @@ fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
         matched_entry: None,
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
