@@ -1,7 +1,8 @@
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
-use dioxus_free_icons::icons::md_action_icons::{MdInfo, MdSettings};
+use dioxus_free_icons::icons::md_action_icons::{MdBugReport, MdInfo, MdSettings};
 use dioxus_free_icons::icons::md_social_icons::MdNotifications;
+
 /// Settings dropdown panel component
 ///
 /// Displays a slide-in panel from the top-right with settings menu items.
@@ -11,19 +12,29 @@ use dioxus_free_icons::icons::md_social_icons::MdNotifications;
 /// # Props
 /// * `is_open` - Controls visibility of the dropdown
 /// * `on_close` - Event handler called when user closes the panel
+/// * `debug_mode` - Current debug mode state
+/// * `on_toggle_debug` - Event handler called when debug mode is toggled
 ///
 /// # Example
 /// ```rust
 /// SettingsDropdown {
 ///     is_open: show_settings(),
 ///     on_close: handle_close_settings,
+///     debug_mode: is_debug_mode(),
+///     on_toggle_debug: handle_toggle_debug,
 /// }
 /// ```
 #[component]
-pub fn SettingsDropdown(is_open: bool, on_close: EventHandler<()>) -> Element {
+pub fn SettingsDropdown(
+    is_open: bool,
+    on_close: EventHandler<()>,
+    debug_mode: bool,
+    on_toggle_debug: EventHandler<()>,
+) -> Element {
     if !is_open {
         return rsx!();
     }
+
     rsx! {
         div { class: "settings-overlay", onclick: move |_| on_close.call(()),
             div {
@@ -61,6 +72,23 @@ pub fn SettingsDropdown(is_open: bool, on_close: EventHandler<()>) -> Element {
                         },
                         Icon { icon: MdInfo, width: 20, height: 20 }
                         span { "Om appen" }
+                    }
+                    div { class: "settings-divider" }
+                    // Debug mode toggle
+                    div { class: "settings-toggle-item",
+                        div { class: "settings-toggle-label",
+                            Icon { icon: MdBugReport, width: 20, height: 20 }
+                            span { "Debugläge" }
+                            span { class: "settings-toggle-hint", "(Exempeladresser)" }
+                        }
+                        label { class: "settings-toggle-switch",
+                            input {
+                                r#type: "checkbox",
+                                checked: debug_mode,
+                                onchange: move |_| on_toggle_debug.call(()),
+                            }
+                            span { class: "settings-toggle-slider" }
+                        }
                     }
                     div { class: "settings-divider" }
                     div { class: "settings-version", "Version 1.0.0" }
