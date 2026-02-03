@@ -23,6 +23,8 @@ pub fn Addresses(
     let mut pending_remove_id = use_signal(|| None::<usize>);
     let mut show_info = use_signal(|| false);
     let mut selected_address = use_signal(|| None::<StoredAddress>);
+    let mut sorted_addresses = stored_addresses.clone();
+    sorted_addresses.sort_by(|a, b| a.postal_code.cmp(&b.postal_code));
     let mut handle_remove_click = move |addr_id: usize| {
         info!("Remove button clicked for address id: {}", addr_id);
         pending_remove_id.set(Some(addr_id));
@@ -58,12 +60,12 @@ pub fn Addresses(
         div { class: "category-container category-addresses",
             div { class: "category-title", "Adresser" }
             div { class: "category-content",
-                if stored_addresses.is_empty() {
+                if sorted_addresses.is_empty() {
                     div { class: "empty-state", "Inga adresser tillagda" }
                 } else {
                     div { id: "addressList",
                         {
-                            stored_addresses
+                            sorted_addresses
                                 .iter()
                                 .map(|addr| {
                                     let address_display = format!(

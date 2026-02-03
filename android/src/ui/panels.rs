@@ -1,4 +1,4 @@
-use crate::components::countdown::{TimeBucket, bucket_for, format_countdown};
+use crate::components::countdown::{TimeBucket, bucket_for, format_countdown, remaining_duration};
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
 use tokio::time::Duration;
@@ -54,13 +54,26 @@ fn AddressItem(addr: StoredAddress, index: usize, on_remove: EventHandler<usize>
         }
     }
 }
+pub fn sorting_time(mut active_addrs: Vec<StoredAddress>) -> Vec<StoredAddress> {
+    active_addrs.sort_by(|a, b| {
+        let time_a = a.matched_entry.as_ref().and_then(remaining_duration);
+        let time_b = b.matched_entry.as_ref().and_then(remaining_duration);
+        match (time_a, time_b) {
+            (Some(dur_a), Some(dur_b)) => dur_a.cmp(&dur_b),
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            (None, None) => std::cmp::Ordering::Equal,
+        }
+    });
+    active_addrs
+}
 /// Panel displaying addresses needing attention within 4 hours
 ///
 /// # Props
 /// * `addresses` - Vector of all StoredAddress entries (will be filtered)
 #[component]
 pub fn ActivePanel(addresses: Vec<StoredAddress>) -> Element {
-    let active_addrs: Vec<_> = addresses
+    let mut active_addrs: Vec<_> = addresses
         .into_iter()
         .filter(|a| a.valid && a.active)
         .filter(|a| {
@@ -71,6 +84,7 @@ pub fn ActivePanel(addresses: Vec<StoredAddress>) -> Element {
             }
         })
         .collect();
+    active_addrs = sorting_time(active_addrs);
     let active_count = active_addrs.len();
     rsx! {
         div { class: "category-container category-active",
@@ -107,7 +121,7 @@ pub fn ActivePanel(addresses: Vec<StoredAddress>) -> Element {
 /// * `addresses` - Vector of all StoredAddress entries (will be filtered)
 #[component]
 pub fn SixHoursPanel(addresses: Vec<StoredAddress>) -> Element {
-    let addrs: Vec<_> = addresses
+    let mut addrs: Vec<_> = addresses
         .into_iter()
         .filter(|a| a.valid && a.active)
         .filter(|a| {
@@ -118,6 +132,7 @@ pub fn SixHoursPanel(addresses: Vec<StoredAddress>) -> Element {
             }
         })
         .collect();
+    addrs = sorting_time(addrs);
     let count = addrs.len();
     rsx! {
         div { class: "category-container category-6h",
@@ -154,7 +169,7 @@ pub fn SixHoursPanel(addresses: Vec<StoredAddress>) -> Element {
 /// * `addresses` - Vector of all StoredAddress entries (will be filtered)
 #[component]
 pub fn OneDayPanel(addresses: Vec<StoredAddress>) -> Element {
-    let addrs: Vec<_> = addresses
+    let mut addrs: Vec<_> = addresses
         .into_iter()
         .filter(|a| a.valid && a.active)
         .filter(|a| {
@@ -165,6 +180,7 @@ pub fn OneDayPanel(addresses: Vec<StoredAddress>) -> Element {
             }
         })
         .collect();
+    addrs = sorting_time(addrs);
     let count = addrs.len();
     rsx! {
         div { class: "category-container category-24h",
@@ -201,7 +217,7 @@ pub fn OneDayPanel(addresses: Vec<StoredAddress>) -> Element {
 /// * `addresses` - Vector of all StoredAddress entries (will be filtered)
 #[component]
 pub fn OneMonthPanel(addresses: Vec<StoredAddress>) -> Element {
-    let addrs: Vec<_> = addresses
+    let mut addrs: Vec<_> = addresses
         .into_iter()
         .filter(|a| a.valid && a.active)
         .filter(|a| {
@@ -212,6 +228,7 @@ pub fn OneMonthPanel(addresses: Vec<StoredAddress>) -> Element {
             }
         })
         .collect();
+    addrs = sorting_time(addrs);
     let count = addrs.len();
     rsx! {
         div { class: "category-container category-month",
@@ -248,10 +265,11 @@ pub fn OneMonthPanel(addresses: Vec<StoredAddress>) -> Element {
 /// * `addresses` - Vector of all StoredAddress entries (will be filtered)
 #[component]
 pub fn InvalidPanel(addresses: Vec<StoredAddress>) -> Element {
-    let addrs: Vec<_> = addresses
+    let mut addrs: Vec<_> = addresses
         .into_iter()
         .filter(|a| a.active && !a.valid)
         .collect();
+    addrs.sort_by(|a, b| a.postal_code.cmp(&b.postal_code));
     let count = addrs.len();
     rsx! {
         div { class: "category-container category-invalid",
