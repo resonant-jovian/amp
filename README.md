@@ -1,73 +1,93 @@
 # AMP
 
-**Address-to-Miljözone Parking** — Geospatial correlation library matching Swedish addresses to environmental parking zones in Malmö.
+**Address-to-Miljözone Parking** — Geospatial correlation library for Swedish environmental parking zones in Malmö.
 
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 [![Rust 2024](https://img.shields.io/badge/rust-2024%2B-orange)](https://www.rust-lang.org/)
 
-## What is AMP?
+## Overview
 
-AMP correlates street addresses with parking restriction zones using geospatial algorithms. It provides:
-- **Rust library** (`amp_core`) for correlation algorithms
-- **CLI tool** (`amp_server`) for testing and benchmarking
-- **Mobile apps** for offline parking zone lookup (Android/iOS)
+AMP correlates street addresses with parking restriction zones using multiple geospatial algorithms. It consists of:
+
+- **[Core Library](core/)** — Rust library with correlation algorithms and data structures
+- **[CLI Tool](server/)** — Testing, benchmarking, and correlation command-line interface  
+- **[Android App](android/)** — Offline parking lookup app built with Dioxus
+- **[iOS App](ios/)** — iOS version sharing UI code with Android
+- **[Build Scripts](scripts/)** — Automation for building and deployment
 
 ## Quick Start
 
 ```bash
-# Run visual testing (opens browser tabs)
+# Visual testing (opens browser tabs)
 cargo run --release -- test
 
-# Correlate addresses
+# Run correlation on addresses
 cargo run --release -p amp_server -- correlate
 
 # Benchmark algorithms
 cargo run --release -p amp_server -- benchmark
 ```
 
+## Documentation
+
+### Core Concepts
+- **[Architecture](docs/architecture.md)** — System design and data flow
+- **[Algorithms](docs/algorithms.md)** — How geospatial correlation works
+- **[Data Format](docs/data-format.md)** — Parquet storage structure
+
+### Development
+- **[Building](docs/building.md)** — Build instructions for all components
+- **[Testing](docs/testing.md)** — Visual and automated testing guide
+- **[API Integration](docs/api-integration.md)** — Fetching data from Malmö Open Data
+
+### Component Documentation
+- **[Core Library](core/README.md)** — API reference and usage examples
+- **[CLI Tool](server/README.md)** — Command reference and options
+- **[Android App](android/README.md)** — Android-specific build and architecture
+- **[iOS App](ios/README.md)** — iOS setup and code sharing
+- **[Scripts](scripts/README.md)** — Automation scripts reference
+
 ## Project Structure
 
 ```
 amp/
-├── core/           # Rust library (correlation algorithms)
-├── server/         # CLI tool (testing, benchmarking)
-├── android/        # Android app (Dioxus)
-├── ios/            # iOS app (Dioxus)
-├── scripts/        # Build and deployment scripts
-└── docs/           # Documentation
+├── core/              # Rust library (algorithms, data structures)
+│   ├── src/
+│   │   ├── api.rs                    # Malmö Open Data API client
+│   │   ├── parquet.rs                # Parquet read/write operations
+│   │   ├── structs.rs                # Core data structures
+│   │   ├── correlation_algorithms/   # Algorithm implementations
+│   │   └── benchmark.rs              # Performance testing
+│   └── README.md
+├── server/            # CLI tool for testing and correlation
+│   ├── src/main.rs
+│   └── README.md
+├── android/           # Android app (Dioxus)
+│   ├── src/
+│   │   ├── main.rs                   # App entry point
+│   │   ├── ui/                       # UI components
+│   │   └── storage.rs                # Data persistence
+│   └── README.md
+├── ios/               # iOS app (shares UI with Android)
+│   ├── src/
+│   └── README.md
+├── scripts/           # Build and automation scripts
+│   └── README.md
+└── docs/              # General documentation
 ```
-
-## Documentation
-
-### Getting Started
-- [Architecture](docs/architecture.md) — System design and data flow
-- [Algorithms](docs/algorithms.md) — How correlation algorithms work
-- [CLI Usage](docs/cli-usage.md) — Command reference
-- [Testing Guide](docs/testing.md) — Visual and automated testing
-
-### Development
-- [Core Library](core/README.md) — Library API and usage
-- [CLI Tool](server/README.md) — Server/CLI documentation
-- [Android App](android/README.md) — Android build and deployment
-- [iOS App](ios/README.md) — iOS setup and code sharing
-- [Build Scripts](scripts/README.md) — Automation scripts
-
-### Technical Details
-- [API Integration](docs/api-integration.md) — Data fetching from Malmö Open Data
-- [Data Format](docs/data-format.md) — Parquet storage and structure
 
 ## Building
 
 ### Prerequisites
-- Rust 1.70+ ([install](https://rustup.rs))
-- Dioxus CLI: `cargo install dioxus-cli` (for mobile apps)
-- Android SDK + Java 21 (for Android)
-- Xcode (for iOS)
+- **Rust 1.70+** — [Install](https://rustup.rs)
+- **Dioxus CLI** — `cargo install dioxus-cli` (for mobile apps)
+- **Android SDK + Java 21** — For Android builds
+- **Xcode** — For iOS builds (macOS only)
 
 ### Build Commands
 
 ```bash
-# Library and CLI
+# Core library and CLI
 cargo build --release
 
 # Run tests
@@ -76,14 +96,16 @@ cargo test --release
 # Android APK
 ./scripts/build.sh
 
-# iOS
+# iOS app
 cd ios && dx build --release
 ```
+
+See **[Building Guide](docs/building.md)** for detailed instructions.
 
 ## Testing
 
 ### Visual Testing
-Test correlation accuracy by comparing results against official Malmö StadsAtlas:
+Compare algorithm results against official Malmö StadsAtlas:
 
 ```bash
 # Default: 10 windows, KD-Tree algorithm
@@ -93,12 +115,12 @@ cargo run -- test
 cargo run -- test --algorithm rtree --cutoff 100 --windows 15
 ```
 
-See [Testing Guide](docs/testing.md) for details.
-
 ### Automated Tests
 ```bash
 cargo test --release
 ```
+
+See **[Testing Guide](docs/testing.md)** for details.
 
 ## License
 
