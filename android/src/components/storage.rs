@@ -60,8 +60,12 @@ use std::sync::Mutex;
 use std::fs::File;
 /// Thread-safe storage mutex to prevent concurrent access issues
 static STORAGE_LOCK: Mutex<()> = Mutex::new(());
+
+#[cfg(target_os = "android")]
 const LOCAL_PARQUET_NAME: &str = "local.parquet";
+#[cfg(target_os = "android")]
 const BACKUP_PARQUET_NAME: &str = "local.parquet.backup";
+
 /// Get the storage directory path for the Android app
 ///
 /// Returns the app's internal data directory on Android.
@@ -75,18 +79,21 @@ fn get_storage_dir() -> Result<PathBuf, String> {
     std::env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))
 }
 /// Get path to main parquet file
+#[cfg(target_os = "android")]
 fn get_local_parquet_path() -> Result<PathBuf, String> {
     let mut path = get_storage_dir()?;
     path.push(LOCAL_PARQUET_NAME);
     Ok(path)
 }
 /// Get path to backup parquet file
+#[cfg(target_os = "android")]
 fn get_backup_parquet_path() -> Result<PathBuf, String> {
     let mut path = get_storage_dir()?;
     path.push(BACKUP_PARQUET_NAME);
     Ok(path)
 }
 /// Create empty parquet file with LocalData schema
+#[cfg(target_os = "android")]
 fn create_empty_parquet(path: &PathBuf) -> Result<(), String> {
     let _empty_data: Vec<LocalData> = Vec::new();
     let dummy = LocalData {
@@ -110,6 +117,7 @@ fn create_empty_parquet(path: &PathBuf) -> Result<(), String> {
     Ok(())
 }
 /// Ensure storage files exist, create if necessary
+#[cfg(target_os = "android")]
 fn ensure_storage_files() -> Result<(), String> {
     let local_path = get_local_parquet_path()?;
     let backup_path = get_backup_parquet_path()?;
@@ -131,6 +139,7 @@ fn ensure_storage_files() -> Result<(), String> {
     Ok(())
 }
 /// Convert StoredAddress to LocalData for parquet storage
+#[cfg(target_os = "android")]
 fn to_local_data(addr: &StoredAddress) -> LocalData {
     let (dag, tid, info, taxa, antal_platser, typ_av_parkering) =
         if let Some(ref entry) = addr.matched_entry {
@@ -161,6 +170,7 @@ fn to_local_data(addr: &StoredAddress) -> LocalData {
     }
 }
 /// Convert LocalData from parquet to StoredAddress
+#[cfg(target_os = "android")]
 fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
     let (street, street_number) = if let Some(gata) = &data.gata {
         let street_number = data.gatunummer.clone().unwrap_or_default();
@@ -369,6 +379,7 @@ pub fn count_stored_addresses() -> usize {
 mod tests {
     use super::*;
     #[test]
+    #[cfg(target_os = "android")]
     fn test_to_from_local_data_roundtrip() {
         let original = StoredAddress {
             id: 1,
