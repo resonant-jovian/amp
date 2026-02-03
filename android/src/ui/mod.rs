@@ -4,7 +4,9 @@ pub mod info_dialog;
 pub mod panels;
 pub mod settings_dropdown;
 pub mod top_bar;
+
 use crate::components::address_utils::normalize_string;
+use crate::components::debug::load_debug_addresses;
 use crate::components::lifecycle::{LifecycleManager, handle_active_toggle, handle_address_change};
 use crate::components::matching::{MatchResult, match_address};
 use crate::components::storage::{read_addresses_from_device, write_addresses_to_device};
@@ -13,9 +15,12 @@ use amp_core::structs::DB;
 use dioxus::prelude::*;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
+
 static CSS: Asset = asset!("/assets/style.css");
+
 /// Maximum Levenshtein distance for fuzzy matching
 /// Lower values = stricter matching
+
 /// Represents a locally stored address with validation and activation state
 ///
 /// Each address is assigned a unique UUID for tracking and can be toggled active/inactive.
@@ -43,6 +48,7 @@ pub struct StoredAddress {
     /// The matched database entry (if valid)
     pub matched_entry: Option<DB>,
 }
+
 impl StoredAddress {
     /// Create a new stored address and attempt to match against database
     ///
@@ -61,8 +67,10 @@ impl StoredAddress {
             Some(entry) => (true, Some(entry)),
             None => (false, None),
         };
+
         let uuid = Uuid::new_v4();
         let id = uuid_to_usize(&uuid);
+
         StoredAddress {
             id,
             street,
@@ -74,6 +82,7 @@ impl StoredAddress {
         }
     }
 }
+
 /// Convert UUID to usize for ID storage
 ///
 /// Uses the first 8 bytes of the UUID as a usize.
@@ -84,6 +93,7 @@ fn uuid_to_usize(uuid: &Uuid) -> usize {
         bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
     ])
 }
+
 /// Fuzzy match address against database using Levenshtein distance
 ///
 /// Implements multi-stage matching strategy:
@@ -117,11 +127,14 @@ fn fuzzy_match_address(street: &str, street_number: &str, postal_code: &str) -> 
         MatchResult::Valid(entry) => return Some(*entry),
         MatchResult::Invalid(_) => {}
     }
+
     use crate::components::matching::get_parking_data;
     let data = get_parking_data();
+
     let street_norm = normalize_string(street);
     let street_number_norm = normalize_string(street_number);
     let postal_code_norm = postal_code.trim().replace(' ', "");
+
     for entry in data.values() {
         let entry_street_norm = entry
             .gata
@@ -138,14 +151,18 @@ fn fuzzy_match_address(street: &str, street_number: &str, postal_code: &str) -> 
             .as_ref()
             .map(|pn| pn.replace(' ', ""))
             .unwrap_or_default();
+
         let street_distance = strsim::levenshtein(&street_norm, &entry_street_norm);
+
         let street_match = if street_norm == entry_street_norm {
             true
         } else {
             entry_street_norm.contains(&street_norm) || street_norm.contains(&entry_street_norm)
         };
+
         let number_match = entry_number_norm == street_number_norm;
         let postal_match = entry_postal_norm == postal_code_norm;
+
         if street_match && number_match && postal_match {
             eprintln!(
                 "[FuzzyMatch] Found match: '{}' matches '{}' (distance: {})",
@@ -154,17 +171,20 @@ fn fuzzy_match_address(street: &str, street_number: &str, postal_code: &str) -> 
             return Some(entry.clone());
         }
     }
+
     eprintln!(
         "[FuzzyMatch] No match found for: {} {} {}",
         street, street_number, postal_code,
     );
     None
 }
+
 use crate::ui::{
     addresses::Addresses,
     panels::{ActivePanel, InvalidPanel, OneDayPanel, OneMonthPanel, SixHoursPanel},
     top_bar::TopBar,
 };
+
 /// Main application component
 ///
 /// Manages a list of stored addresses and provides UI for:
@@ -172,17 +192,23 @@ use crate::ui::{
 /// - Toggling address active state
 /// - Removing addresses
 /// - Displaying addresses in categorized panels by urgency
-/// - Persisting addresses to local storage
+/// - Persisting addresses to local storage (when not in debug mode)
 /// - Background lifecycle management
+/// - Debug mode with read-only example addresses
 #[component]
 pub fn App() -> Element {
     let mut stored_addresses = use_signal::<Vec<StoredAddress>>(Vec::new);
+    let mut debug_mode = use_signal(|| false);
     let mut lifecycle_manager = use_signal::<Option<Arc<Mutex<LifecycleManager>>>>(|| None);
+
+    // Initialize lifecycle manager and load addresses on startup
     use_effect(move || {
         let mut manager = LifecycleManager::new();
         manager.start();
         let manager_arc = Arc::new(Mutex::new(manager));
         lifecycle_manager.set(Some(manager_arc.clone()));
+
+        // Load from storage (not debug mode by default)
         let loaded = read_addresses_from_device();
         if !loaded.is_empty() {
             info!("Loaded {} addresses from storage", loaded.len());
@@ -196,184 +222,17 @@ pub fn App() -> Element {
                 stored_addresses.set(loaded);
             }
         } else {
-            info!("No saved addresses, adding debug test addresses");
-            let examples = vec![
-                StoredAddress::new(
-                    "Kornettsgatan".to_string(),
-                    "18C".to_string(),
-                    "21150".to_string(),
-                ),
-                StoredAddress::new(
-                    "Claesgatan".to_string(),
-                    "2B".to_string(),
-                    "21426".to_string(),
-                ),
-                StoredAddress::new(
-                    "Östra Kristinelundsvägen".to_string(),
-                    "27D".to_string(),
-                    "21748".to_string(),
-                ),
-                StoredAddress::new(
-                    "Karlskronaplan".to_string(),
-                    "3".to_string(),
-                    "21436".to_string(),
-                ),
-                StoredAddress::new(
-                    "Västra Rönneholmsvägen".to_string(),
-                    "76C".to_string(),
-                    "21741".to_string(),
-                ),
-                StoredAddress::new(
-                    "Vitemöllegatan".to_string(),
-                    "11A".to_string(),
-                    "21442".to_string(),
-                ),
-                StoredAddress::new(
-                    "Docentgatan".to_string(),
-                    "1B".to_string(),
-                    "21552".to_string(),
-                ),
-                StoredAddress::new(
-                    "Eriksfältsgatan".to_string(),
-                    "98B".to_string(),
-                    "21550".to_string(),
-                ),
-                StoredAddress::new(
-                    "Lantmannagatan".to_string(),
-                    "50 U1".to_string(),
-                    "21448".to_string(),
-                ),
-                StoredAddress::new(
-                    "Pysslinggatan".to_string(),
-                    "4".to_string(),
-                    "21238".to_string(),
-                ),
-                StoredAddress::new(
-                    "Celsiusgatan".to_string(),
-                    "13A U1".to_string(),
-                    "21214".to_string(),
-                ),
-                StoredAddress::new(
-                    "Kapellgatan".to_string(),
-                    "14 U4".to_string(),
-                    "21421".to_string(),
-                ),
-                StoredAddress::new(
-                    "Tegnérgatan".to_string(),
-                    "25B".to_string(),
-                    "21614".to_string(),
-                ),
-                StoredAddress::new(
-                    "S:t Pauli kyrkogata".to_string(),
-                    "13B".to_string(),
-                    "21149".to_string(),
-                ),
-                StoredAddress::new(
-                    "Östra Stallmästaregatan".to_string(),
-                    "18B".to_string(),
-                    "21749".to_string(),
-                ),
-                StoredAddress::new(
-                    "Södervärnsgatan".to_string(),
-                    "9B U1".to_string(),
-                    "21427".to_string(),
-                ),
-                StoredAddress::new(
-                    "Carl Hillsgatan".to_string(),
-                    "10B".to_string(),
-                    "21756".to_string(),
-                ),
-                StoredAddress::new(
-                    "Köpenhamnsvägen".to_string(),
-                    "46A".to_string(),
-                    "21771".to_string(),
-                ),
-                StoredAddress::new(
-                    "Bangatan".to_string(),
-                    "13".to_string(),
-                    "21426".to_string(),
-                ),
-                StoredAddress::new(
-                    "Smålandsgatan".to_string(),
-                    "20A".to_string(),
-                    "21430".to_string(),
-                ),
-                StoredAddress::new(
-                    "Tycho Brahegatan".to_string(),
-                    "26".to_string(),
-                    "21612".to_string(),
-                ),
-                StoredAddress::new(
-                    "Storgatan".to_string(),
-                    "43K".to_string(),
-                    "21142".to_string(),
-                ),
-                StoredAddress::new(
-                    "Östergårdsgatan".to_string(),
-                    "1 U13".to_string(),
-                    "21222".to_string(),
-                ),
-                StoredAddress::new(
-                    "Byggmästaregatan".to_string(),
-                    "5".to_string(),
-                    "21130".to_string(),
-                ),
-                StoredAddress::new(
-                    "Lantmannagatan".to_string(),
-                    "11A".to_string(),
-                    "21444".to_string(),
-                ),
-                StoredAddress::new(
-                    "Zenithgatan".to_string(),
-                    "42C".to_string(),
-                    "21214".to_string(),
-                ),
-                StoredAddress::new(
-                    "Bragegatan".to_string(),
-                    "37B".to_string(),
-                    "21446".to_string(),
-                ),
-                StoredAddress::new(
-                    "Idunsgatan".to_string(),
-                    "67B".to_string(),
-                    "21446".to_string(),
-                ),
-                StoredAddress::new(
-                    "Värnhemsgatan".to_string(),
-                    "2A".to_string(),
-                    "21215".to_string(),
-                ),
-                StoredAddress::new(
-                    "Sånekullavägen".to_string(),
-                    "36A".to_string(),
-                    "21774".to_string(),
-                ),
-                StoredAddress::new(
-                    "Amiralsgatan".to_string(),
-                    "83E".to_string(),
-                    "21437".to_string(),
-                ),
-                StoredAddress::new(
-                    "Docentgatan".to_string(),
-                    "3A".to_string(),
-                    "21552".to_string(),
-                ),
-                StoredAddress::new(
-                    "Låssasgatan".to_string(),
-                    "11A".to_string(),
-                    "11111".to_string(),
-                ),
-            ];
-            if let Err(e) = write_addresses_to_device(&examples) {
-                error!("Failed to save example addresses: {}", e);
-            }
-            stored_addresses.set(examples);
+            info!("No saved addresses found");
+            stored_addresses.set(Vec::new());
         }
     });
+
+    // Daily tasks check
     use_effect(move || {
         if let Some(manager_arc) = lifecycle_manager.read().as_ref()
             && let Ok(manager) = manager_arc.lock()
             && manager.check_and_run_daily_tasks()
+            && !debug_mode() // Don't reload from storage in debug mode
         {
             let loaded = read_addresses_from_device();
             if !loaded.is_empty() {
@@ -381,20 +240,30 @@ pub fn App() -> Element {
             }
         }
     });
+
     let handle_add_address = move |args: (String, String, String)| {
+        // Cannot add addresses in debug mode (read-only)
+        if debug_mode() {
+            warn!("Cannot add addresses in debug mode (read-only)");
+            return;
+        }
+
         let (street, street_number, postal_code) = args;
         info!(
             "handle_add_address called with street='{}', street_number='{}', postal_code='{}'",
             street, street_number, postal_code
         );
+
         let new_addr = StoredAddress::new(street, street_number, postal_code);
         let mut addrs = stored_addresses.write();
+
         let is_duplicate = addrs.iter().any(|a| {
             normalize_string(&a.street) == normalize_string(&new_addr.street)
                 && normalize_string(&a.street_number) == normalize_string(&new_addr.street_number)
                 && a.postal_code.trim().replace(' ', "")
                     == new_addr.postal_code.trim().replace(' ', "")
         });
+
         if !is_duplicate {
             info!("Adding new address, total now: {}", addrs.len() + 1);
             addrs.push(new_addr);
@@ -403,16 +272,30 @@ pub fn App() -> Element {
             warn!("Duplicate address detected (case-insensitive), not adding");
         }
     };
+
     let handle_toggle_active = move |id: usize| {
         info!("toggle_active called for id {}", id);
         let mut addrs = stored_addresses.write();
         if let Some(addr) = addrs.iter_mut().find(|a| a.id == id) {
             addr.active = !addr.active;
             info!("Address {} now active: {}", id, addr.active);
-            handle_active_toggle(&addrs);
+            
+            // Only persist changes if not in debug mode
+            if !debug_mode() {
+                handle_active_toggle(&addrs);
+            } else {
+                info!("Debug mode: active state changed in-memory only (not persisted)");
+            }
         }
     };
+
     let handle_remove_address = move |id: usize| {
+        // Cannot remove addresses in debug mode (read-only)
+        if debug_mode() {
+            warn!("Cannot remove addresses in debug mode (read-only)");
+            return;
+        }
+
         info!("remove_address called for id {}", id);
         let mut addrs = stored_addresses.write();
         if let Some(pos) = addrs.iter().position(|a| a.id == id) {
@@ -424,9 +307,29 @@ pub fn App() -> Element {
             handle_address_change(&addrs);
         }
     };
+
+    let handle_toggle_debug = move |_| {
+        let new_debug_mode = !debug_mode();
+        debug_mode.set(new_debug_mode);
+
+        if new_debug_mode {
+            info!("Debug mode ENABLED - loading debug addresses (read-only)");
+            let debug_addrs = load_debug_addresses();
+            stored_addresses.set(debug_addrs);
+        } else {
+            info!("Debug mode DISABLED - loading user addresses from storage");
+            let loaded = read_addresses_from_device();
+            stored_addresses.set(loaded);
+        }
+    };
+
     rsx! {
         Stylesheet { href: CSS }
-        TopBar { on_add_address: handle_add_address }
+        TopBar {
+            on_add_address: handle_add_address,
+            debug_mode: debug_mode(),
+            on_toggle_debug: handle_toggle_debug,
+        }
         Addresses {
             stored_addresses: stored_addresses.read().clone(),
             on_toggle_active: handle_toggle_active,
