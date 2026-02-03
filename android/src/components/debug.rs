@@ -22,14 +22,11 @@
 //!     addr.active = !addr.active;
 //! }
 //! ```
-
 use crate::ui::StoredAddress;
 use amp_core::parquet::read_local_parquet;
 use amp_core::structs::LocalData;
-
 /// Debug parquet file embedded in the app
-static DEBUG_PARQUET: &[u8] = include_bytes!("../../assets/debug.parquet");
-
+static DEBUG_PARQUET: &[u8] = include_bytes!("../../assets/data/debug.parquet");
 /// Load debug addresses from embedded debug.parquet file
 ///
 /// Reads the debug.parquet file that contains example addresses for testing.
@@ -48,12 +45,14 @@ static DEBUG_PARQUET: &[u8] = include_bytes!("../../assets/debug.parquet");
 pub fn load_debug_addresses() -> Vec<StoredAddress> {
     match read_local_parquet(DEBUG_PARQUET) {
         Ok(local_data) => {
-            eprintln!("[Debug] Loaded {} debug addresses from parquet", local_data.len());
-            
+            eprintln!(
+                "[Debug] Loaded {} debug addresses from parquet",
+                local_data.len(),
+            );
             local_data
                 .into_iter()
                 .enumerate()
-                .filter(|(_, data)| !data.adress.is_empty()) // Filter out empty dummy records
+                .filter(|(_, data)| !data.adress.is_empty())
                 .map(|(idx, data)| from_local_data(data, idx))
                 .collect()
         }
@@ -63,15 +62,12 @@ pub fn load_debug_addresses() -> Vec<StoredAddress> {
         }
     }
 }
-
 /// Convert LocalData from parquet to StoredAddress
 fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
-    // Parse street and street_number from adress field
     let (street, street_number) = if let Some(gata) = &data.gata {
         let street_number = data.gatunummer.clone().unwrap_or_default();
         (gata.clone(), street_number)
     } else {
-        // Fallback: try to parse from adress field
         let parts: Vec<&str> = data.adress.rsplitn(2, ' ').collect();
         if parts.len() == 2 {
             (parts[1].to_string(), parts[0].to_string())
@@ -79,7 +75,6 @@ fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
             (data.adress.clone(), String::new())
         }
     };
-
     StoredAddress {
         id,
         street,
@@ -87,40 +82,30 @@ fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
         postal_code: data.postnummer.unwrap_or_default(),
         valid: data.valid,
         active: data.active,
-        matched_entry: None, // Will be re-matched by the app
+        matched_entry: None,
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn test_load_debug_addresses() {
         let addresses = load_debug_addresses();
-        
-        // Should load successfully (unless debug.parquet is missing)
-        // In that case, returns empty vec
         assert!(addresses.len() >= 0);
-        
-        // All loaded addresses should have non-empty street names
         for addr in &addresses {
             assert!(!addr.street.is_empty(), "Address should have a street name");
         }
     }
-
     #[test]
     fn test_debug_addresses_have_postal_codes() {
         let addresses = load_debug_addresses();
-        
         for addr in &addresses {
             if !addr.postal_code.is_empty() {
-                // Postal code should be 5 digits
                 assert_eq!(
                     addr.postal_code.len(),
                     5,
                     "Postal code should be 5 digits: {}",
-                    addr.postal_code
+                    addr.postal_code,
                 );
             }
         }

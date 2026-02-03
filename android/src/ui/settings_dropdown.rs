@@ -2,7 +2,6 @@ use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::md_action_icons::{MdBugReport, MdInfo, MdSettings};
 use dioxus_free_icons::icons::md_social_icons::MdNotifications;
-
 /// Settings dropdown panel component
 ///
 /// Displays a slide-in panel from the top-right with settings menu items.
@@ -34,7 +33,6 @@ pub fn SettingsDropdown(
     if !is_open {
         return rsx!();
     }
-
     rsx! {
         div { class: "settings-overlay", onclick: move |_| on_close.call(()),
             div {
@@ -74,7 +72,6 @@ pub fn SettingsDropdown(
                         span { "Om appen" }
                     }
                     div { class: "settings-divider" }
-                    // Debug mode toggle
                     div { class: "settings-toggle-item",
                         div { class: "settings-toggle-label",
                             Icon { icon: MdBugReport, width: 20, height: 20 }

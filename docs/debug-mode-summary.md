@@ -141,7 +141,7 @@ If disabled:
 - [`docs/debug-mode.md`](debug-mode.md) - Complete documentation
 - [`docs/android-persistent-state.md`](android-persistent-state.md) - Storage system
 - [`android/src/components/debug.rs`](../android/src/components/debug.rs) - Implementation
-- [`scripts/generate_debug_parquet.rs`](../scripts/generate_debug_parquet.rs) - Generator script
+- [`scripts/generate_debug_parquet.rs`](../scripts/src/generate_debug_parquet.rs) - Generator script
 
 ## Next Steps
 

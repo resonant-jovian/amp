@@ -5,7 +5,6 @@ use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::md_image_icons::MdBlurOn;
 use dioxus_free_icons::icons::md_maps_icons::MdAddLocationAlt;
-
 /// Top navigation bar with address input and controls
 ///
 /// Provides input fields for adding new addresses and buttons for GPS and settings.
@@ -25,7 +24,6 @@ pub fn TopBar(
     let mut address_input = use_signal(String::new);
     let mut postal_code_input = use_signal(String::new);
     let mut show_settings = use_signal(|| false);
-
     let handle_add_click = move |_| {
         let address_str = address_input();
         let postal_code = postal_code_input();
@@ -33,44 +31,35 @@ pub fn TopBar(
             "Add button clicked: address='{}', postal_code='{}'",
             address_str, postal_code
         );
-
         if address_str.trim().is_empty() || postal_code.trim().is_empty() {
             warn!("Validation failed: empty fields");
             return;
         }
-
         let street_words: Vec<&str> = address_str.split_whitespace().collect();
         if street_words.len() < 2 {
             warn!("Address parsing failed: need at least 2 words");
             return;
         }
-
         let street_number = street_words[street_words.len() - 1].to_string();
         let street = street_words[..street_words.len() - 1].join(" ");
-
         info!(
             "Parsed: street='{}', street_number='{}', postal_code='{}'",
             street, street_number, postal_code
         );
-
         on_add_address.call((street, street_number, postal_code.to_string()));
         address_input.set(String::new());
         postal_code_input.set(String::new());
         info!("Address added successfully");
     };
-
     let handle_gps_click = move |_| {
         info!("GPS button clicked - reading device location");
-
         if let Some((lat, lon)) = read_device_gps_location() {
             info!("Got location: lat={}, lon={}", lat, lon);
-
             if let Some(entry) = find_address_by_coordinates(lat, lon) {
                 info!(
                     "Found address: {:?} {:?}, {:?}",
                     entry.gata, entry.gatunummer, entry.postnummer
                 );
-
                 let full_address = format!("{:?} {:?}", entry.gata, entry.gatunummer);
                 address_input.set(full_address);
                 postal_code_input.set(
@@ -87,7 +76,6 @@ pub fn TopBar(
             warn!("Could not read device location - check permissions");
         }
     };
-
     let handle_settings_click = move |_| {
         let new_state = !show_settings();
         show_settings.set(new_state);
@@ -96,12 +84,10 @@ pub fn TopBar(
             if new_state { "open" } else { "closed" }
         );
     };
-
     let handle_close_settings = move |_| {
         info!("Settings dropdown closed");
         show_settings.set(false);
     };
-
     rsx! {
         div { class: "category-container topbar-container",
             div { class: "category-title topbar-title",
@@ -161,8 +147,8 @@ pub fn TopBar(
             SettingsDropdown {
                 is_open: show_settings(),
                 on_close: handle_close_settings,
-                debug_mode: debug_mode,
-                on_toggle_debug: on_toggle_debug,
+                debug_mode,
+                on_toggle_debug,
             }
         }
     }

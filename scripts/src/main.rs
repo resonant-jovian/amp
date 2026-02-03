@@ -1,14 +1,11 @@
 //! Script to generate debug.parquet file with example addresses
 //!
 //! Run with: cargo run --bin generate_debug_parquet
-
 use amp_core::parquet::build_local_parquet;
 use amp_core::structs::LocalData;
 use std::fs;
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Generating debug.parquet with example addresses...");
-
     let debug_addresses = vec![
         LocalData {
             valid: true,
@@ -165,11 +162,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             typ_av_parkering: None,
         },
     ];
-
     let buffer = build_local_parquet(debug_addresses)?;
-    
-    fs::write("android/assets/debug.parquet", &buffer)?;
-    println!("✓ Created android/assets/debug.parquet ({} bytes)", buffer.len());
-
+    fs::write("android/assets/data/debug.parquet", &buffer)?;
+    println!(
+        "✓ Created android/assets/data/debug.parquet ({} bytes)",
+        buffer.len()
+    );
     Ok(())
 }
