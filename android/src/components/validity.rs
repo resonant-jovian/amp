@@ -41,10 +41,8 @@
 //!     println!("Some addresses changed validity");
 //! }
 //! ```
-
 use crate::ui::StoredAddress;
 use chrono::{Datelike, Local};
-
 /// Check if the current year is a leap year
 ///
 /// # Arguments
@@ -63,7 +61,6 @@ use chrono::{Datelike, Local};
 pub fn is_leap_year(year: i32) -> bool {
     (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
 }
-
 /// Get the number of days in a given month
 ///
 /// # Arguments
@@ -89,7 +86,6 @@ pub fn days_in_month(month: u32, year: i32) -> u32 {
         _ => panic!("Invalid month: {}", month),
     }
 }
-
 /// Check if an address should be valid in the current month
 ///
 /// # Arguments
@@ -111,18 +107,14 @@ pub fn days_in_month(month: u32, year: i32) -> u32 {
 pub fn is_valid_in_current_month(dag: Option<u8>) -> bool {
     let dag = match dag {
         Some(d) => d as u32,
-        None => return true, // No day restriction = always valid
+        None => return true,
     };
-    
     let now = Local::now();
     let current_month = now.month();
     let current_year = now.year();
-    
     let max_days = days_in_month(current_month, current_year);
-    
     dag <= max_days
 }
-
 /// Check and update validity for all addresses based on current month
 ///
 /// Iterates through all addresses and updates their `valid` field if their
@@ -149,54 +141,37 @@ pub fn is_valid_in_current_month(dag: Option<u8>) -> bool {
 /// ```
 pub fn check_and_update_validity(addresses: &mut [StoredAddress]) -> bool {
     let mut changed = false;
-    
     for addr in addresses.iter_mut() {
-        // Extract dag from matched_entry if available
-        let dag = addr.matched_entry.as_ref().and_then(|entry| {
-            // Extract day from start_time
-            // Since DB stores DateTime, we need to get the day component
-            Some(entry.start_time_swedish().day() as u8)
-        });
-        
-        // Check if this address should be valid in current month
+        let dag = addr
+            .matched_entry
+            .as_ref()
+            .map(|entry| entry.start_time_swedish().day() as u8);
         let should_be_valid = is_valid_in_current_month(dag);
-        
-        // Only consider addresses that have a matched entry
-        // Addresses without matches remain in their current valid state
         if addr.matched_entry.is_some() && addr.valid != should_be_valid {
             eprintln!(
                 "[Validity] Address {} {} validity changed: {} -> {}",
-                addr.street,
-                addr.street_number,
-                addr.valid,
-                should_be_valid
+                addr.street, addr.street_number, addr.valid, should_be_valid,
             );
             addr.valid = should_be_valid;
             changed = true;
         }
     }
-    
     if changed {
         eprintln!("[Validity] Address validity updated for current month");
     }
-    
     changed
 }
-
 /// Get current month number (1-12)
 pub fn current_month() -> u32 {
     Local::now().month()
 }
-
 /// Get current year
 pub fn current_year() -> i32 {
     Local::now().year()
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    
     #[test]
     fn test_is_leap_year() {
         assert!(is_leap_year(2024));
@@ -206,28 +181,16 @@ mod tests {
         assert!(!is_leap_year(2100));
         assert!(!is_leap_year(1900));
     }
-    
     #[test]
     fn test_days_in_month() {
-        // January (31 days)
         assert_eq!(days_in_month(1, 2023), 31);
-        
-        // February (28 in non-leap year)
         assert_eq!(days_in_month(2, 2023), 28);
-        
-        // February (29 in leap year)
         assert_eq!(days_in_month(2, 2024), 29);
-        
-        // April (30 days)
         assert_eq!(days_in_month(4, 2023), 30);
-        
-        // December (31 days)
         assert_eq!(days_in_month(12, 2023), 31);
     }
-    
     #[test]
     fn test_validity_no_restriction() {
-        // Addresses with no day restriction are always valid
         assert!(is_valid_in_current_month(None));
     }
 }
