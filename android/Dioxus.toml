@@ -7,20 +7,22 @@ asset_dir = "assets"
 
 [bundle]
 publisher = "Skäggbyrån Malmö"
+identifier = "se.malmo.skaggbyran.amp"
 icon = ["assets/icon/icon-512.png"]
 resources = ["assets/data/adress_info.parquet"]
 
 [bundle.android]
 publisher = "Skäggbyrån Malmö"
+identifier = "se.malmo.skaggbyran.amp"
 icon = ["assets/icon/icon-512.png"]
 resources = ["assets/data/adress_info.parquet"]
 min_sdk_version = 21
 target_sdk_version = 36
 orientation = "portrait"
-jks_password = "$storePassword"
-key_password = "$keyPassword"
-key_alias = "$keyAlias"
-jks_file = "$storeFile"
+jks_password = "albinsjoegren"
+key_password = "albinsjoegren"
+key_alias = "upload-key"
+jks_file = "release.jks"
 
 [bundle.android.permissions]
 android.permission.LOCATION_FINE = true

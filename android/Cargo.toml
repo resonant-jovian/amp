@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 amp-core = { path = "../core" }
 dioxus.workspace = true
+dioxus-native.workspace = true
 dioxus-free-icons.workspace = true
 chrono.workspace = true
 chrono-tz.workspace = true
@@ -21,6 +22,8 @@ arrow.workspace = true
 parquet.workspace = true
 bytes.workspace = true
 tokio.workspace = true
+tao.workspace = true
+image.workspace = true
 
 [features]
 default = ["mobile"]

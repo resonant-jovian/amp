@@ -23,13 +23,15 @@ tokio = { version = "1.49.0", features = ["full"] }
 reqwest = { version = "0.13.1", features = ["json"] }
 anyhow = "1.0.100"
 geodesy = "0.14.0"
-clap = { version = "4.5.54", features = ["derive"] }
+clap = { version = "4.5.56", features = ["derive"] }
 sha2 = "0.10"
 chrono = "0.4.43"
-chrono-tz = "0.10.0"
+chrono-tz = "0.10.4"
 rstar = "0.12.2"
 indicatif = "0.18.3"
 jni = "0.21.1"
 strsim = "0.11.1"
-uuid = { version = "1.11.0", features = ["v4", "serde"] }
+uuid = { version = "1.20.0", features = ["v4", "serde"] }
 bytes = "1.11.0"
+tao = "0.34.5"
+image = "0.25.6"
