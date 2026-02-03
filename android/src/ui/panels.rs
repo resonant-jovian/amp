@@ -1,6 +1,7 @@
 use crate::components::countdown::{TimeBucket, bucket_for, format_countdown};
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
+use tokio::time::Duration;
 /// Display an address with countdown timer in appropriate category
 ///
 /// # Props
@@ -9,11 +10,39 @@ use dioxus::prelude::*;
 /// * `on_remove` - Event handler for remove button (currently unused)
 #[component]
 fn AddressItem(addr: StoredAddress, index: usize, on_remove: EventHandler<usize>) -> Element {
-    let matched = &addr.matched_entry;
-    let countdown = matched
-        .as_ref()
-        .and_then(format_countdown)
-        .unwrap_or_else(|| "...".to_string());
+    let mut countdown = use_signal(|| "...".to_string());
+    let addr_clone = addr.clone();
+    use_future(move || {
+        let addr_for_future = addr_clone.clone();
+        async move {
+            let bucket = addr_for_future
+                .matched_entry
+                .as_ref()
+                .map(bucket_for)
+                .unwrap_or(TimeBucket::Invalid);
+            if let Some(matched) = &addr_for_future.matched_entry {
+                countdown.set(format_countdown(matched).unwrap_or_else(|| "...".to_string()));
+            }
+            if bucket == TimeBucket::Invalid {
+                return;
+            }
+            let update_interval = match bucket {
+                TimeBucket::Now | TimeBucket::Within6Hours | TimeBucket::Within1Day => {
+                    Duration::from_secs(1)
+                }
+                _ => Duration::from_secs(60),
+            };
+            loop {
+                tokio::time::sleep(update_interval).await;
+                let new_countdown = addr_for_future
+                    .matched_entry
+                    .as_ref()
+                    .and_then(format_countdown)
+                    .unwrap_or_else(|| "...".to_string());
+                countdown.set(new_countdown);
+            }
+        }
+    });
     let address_display = format!(
         "{} {}, {}",
         addr.street, addr.street_number, addr.postal_code,
@@ -21,7 +50,7 @@ fn AddressItem(addr: StoredAddress, index: usize, on_remove: EventHandler<usize>
     rsx! {
         div { class: "address-item",
             div { class: "address-text", "{address_display}" }
-            div { class: "countdown-text", "{countdown}" }
+            div { class: "countdown-text", "{countdown()}" }
         }
     }
 }

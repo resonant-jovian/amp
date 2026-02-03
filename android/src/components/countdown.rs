@@ -176,19 +176,7 @@ pub fn format_countdown(restriction: &DB) -> Option<String> {
     let remaining = remaining_duration(restriction)?;
     let bucket = bucket_for(restriction);
     match bucket {
-        TimeBucket::Now => {
-            let hours = remaining.num_hours();
-            let minutes = remaining.num_minutes() % 60;
-            let seconds = remaining.num_seconds() % 60;
-            Some(format!("{}h {:02}m {:02}s", hours, minutes, seconds))
-        }
-        TimeBucket::Within6Hours => {
-            let hours = remaining.num_hours();
-            let minutes = remaining.num_minutes() % 60;
-            let seconds = remaining.num_seconds() % 60;
-            Some(format!("{}h {:02}m {:02}s", hours, minutes, seconds))
-        }
-        TimeBucket::Within1Day => {
+        TimeBucket::Now | TimeBucket::Within6Hours | TimeBucket::Within1Day => {
             let hours = remaining.num_hours();
             let minutes = remaining.num_minutes() % 60;
             let seconds = remaining.num_seconds() % 60;
