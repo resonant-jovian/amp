@@ -805,19 +805,18 @@ input[type=number] {
     box-shadow: 0 4px 8px rgba(243, 44, 37, 0.2);
 }
 
-.modal-title h3{
+.modal-title {
     margin: 0;
     font-size: 18px;
     font-weight: 700;
     color: #000000;
     text-shadow: 0 0 0.5rem #bb4ea0;
 }
-.confirm-dialog-title h3 {
+.confirm-dialog-title {
     margin: 0;
     font-size: 18px;
     font-weight: 700;
     color: #ffffff;
-    text-shadow: 0 0 0.5rem #737373;
 }
 
 .modal-body {
@@ -857,7 +856,7 @@ input[type=number] {
 .modal-btn-cancel {
     background: var(--color-bg);
     color: var(--color-text);
-    box-shadow: inset 1px 1px 3px #a3b1c6, inset -1px -1px 5px #ffffff;
+    box-shadow: inset 1px 1px 3px #a3b1c6, inset -1px -1px 20px #ffffff;
 }
 
 .modal-btn-cancel:hover {
@@ -972,7 +971,7 @@ input[type=number] {
 .modal-btn-primary {
     background: var(--color-bg);
     color: var(--color-text);
-    box-shadow: inset 1px 1px 3px #a3b1c6, inset -1px -1px 5px #ffffff;
+    box-shadow: inset 1px 1px 3px #a3b1c6, inset -1px -1px 20px #ffffff;
 }
 
 .modal-btn-primary:hover {
