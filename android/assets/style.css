@@ -71,7 +71,6 @@ input[type=number] {
     overflow: hidden;
     background: #e0e0e0;
     box-shadow: 5px 5px 30px #c3c3c3, -5px -5px 30px #fdfdfd;
-    position: relative;
 }
 
 .topbar-title {
@@ -1001,14 +1000,13 @@ input[type=number] {
     animation: fadeIn 0.2s ease;
 }
 
-/* Settings Dropdown Container - Positioned relative to topbar-container */
+/* Settings Dropdown Container - Fixed in top-right */
 .settings-dropdown {
-    position: absolute;
-    top: 100%;
-    right: 0;
+    position: fixed;
+    top: 16px;
+    right: 16px;
     width: 280px;
     max-height: 70vh;
-    margin-top: 8px;
     background: var(--color-bg);
     border-radius: 16px;
     box-shadow: 6px 6px 12px #a3b1c6, -6px -6px 12px #ffffff;
@@ -1349,7 +1347,7 @@ input[type=number] {
     }
     
     .settings-dropdown {
-        right: 0;
+        right: 8px;
         width: calc(100% - 16px);
         max-width: 320px;
     }
