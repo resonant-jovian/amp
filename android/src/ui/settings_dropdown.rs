@@ -10,6 +10,7 @@ use crate::components::settings::{AppSettings, Language, Theme, load_settings, s
 /// Displays a slide-in panel from the top-right with expandable settings sections.
 /// Each section can be independently expanded/collapsed.
 /// Uses neumorphic design system with gradient header matching the HTML reference.
+/// Settings items use scaled-down address-item container styling.
 ///
 /// # Sections
 /// * Aviseringar - Notification preferences (städas nu, 6h, 1 day)
@@ -114,14 +115,14 @@ pub fn SettingsDropdown(
                             onclick: move |_| aviseringar_open.set(!aviseringar_open()),
                             "aria-expanded": if aviseringar_open() { "true" } else { "false" },
                             div { class: "settings-section-header-left",
-                                Icon { icon: MdNotifications, width: 20, height: 20 }
+                                Icon { icon: MdNotifications, width: 16, height: 16 }
                                 span { "Aviseringar" }
                             }
                             span { class: "settings-section-arrow",
                                 if aviseringar_open() {
-                                    Icon { icon: MdExpandLess, width: 20, height: 20 }
+                                    Icon { icon: MdExpandLess, width: 16, height: 16 }
                                 } else {
-                                    Icon { icon: MdExpandMore, width: 20, height: 20 }
+                                    Icon { icon: MdExpandMore, width: 16, height: 16 }
                                 }
                             }
                         }
@@ -135,18 +136,18 @@ pub fn SettingsDropdown(
                                         div { class: "settings-item-label", "Städas nu" }
                                         div { class: "settings-item-description", "Avisering när städning pågår" }
                                     }
-                                    label { class: "toggle-switch",
+                                    label { class: "settings-toggle-switch",
                                         input {
                                             r#type: "checkbox",
                                             checked: settings.read().notifications.stadning_nu,
                                             onchange: toggle_stadning_nu,
                                         }
                                         span {
-                                            class: "switch-container",
+                                            class: "settings-switch-container",
                                             span {
-                                                class: "switch-thumb",
+                                                class: "settings-switch-thumb",
                                                 "data-active": if settings.read().notifications.stadning_nu { "true" } else { "false" },
-                                                span { class: "led" }
+                                                span { class: "settings-led" }
                                             }
                                         }
                                     }
@@ -158,18 +159,18 @@ pub fn SettingsDropdown(
                                         div { class: "settings-item-label", "6 timmar" }
                                         div { class: "settings-item-description", "Avisering 6 timmar innan städning" }
                                     }
-                                    label { class: "toggle-switch",
+                                    label { class: "settings-toggle-switch",
                                         input {
                                             r#type: "checkbox",
                                             checked: settings.read().notifications.sex_timmar,
                                             onchange: toggle_sex_timmar,
                                         }
                                         span {
-                                            class: "switch-container",
+                                            class: "settings-switch-container",
                                             span {
-                                                class: "switch-thumb",
+                                                class: "settings-switch-thumb",
                                                 "data-active": if settings.read().notifications.sex_timmar { "true" } else { "false" },
-                                                span { class: "led" }
+                                                span { class: "settings-led" }
                                             }
                                         }
                                     }
@@ -181,18 +182,18 @@ pub fn SettingsDropdown(
                                         div { class: "settings-item-label", "1 dag" }
                                         div { class: "settings-item-description", "Avisering 1 dag innan städning" }
                                     }
-                                    label { class: "toggle-switch",
+                                    label { class: "settings-toggle-switch",
                                         input {
                                             r#type: "checkbox",
                                             checked: settings.read().notifications.en_dag,
                                             onchange: toggle_en_dag,
                                         }
                                         span {
-                                            class: "switch-container",
+                                            class: "settings-switch-container",
                                             span {
-                                                class: "switch-thumb",
+                                                class: "settings-switch-thumb",
                                                 "data-active": if settings.read().notifications.en_dag { "true" } else { "false" },
-                                                span { class: "led" }
+                                                span { class: "settings-led" }
                                             }
                                         }
                                     }
@@ -208,14 +209,14 @@ pub fn SettingsDropdown(
                             onclick: move |_| installningar_open.set(!installningar_open()),
                             "aria-expanded": if installningar_open() { "true" } else { "false" },
                             div { class: "settings-section-header-left",
-                                Icon { icon: MdSettings, width: 20, height: 20 }
+                                Icon { icon: MdSettings, width: 16, height: 16 }
                                 span { "Inställningar" }
                             }
                             span { class: "settings-section-arrow",
                                 if installningar_open() {
-                                    Icon { icon: MdExpandLess, width: 20, height: 20 }
+                                    Icon { icon: MdExpandLess, width: 16, height: 16 }
                                 } else {
-                                    Icon { icon: MdExpandMore, width: 20, height: 20 }
+                                    Icon { icon: MdExpandMore, width: 16, height: 16 }
                                 }
                             }
                         }
@@ -229,18 +230,18 @@ pub fn SettingsDropdown(
                                         div { class: "settings-item-label", "Mörkt läge" }
                                         div { class: "settings-item-description", "Växla mellan ljust och mörkt tema" }
                                     }
-                                    label { class: "toggle-switch",
+                                    label { class: "settings-toggle-switch",
                                         input {
                                             r#type: "checkbox",
                                             checked: settings.read().theme == Theme::Dark,
                                             onchange: toggle_theme,
                                         }
                                         span {
-                                            class: "switch-container",
+                                            class: "settings-switch-container",
                                             span {
-                                                class: "switch-thumb",
+                                                class: "settings-switch-thumb",
                                                 "data-active": if settings.read().theme == Theme::Dark { "true" } else { "false" },
-                                                span { class: "led" }
+                                                span { class: "settings-led" }
                                             }
                                         }
                                     }
@@ -273,14 +274,14 @@ pub fn SettingsDropdown(
                             onclick: move |_| info_open.set(!info_open()),
                             "aria-expanded": if info_open() { "true" } else { "false" },
                             div { class: "settings-section-header-left",
-                                Icon { icon: MdInfo, width: 20, height: 20 }
+                                Icon { icon: MdInfo, width: 16, height: 16 }
                                 span { "Info" }
                             }
                             span { class: "settings-section-arrow",
                                 if info_open() {
-                                    Icon { icon: MdExpandLess, width: 20, height: 20 }
+                                    Icon { icon: MdExpandLess, width: 16, height: 16 }
                                 } else {
-                                    Icon { icon: MdExpandMore, width: 20, height: 20 }
+                                    Icon { icon: MdExpandMore, width: 16, height: 16 }
                                 }
                             }
                         }
@@ -306,14 +307,14 @@ pub fn SettingsDropdown(
                             onclick: move |_| debug_open.set(!debug_open()),
                             "aria-expanded": if debug_open() { "true" } else { "false" },
                             div { class: "settings-section-header-left",
-                                Icon { icon: MdBugReport, width: 20, height: 20 }
+                                Icon { icon: MdBugReport, width: 16, height: 16 }
                                 span { "Debug" }
                             }
                             span { class: "settings-section-arrow",
                                 if debug_open() {
-                                    Icon { icon: MdExpandLess, width: 20, height: 20 }
+                                    Icon { icon: MdExpandLess, width: 16, height: 16 }
                                 } else {
-                                    Icon { icon: MdExpandMore, width: 20, height: 20 }
+                                    Icon { icon: MdExpandMore, width: 16, height: 16 }
                                 }
                             }
                         }
@@ -327,18 +328,18 @@ pub fn SettingsDropdown(
                                         div { class: "settings-item-label", "Debug adresser" }
                                         div { class: "settings-item-description", "Visa felsökningsinformation för adresser" }
                                     }
-                                    label { class: "toggle-switch",
+                                    label { class: "settings-toggle-switch",
                                         input {
                                             r#type: "checkbox",
                                             checked: debug_mode,
                                             onchange: move |_| on_toggle_debug.call(()),
                                         }
                                         span {
-                                            class: "switch-container",
+                                            class: "settings-switch-container",
                                             span {
-                                                class: "switch-thumb",
+                                                class: "settings-switch-thumb",
                                                 "data-active": if debug_mode { "true" } else { "false" },
-                                                span { class: "led" }
+                                                span { class: "settings-led" }
                                             }
                                         }
                                     }
