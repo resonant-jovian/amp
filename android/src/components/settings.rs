@@ -7,14 +7,21 @@
 //! - Debug mode toggle
 //!
 //! Settings are stored in a JSON file for easy serialization.
+
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
+
 /// Thread-safe settings mutex
 static SETTINGS_LOCK: Mutex<()> = Mutex::new(());
+
 #[cfg(target_os = "android")]
 const SETTINGS_FILE_NAME: &str = "settings.json";
+
+#[cfg(not(target_os = "android"))]
+const SETTINGS_FILE_NAME: &str = "settings.json";
+
 /// Notification timing preferences
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct NotificationSettings {
@@ -25,6 +32,7 @@ pub struct NotificationSettings {
     /// Notify 1 day before cleaning
     pub en_dag: bool,
 }
+
 impl Default for NotificationSettings {
     fn default() -> Self {
         Self {
@@ -34,17 +42,20 @@ impl Default for NotificationSettings {
         }
     }
 }
+
 /// Theme preference
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Theme {
     Light,
     Dark,
 }
+
 impl Default for Theme {
     fn default() -> Self {
         Self::Dark
     }
 }
+
 /// Supported languages
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Language {
@@ -53,6 +64,7 @@ pub enum Language {
     Espanol,
     Francais,
 }
+
 impl Language {
     pub fn as_str(&self) -> &str {
         match self {
@@ -63,11 +75,13 @@ impl Language {
         }
     }
 }
+
 impl Default for Language {
     fn default() -> Self {
         Self::Svenska
     }
 }
+
 /// Complete app settings
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AppSettings {
@@ -75,6 +89,7 @@ pub struct AppSettings {
     pub theme: Theme,
     pub language: Language,
 }
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
@@ -84,21 +99,24 @@ impl Default for AppSettings {
         }
     }
 }
+
 /// Get the settings file path
 #[cfg(target_os = "android")]
 fn get_settings_path() -> Result<PathBuf, String> {
-    let mut path =
-        std::env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))?;
+    let mut path = std::env::current_dir()
+        .map_err(|e| format!("Failed to get current directory: {}", e))?;
     path.push(SETTINGS_FILE_NAME);
     Ok(path)
 }
+
 #[cfg(not(target_os = "android"))]
 fn get_settings_path() -> Result<PathBuf, String> {
-    let mut path =
-        std::env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))?;
+    let mut path = std::env::current_dir()
+        .map_err(|e| format!("Failed to get current directory: {}", e))?;
     path.push(SETTINGS_FILE_NAME);
     Ok(path)
 }
+
 /// Load settings from persistent storage (thread-safe)
 ///
 /// Returns default settings if file doesn't exist or can't be parsed.
@@ -112,6 +130,7 @@ fn get_settings_path() -> Result<PathBuf, String> {
 /// ```
 pub fn load_settings() -> AppSettings {
     let _lock = SETTINGS_LOCK.lock().unwrap();
+    
     #[cfg(any(target_os = "android", not(target_os = "android")))]
     {
         match get_settings_path() {
@@ -140,8 +159,10 @@ pub fn load_settings() -> AppSettings {
             }
         }
     }
+    
     AppSettings::default()
 }
+
 /// Save settings to persistent storage (thread-safe)
 ///
 /// # Arguments
@@ -157,26 +178,30 @@ pub fn load_settings() -> AppSettings {
 ///
 /// let mut settings = AppSettings::default();
 /// settings.notifications.en_dag = true;
-///
+/// 
 /// if let Err(e) = save_settings(&settings) {
 ///     eprintln!("Failed to save settings: {}", e);
 /// }
 /// ```
 pub fn save_settings(settings: &AppSettings) -> Result<(), String> {
     let _lock = SETTINGS_LOCK.lock().unwrap();
+    
     #[cfg(any(target_os = "android", not(target_os = "android")))]
     {
         let path = get_settings_path()?;
         let json = serde_json::to_string_pretty(settings)
             .map_err(|e| format!("Failed to serialize settings: {}", e))?;
-        fs::write(&path, json).map_err(|e| format!("Failed to write settings file: {}", e))?;
+        fs::write(&path, json)
+            .map_err(|e) | format!("Failed to write settings file: {}", e))?;
         eprintln!("[Settings] Saved to {:?}", path);
         return Ok(());
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn test_default_settings() {
         let settings = AppSettings::default();
@@ -186,6 +211,7 @@ mod tests {
         assert!(settings.notifications.sex_timmar);
         assert!(!settings.notifications.en_dag);
     }
+
     #[test]
     fn test_settings_serialization() {
         let settings = AppSettings::default();
