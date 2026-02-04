@@ -6,6 +6,7 @@ pub mod geo;
 pub mod lifecycle;
 pub mod matching;
 pub mod notification;
+pub mod settings;
 pub mod static_data;
 pub mod storage;
 pub mod validity;
