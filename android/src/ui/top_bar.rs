@@ -144,12 +144,12 @@ pub fn TopBar(
                     }
                 }
             }
-            SettingsDropdown {
-                is_open: show_settings(),
-                on_close: handle_close_settings,
-                debug_mode,
-                on_toggle_debug,
-            }
+        }
+        SettingsDropdown {
+            is_open: show_settings(),
+            on_close: handle_close_settings,
+            debug_mode,
+            on_toggle_debug,
         }
     }
 }
