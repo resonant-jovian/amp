@@ -39,8 +39,8 @@ impl Default for NotificationSettings {
 /// Theme preference
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
 pub enum Theme {
-    Light,
     #[default]
+    Light,
     Dark,
 }
 /// Supported languages

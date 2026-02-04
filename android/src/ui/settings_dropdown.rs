@@ -47,40 +47,40 @@ pub fn SettingsDropdown(
     if !is_open {
         return rsx!();
     }
-    let toggle_stadning_nu = move |_| {
-        let mut s = settings.write();
-        s.notifications.stadning_nu = !s.notifications.stadning_nu;
-        let _ = save_settings(&s);
-    };
-    let toggle_sex_timmar = move |_| {
-        let mut s = settings.write();
-        s.notifications.sex_timmar = !s.notifications.sex_timmar;
-        let _ = save_settings(&s);
-    };
-    let toggle_en_dag = move |_| {
-        let mut s = settings.write();
-        s.notifications.en_dag = !s.notifications.en_dag;
-        let _ = save_settings(&s);
-    };
-    let toggle_theme = move |_| {
-        let mut s = settings.write();
-        s.theme = match s.theme {
-            Theme::Dark => Theme::Light,
-            Theme::Light => Theme::Dark,
-        };
-        let _ = save_settings(&s);
-    };
-    let change_language = move |evt: Event<FormData>| {
-        let value = evt.value();
-        let mut s = settings.write();
-        s.language = match value.as_str() {
-            "English" => Language::English,
-            "Español" => Language::Espanol,
-            "Français" => Language::Francais,
-            _ => Language::Svenska,
-        };
-        let _ = save_settings(&s);
-    };
+    // let toggle_stadning_nu = move |_| {
+    //     let mut s = settings.write();
+    //     s.notifications.stadning_nu = !s.notifications.stadning_nu;
+    //     let _ = save_settings(&s);
+    // };
+    // let toggle_sex_timmar = move |_| {
+    //     let mut s = settings.write();
+    //     s.notifications.sex_timmar = !s.notifications.sex_timmar;
+    //     let _ = save_settings(&s);
+    // };
+    // let toggle_en_dag = move |_| {
+    //     let mut s = settings.write();
+    //     s.notifications.en_dag = !s.notifications.en_dag;
+    //     let _ = save_settings(&s);
+    // };
+    // let toggle_theme = move |_| {
+    //     let mut s = settings.write();
+    //     s.theme = match s.theme {
+    //         Theme::Dark => Theme::Light,
+    //         Theme::Light => Theme::Dark,
+    //     };
+    //     let _ = save_settings(&s);
+    // };
+    // let change_language = move |evt: Event<FormData>| {
+    //     let value = evt.value();
+    //     let mut s = settings.write();
+    //     s.language = match value.as_str() {
+    //         "English" => Language::English,
+    //         "Español" => Language::Espanol,
+    //         "Français" => Language::Francais,
+    //         _ => Language::Svenska,
+    //     };
+    //     let _ = save_settings(&s);
+    // };
     rsx! {
         div { class: "settings-overlay", onclick: move |_| on_close.call(()),
             div {
@@ -128,72 +128,72 @@ pub fn SettingsDropdown(
                             class: "settings-section-content",
                             "aria-hidden": if aviseringar_open() { "false" } else { "true" },
                             div { class: "settings-section-body",
-                                div { class: "settings-toggle-item",
-                                    div { class: "settings-item-text",
-                                        div { class: "settings-item-label", "Städas nu" }
-                                        div { class: "settings-item-description",
-                                            "Avisering när städning pågår"
-                                        }
-                                    }
-                                    label { class: "settings-toggle-switch",
-                                        input {
-                                            r#type: "checkbox",
-                                            checked: settings.read().notifications.stadning_nu,
-                                            onchange: toggle_stadning_nu,
-                                        }
-                                        span { class: "settings-switch-container",
-                                            span {
-                                                class: "settings-switch-thumb",
-                                                "data-active": if settings.read().notifications.stadning_nu { "true" } else { "false" },
-                                                span { class: "settings-led" }
-                                            }
-                                        }
-                                    }
-                                }
-                                div { class: "settings-toggle-item",
-                                    div { class: "settings-item-text",
-                                        div { class: "settings-item-label", "6 timmar" }
-                                        div { class: "settings-item-description",
-                                            "Avisering 6 timmar innan städning"
-                                        }
-                                    }
-                                    label { class: "settings-toggle-switch",
-                                        input {
-                                            r#type: "checkbox",
-                                            checked: settings.read().notifications.sex_timmar,
-                                            onchange: toggle_sex_timmar,
-                                        }
-                                        span { class: "settings-switch-container",
-                                            span {
-                                                class: "settings-switch-thumb",
-                                                "data-active": if settings.read().notifications.sex_timmar { "true" } else { "false" },
-                                                span { class: "settings-led" }
-                                            }
-                                        }
-                                    }
-                                }
-                                div { class: "settings-toggle-item",
-                                    div { class: "settings-item-text",
-                                        div { class: "settings-item-label", "1 dag" }
-                                        div { class: "settings-item-description",
-                                            "Avisering 1 dag innan städning"
-                                        }
-                                    }
-                                    label { class: "settings-toggle-switch",
-                                        input {
-                                            r#type: "checkbox",
-                                            checked: settings.read().notifications.en_dag,
-                                            onchange: toggle_en_dag,
-                                        }
-                                        span { class: "settings-switch-container",
-                                            span {
-                                                class: "settings-switch-thumb",
-                                                "data-active": if settings.read().notifications.en_dag { "true" } else { "false" },
-                                                span { class: "settings-led" }
-                                            }
-                                        }
-                                    }
-                                }
+                                 div { class: "settings-toggle-item",
+                            //         div { class: "settings-item-text",
+                            //             div { class: "settings-item-label", "Städas nu" }
+                            //             div { class: "settings-item-description",
+                            //                 "Avisering när städning pågår"
+                            //             }
+                            //         }
+                            //         label { class: "settings-toggle-switch",
+                            //             input {
+                            //                 r#type: "checkbox",
+                            //                 checked: settings.read().notifications.stadning_nu,
+                            //                 onchange: toggle_stadning_nu,
+                            //             }
+                            //             span { class: "settings-switch-container",
+                            //                 span {
+                            //                     class: "settings-switch-thumb",
+                            //                     "data-active": if settings.read().notifications.stadning_nu { "true" } else { "false" },
+                            //                     span { class: "settings-led" }
+                            //                 }
+                            //             }
+                            //         }
+                            //     }
+                            //     div { class: "settings-toggle-item",
+                            //         div { class: "settings-item-text",
+                            //             div { class: "settings-item-label", "6 timmar" }
+                            //             div { class: "settings-item-description",
+                            //                 "Avisering 6 timmar innan städning"
+                            //             }
+                            //         }
+                            //         label { class: "settings-toggle-switch",
+                            //             input {
+                            //                 r#type: "checkbox",
+                            //                 checked: settings.read().notifications.sex_timmar,
+                            //                 onchange: toggle_sex_timmar,
+                            //             }
+                            //             span { class: "settings-switch-container",
+                            //                 span {
+                            //                     class: "settings-switch-thumb",
+                            //                     "data-active": if settings.read().notifications.sex_timmar { "true" } else { "false" },
+                            //                     span { class: "settings-led" }
+                            //                 }
+                            //             }
+                            //         }
+                            //     }
+                            //     div { class: "settings-toggle-item",
+                            //         div { class: "settings-item-text",
+                            //             div { class: "settings-item-label", "1 dag" }
+                            //             div { class: "settings-item-description",
+                            //                 "Avisering 1 dag innan städning"
+                            //             }
+                            //         }
+                            //         label { class: "settings-toggle-switch",
+                            //             input {
+                            //                 r#type: "checkbox",
+                            //                 checked: settings.read().notifications.en_dag,
+                            //                 onchange: toggle_en_dag,
+                            //             }
+                            //             span { class: "settings-switch-container",
+                            //                 span {
+                            //                     class: "settings-switch-thumb",
+                            //                     "data-active": if settings.read().notifications.en_dag { "true" } else { "false" },
+                            //                     span { class: "settings-led" }
+                            //                 }
+                            //             }
+                            //         }
+                                 }
                             }
                         }
                     }
@@ -222,50 +222,50 @@ pub fn SettingsDropdown(
                                 }
                             }
                         }
-                        div {
-                            class: "settings-section-content",
-                            "aria-hidden": if installningar_open() { "false" } else { "true" },
-                            div { class: "settings-section-body",
+                         div {
+                             class: "settings-section-content",
+                             "aria-hidden": if installningar_open() { "false" } else { "true" },
+                             div { class: "settings-section-body",
                                 div { class: "settings-toggle-item",
-                                    div { class: "settings-item-text",
-                                        div { class: "settings-item-label", "Mörkt läge" }
-                                        div { class: "settings-item-description",
-                                            "Växla mellan ljust och mörkt tema"
-                                        }
-                                    }
-                                    label { class: "settings-toggle-switch",
-                                        input {
-                                            r#type: "checkbox",
-                                            checked: settings.read().theme == Theme::Dark,
-                                            onchange: toggle_theme,
-                                        }
-                                        span { class: "settings-switch-container",
-                                            span {
-                                                class: "settings-switch-thumb",
-                                                "data-active": if settings.read().theme == Theme::Dark { "true" } else { "false" },
-                                                span { class: "settings-led" }
-                                            }
-                                        }
-                                    }
-                                }
-                                div { class: "settings-select-item",
-                                    div { class: "settings-item-text",
-                                        div { class: "settings-item-label", "Språk" }
-                                        div { class: "settings-item-description",
-                                            "Välj ditt föredragna språk"
-                                        }
-                                    }
-                                    select {
-                                        class: "settings-select",
-                                        value: settings.read().language.as_str(),
-                                        onchange: change_language,
-                                        option { value: "Svenska", "Svenska" }
-                                        option { value: "English", "English" }
-                                        option { value: "Español", "Español" }
-                                        option { value: "Français", "Français" }
-                                    }
-                                }
-                            }
+                                     div { class: "settings-item-text",
+                        //                 div { class: "settings-item-label", "Mörkt läge" }
+                        //                 div { class: "settings-item-description",
+                        //                     "Växla mellan ljust och mörkt tema"
+                        //                 }
+                        //             }
+                        //             label { class: "settings-toggle-switch",
+                        //                 input {
+                        //                     r#type: "checkbox",
+                        //                     checked: settings.read().theme == Theme::Dark,
+                        //                     onchange: toggle_theme,
+                        //                 }
+                        //                 span { class: "settings-switch-container",
+                        //                     span {
+                        //                         class: "settings-switch-thumb",
+                        //                         "data-active": if settings.read().theme == Theme::Dark { "true" } else { "false" },
+                        //                         span { class: "settings-led" }
+                        //                     }
+                        //                 }
+                        //             }
+                        //         }
+                        //         div { class: "settings-select-item",
+                        //             div { class: "settings-item-text",
+                        //                 div { class: "settings-item-label", "Språk" }
+                        //                 div { class: "settings-item-description",
+                        //                     "Välj ditt föredragna språk"
+                        //                 }
+                        //             }
+                        //             select {
+                        //                 class: "settings-select",
+                        //                 value: settings.read().language.as_str(),
+                        //                 onchange: change_language,
+                        //                 option { value: "Svenska", "Svenska" }
+                        //                 option { value: "English", "English" }
+                        //                 option { value: "Español", "Español" }
+                        //                 option { value: "Français", "Français" }
+                                     }
+                                 }
+                             }
                         }
                     }
                     div { class: "settings-section",
