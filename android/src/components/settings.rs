@@ -37,16 +37,14 @@ impl Default for NotificationSettings {
     }
 }
 /// Theme preference
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
 pub enum Theme {
     Light,
     #[default]
     Dark,
 }
 /// Supported languages
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
 pub enum Language {
     #[default]
     Svenska,
@@ -65,8 +63,7 @@ impl Language {
     }
 }
 /// Complete app settings
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
 pub struct AppSettings {
     pub notifications: NotificationSettings,
     pub theme: Theme,
