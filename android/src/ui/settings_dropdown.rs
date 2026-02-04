@@ -1,12 +1,21 @@
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::md_action_icons::{MdBugReport, MdInfo, MdSettings};
+use dioxus_free_icons::icons::md_navigation_icons::{MdExpandLess, MdExpandMore};
 use dioxus_free_icons::icons::md_social_icons::MdNotifications;
+use crate::components::settings::{AppSettings, Language, Theme, load_settings, save_settings};
+
 /// Settings dropdown panel component
 ///
-/// Displays a slide-in panel from the top-right with settings menu items.
-/// Closes when clicking outside the panel or the close button.
-/// Uses neumorphic design system with animated entrance.
+/// Displays a slide-in panel from the top-right with expandable settings sections.
+/// Each section can be independently expanded/collapsed.
+/// Uses neumorphic design system with gradient header matching the HTML reference.
+///
+/// # Sections
+/// * Aviseringar - Notification preferences (städas nu, 6h, 1 day)
+/// * Inställningar - Theme toggle and language selector
+/// * Info - App information
+/// * Debug - Debug mode toggle
 ///
 /// # Props
 /// * `is_open` - Controls visibility of the dropdown
@@ -30,14 +39,62 @@ pub fn SettingsDropdown(
     debug_mode: bool,
     on_toggle_debug: EventHandler<()>,
 ) -> Element {
+    let mut settings = use_signal(|| load_settings());
+    let mut aviseringar_open = use_signal(|| false);
+    let mut installningar_open = use_signal(|| false);
+    let mut info_open = use_signal(|| false);
+    let mut debug_open = use_signal(|| false);
+
     if !is_open {
         return rsx!();
     }
+
+    let toggle_stadning_nu = move |_| {
+        let mut s = settings.write();
+        s.notifications.stadning_nu = !s.notifications.stadning_nu;
+        let _ = save_settings(&s);
+    };
+
+    let toggle_sex_timmar = move |_| {
+        let mut s = settings.write();
+        s.notifications.sex_timmar = !s.notifications.sex_timmar;
+        let _ = save_settings(&s);
+    };
+
+    let toggle_en_dag = move |_| {
+        let mut s = settings.write();
+        s.notifications.en_dag = !s.notifications.en_dag;
+        let _ = save_settings(&s);
+    };
+
+    let toggle_theme = move |_| {
+        let mut s = settings.write();
+        s.theme = match s.theme {
+            Theme::Dark => Theme::Light,
+            Theme::Light => Theme::Dark,
+        };
+        let _ = save_settings(&s);
+    };
+
+    let change_language = move |evt: Event<FormData>| {
+        let value = evt.value();
+        let mut s = settings.write();
+        s.language = match value.as_str() {
+            "English" => Language::English,
+            "Español" => Language::Espanol,
+            "Français" => Language::Francais,
+            _ => Language::Svenska,
+        };
+        let _ = save_settings(&s);
+    };
+
     rsx! {
         div { class: "settings-overlay", onclick: move |_| on_close.call(()),
             div {
                 class: "settings-dropdown",
                 onclick: move |e| e.stop_propagation(),
+                
+                // Header with gradient
                 div { class: "settings-header",
                     h3 { "Inställningar" }
                     button {
@@ -46,49 +103,249 @@ pub fn SettingsDropdown(
                         "×"
                     }
                 }
+                
+                // Content with expandable sections
                 div { class: "settings-content",
-                    button {
-                        class: "settings-item",
-                        onclick: move |_| {
-                            info!("General settings clicked");
-                        },
-                        Icon { icon: MdSettings, width: 20, height: 20 }
-                        span { "Allmänna inställningar" }
-                    }
-                    button {
-                        class: "settings-item",
-                        onclick: move |_| {
-                            info!("Notifications clicked");
-                        },
-                        Icon { icon: MdNotifications, width: 20, height: 20 }
-                        span { "Aviseringar" }
-                    }
-                    button {
-                        class: "settings-item",
-                        onclick: move |_| {
-                            info!("About clicked");
-                        },
-                        Icon { icon: MdInfo, width: 20, height: 20 }
-                        span { "Om appen" }
-                    }
-                    div { class: "settings-divider" }
-                    div { class: "settings-toggle-item",
-                        div { class: "settings-toggle-label",
-                            Icon { icon: MdBugReport, width: 20, height: 20 }
-                            span { "Debugläge" }
-                            span { class: "settings-toggle-hint", "(Exempeladresser)" }
-                        }
-                        label { class: "toggle-switch",
-                            input {
-                                r#type: "checkbox",
-                                checked: debug_mode,
-                                onchange: move |_| on_toggle_debug.call(()),
+                    
+                    // Aviseringar section
+                    div { class: "settings-section",
+                        button {
+                            class: "settings-section-header",
+                            onclick: move |_| aviseringar_open.set(!aviseringar_open()),
+                            "aria-expanded": if aviseringar_open() { "true" } else { "false" },
+                            div { class: "settings-section-header-left",
+                                Icon { icon: MdNotifications, width: 20, height: 20 }
+                                span { "Aviseringar" }
                             }
-                            span { class: "switch-thumb" }
+                            span { class: "settings-section-arrow",
+                                if aviseringar_open() {
+                                    Icon { icon: MdExpandLess, width: 20, height: 20 }
+                                } else {
+                                    Icon { icon: MdExpandMore, width: 20, height: 20 }
+                                }
+                            }
+                        }
+                        div {
+                            class: "settings-section-content",
+                            "aria-hidden": if aviseringar_open() { "false" } else { "true" },
+                            div { class: "settings-section-body",
+                                // Städas nu toggle
+                                div { class: "settings-toggle-item",
+                                    div { class: "settings-item-text",
+                                        div { class: "settings-item-label", "Städas nu" }
+                                        div { class: "settings-item-description", "Avisering när städning pågår" }
+                                    }
+                                    label { class: "toggle-switch",
+                                        input {
+                                            r#type: "checkbox",
+                                            checked: settings.read().notifications.stadning_nu,
+                                            onchange: toggle_stadning_nu,
+                                        }
+                                        span {
+                                            class: "switch-container",
+                                            span {
+                                                class: "switch-thumb",
+                                                "data-active": if settings.read().notifications.stadning_nu { "true" } else { "false" },
+                                                span { class: "led" }
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                // 6 timmar toggle
+                                div { class: "settings-toggle-item",
+                                    div { class: "settings-item-text",
+                                        div { class: "settings-item-label", "6 timmar" }
+                                        div { class: "settings-item-description", "Avisering 6 timmar innan städning" }
+                                    }
+                                    label { class: "toggle-switch",
+                                        input {
+                                            r#type: "checkbox",
+                                            checked: settings.read().notifications.sex_timmar,
+                                            onchange: toggle_sex_timmar,
+                                        }
+                                        span {
+                                            class: "switch-container",
+                                            span {
+                                                class: "switch-thumb",
+                                                "data-active": if settings.read().notifications.sex_timmar { "true" } else { "false" },
+                                                span { class: "led" }
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                // 1 dag toggle
+                                div { class: "settings-toggle-item",
+                                    div { class: "settings-item-text",
+                                        div { class: "settings-item-label", "1 dag" }
+                                        div { class: "settings-item-description", "Avisering 1 dag innan städning" }
+                                    }
+                                    label { class: "toggle-switch",
+                                        input {
+                                            r#type: "checkbox",
+                                            checked: settings.read().notifications.en_dag,
+                                            onchange: toggle_en_dag,
+                                        }
+                                        span {
+                                            class: "switch-container",
+                                            span {
+                                                class: "switch-thumb",
+                                                "data-active": if settings.read().notifications.en_dag { "true" } else { "false" },
+                                                span { class: "led" }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
-                    div { class: "settings-divider" }
-                    div { class: "settings-version", "Version 1.0.0" }
+                    
+                    // Inställningar section
+                    div { class: "settings-section",
+                        button {
+                            class: "settings-section-header",
+                            onclick: move |_| installningar_open.set(!installningar_open()),
+                            "aria-expanded": if installningar_open() { "true" } else { "false" },
+                            div { class: "settings-section-header-left",
+                                Icon { icon: MdSettings, width: 20, height: 20 }
+                                span { "Inställningar" }
+                            }
+                            span { class: "settings-section-arrow",
+                                if installningar_open() {
+                                    Icon { icon: MdExpandLess, width: 20, height: 20 }
+                                } else {
+                                    Icon { icon: MdExpandMore, width: 20, height: 20 }
+                                }
+                            }
+                        }
+                        div {
+                            class: "settings-section-content",
+                            "aria-hidden": if installningar_open() { "false" } else { "true" },
+                            div { class: "settings-section-body",
+                                // Theme toggle
+                                div { class: "settings-toggle-item",
+                                    div { class: "settings-item-text",
+                                        div { class: "settings-item-label", "Mörkt läge" }
+                                        div { class: "settings-item-description", "Växla mellan ljust och mörkt tema" }
+                                    }
+                                    label { class: "toggle-switch",
+                                        input {
+                                            r#type: "checkbox",
+                                            checked: settings.read().theme == Theme::Dark,
+                                            onchange: toggle_theme,
+                                        }
+                                        span {
+                                            class: "switch-container",
+                                            span {
+                                                class: "switch-thumb",
+                                                "data-active": if settings.read().theme == Theme::Dark { "true" } else { "false" },
+                                                span { class: "led" }
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                // Language selector
+                                div { class: "settings-select-item",
+                                    div { class: "settings-item-text",
+                                        div { class: "settings-item-label", "Språk" }
+                                        div { class: "settings-item-description", "Välj ditt föredragna språk" }
+                                    }
+                                    select {
+                                        class: "settings-select",
+                                        value: settings.read().language.as_str(),
+                                        onchange: change_language,
+                                        option { value: "Svenska", "Svenska" }
+                                        option { value: "English", "English" }
+                                        option { value: "Español", "Español" }
+                                        option { value: "Français", "Français" }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Info section
+                    div { class: "settings-section",
+                        button {
+                            class: "settings-section-header",
+                            onclick: move |_| info_open.set(!info_open()),
+                            "aria-expanded": if info_open() { "true" } else { "false" },
+                            div { class: "settings-section-header-left",
+                                Icon { icon: MdInfo, width: 20, height: 20 }
+                                span { "Info" }
+                            }
+                            span { class: "settings-section-arrow",
+                                if info_open() {
+                                    Icon { icon: MdExpandLess, width: 20, height: 20 }
+                                } else {
+                                    Icon { icon: MdExpandMore, width: 20, height: 20 }
+                                }
+                            }
+                        }
+                        div {
+                            class: "settings-section-content",
+                            "aria-hidden": if info_open() { "false" } else { "true" },
+                            div { class: "settings-section-body",
+                                h4 { class: "info-heading", "Om appen" }
+                                p { class: "info-text",
+                                    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut "
+                                    "labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco "
+                                    "laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in "
+                                    "voluptate velit esse cillum dolore eu fugiat nulla pariatur."
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Debug section
+                    div { class: "settings-section",
+                        button {
+                            class: "settings-section-header",
+                            onclick: move |_| debug_open.set(!debug_open()),
+                            "aria-expanded": if debug_open() { "true" } else { "false" },
+                            div { class: "settings-section-header-left",
+                                Icon { icon: MdBugReport, width: 20, height: 20 }
+                                span { "Debug" }
+                            }
+                            span { class: "settings-section-arrow",
+                                if debug_open() {
+                                    Icon { icon: MdExpandLess, width: 20, height: 20 }
+                                } else {
+                                    Icon { icon: MdExpandMore, width: 20, height: 20 }
+                                }
+                            }
+                        }
+                        div {
+                            class: "settings-section-content",
+                            "aria-hidden": if debug_open() { "false" } else { "true" },
+                            div { class: "settings-section-body",
+                                // Debug toggle
+                                div { class: "settings-toggle-item",
+                                    div { class: "settings-item-text",
+                                        div { class: "settings-item-label", "Debug adresser" }
+                                        div { class: "settings-item-description", "Visa felsökningsinformation för adresser" }
+                                    }
+                                    label { class: "toggle-switch",
+                                        input {
+                                            r#type: "checkbox",
+                                            checked: debug_mode,
+                                            onchange: move |_| on_toggle_debug.call(()),
+                                        }
+                                        span {
+                                            class: "switch-container",
+                                            span {
+                                                class: "switch-thumb",
+                                                "data-active": if debug_mode { "true" } else { "false" },
+                                                span { class: "led" }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
