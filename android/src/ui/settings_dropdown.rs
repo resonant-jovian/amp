@@ -1,4 +1,4 @@
-use crate::components::settings::{AppSettings, Language, Theme, load_settings, save_settings};
+use crate::components::settings::{Language, Theme, load_settings, save_settings};
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::md_action_icons::{MdBugReport, MdInfo, MdSettings};
@@ -39,7 +39,7 @@ pub fn SettingsDropdown(
     debug_mode: bool,
     on_toggle_debug: EventHandler<()>,
 ) -> Element {
-    let mut settings = use_signal(|| load_settings());
+    let mut settings = use_signal(load_settings);
     let mut aviseringar_open = use_signal(|| false);
     let mut installningar_open = use_signal(|| false);
     let mut info_open = use_signal(|| false);
