@@ -12,7 +12,7 @@ license = "GPL-3"
 rust_decimal = { version = "1.40.0", features = ["serde", "maths"] }
 dioxus = { version = "0.7.3", features = ["mobile", "router"] }
 dioxus-native = "0.7.3"
-dioxus-free-icons = { version = "0.10.0", features = ["material-design-icons-device", "material-design-icons-image", "material-design-icons-maps", "material-design-icons-action", "material-design-icons-social"] }
+dioxus-free-icons = { version = "0.10.0", features = ["material-design-icons-device", "material-design-icons-image", "material-design-icons-maps", "material-design-icons-action", "material-design-icons-social", "material-design-icons-navigation"] }
 arrow = { version = "57.2.0" }
 parquet = "57.2.0"
 rayon = "1.11.0"
