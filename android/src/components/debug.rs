@@ -22,6 +22,7 @@
 //!     addr.active = !addr.active;
 //! }
 //! ```
+use crate::components::matching::{MatchResult, match_address};
 use crate::ui::StoredAddress;
 use amp_core::parquet::read_local_parquet_from_bytes;
 use amp_core::structs::LocalData;
@@ -63,6 +64,9 @@ pub fn load_debug_addresses() -> Vec<StoredAddress> {
     }
 }
 /// Convert LocalData from parquet to StoredAddress
+///
+/// Attempts to match the address against the parking restriction database
+/// to populate the matched_entry field with actual restriction data.
 fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
     let (street, street_number) = if let Some(gata) = &data.gata {
         let street_number = data.gatunummer.clone().unwrap_or_default();
@@ -75,14 +79,35 @@ fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
             (data.adress.clone(), String::new())
         }
     };
+    
+    let postal_code = data.postnummer.clone().unwrap_or_default();
+    
+    // Attempt to match address against parking database
+    let matched_entry = match match_address(&street, &street_number, &postal_code) {
+        MatchResult::Valid(entry) => {
+            eprintln!(
+                "[Debug] Matched address: {} {} {} to database entry",
+                street, street_number, postal_code
+            );
+            Some(*entry)
+        }
+        MatchResult::Invalid(msg) => {
+            eprintln!(
+                "[Debug] No match for address: {} {} {} - {}",
+                street, street_number, postal_code, msg
+            );
+            None
+        }
+    };
+    
     StoredAddress {
         id,
         street,
         street_number,
-        postal_code: data.postnummer.unwrap_or_default(),
+        postal_code,
         valid: data.valid,
         active: data.active,
-        matched_entry: None,
+        matched_entry,
     }
 }
 #[cfg(test)]
@@ -108,5 +133,14 @@ mod tests {
                 );
             }
         }
+    }
+    #[test]
+    fn test_debug_addresses_match_database() {
+        let addresses = load_debug_addresses();
+        let matched_count = addresses.iter().filter(|a| a.matched_entry.is_some()).count();
+        eprintln!("Matched {} out of {} debug addresses", matched_count, addresses.len());
+        // At least some addresses should match if database is loaded
+        assert!(matched_count > 0 || addresses.is_empty(), 
+                "Expected at least some debug addresses to match the database");
     }
 }
