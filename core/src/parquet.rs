@@ -17,6 +17,7 @@ use parquet::{
 };
 use rust_decimal::prelude::FromPrimitive;
 use std::{fs::File, sync::Arc};
+
 pub fn output_data_schema() -> Arc<Schema> {
     Arc::new(Schema::new(vec![
         Field::new("postnummer", DataType::Utf8, true),
@@ -189,6 +190,98 @@ fn write_batch_and_close(mut writer: ArrowWriter<File>, batch: RecordBatch) -> a
         .map_err(|e| anyhow::anyhow!("Failed to close writer: {}", e))?;
     Ok(())
 }
+
+/// Load debug addresses from minimal parquet file (only contains address strings)
+/// 
+/// This function reads a parquet file with ONLY the `adress` field populated.
+/// All other fields are NULL. This mimics the user clicking "Add Address" button
+/// multiple times with different addresses.
+/// 
+/// The returned `StoredAddress` objects can then be matched against the static
+/// parking database using fuzzy matching via `StoredAddress::to_local_data()`.
+/// 
+/// # Arguments
+/// * `bytes` - Byte slice containing the minimal debug.parquet file data
+/// 
+/// # Returns
+/// Vector of StoredAddress entries, each containing only an address string
+/// 
+/// # Example
+/// ```no_run
+/// use amp_core::parquet::load_debug_addresses;
+/// 
+/// const DEBUG_DATA: &[u8] = include_bytes!("../../../android/app/src/main/assets/debug.parquet");
+/// let addresses = load_debug_addresses(DEBUG_DATA).unwrap();
+/// println!("Loaded {} debug addresses", addresses.len());
+/// ```
+pub fn load_debug_addresses(bytes: &[u8]) -> anyhow::Result<Vec<StoredAddress>> {
+    println!("[load_debug_addresses] Loading debug addresses from {} bytes", bytes.len());
+    
+    let bytes_obj = Bytes::copy_from_slice(bytes);
+    let builder = ParquetRecordBatchReaderBuilder::try_new(bytes_obj)
+        .map_err(|e| anyhow::anyhow!("Failed to create Parquet reader builder: {}", e))?;
+    
+    let reader = builder
+        .build()
+        .map_err(|e| anyhow::anyhow!("Failed to build Parquet record batch reader: {}", e))?;
+    
+    let mut result = Vec::new();
+    
+    for batch_result in reader {
+        let batch = batch_result.map_err(|e| anyhow::anyhow!("Failed to read batch: {}", e))?;
+        
+        // Get the address column (only column we care about)
+        let address_array = get_string_column(&batch, "adress")?;
+        
+        for i in 0..batch.num_rows() {
+            let address_str = get_required_string(address_array, i);
+            if !address_str.is_empty() {
+                println!("[load_debug_addresses] Loaded address: '{}'", address_str);
+                result.push(StoredAddress::new(address_str));
+            }
+        }
+    }
+    
+    println!("[load_debug_addresses] Successfully loaded {} debug addresses", result.len());
+    Ok(result)
+}
+
+/// Load debug addresses from a file path (for non-Android/desktop testing)
+/// 
+/// # Arguments
+/// * `path` - Path to the debug.parquet file
+/// 
+/// # Returns
+/// Vector of StoredAddress entries
+pub fn load_debug_addresses_from_file(path: &str) -> anyhow::Result<Vec<StoredAddress>> {
+    let file = File::open(path)
+        .map_err(|e| anyhow::anyhow!("Failed to open debug parquet file: {}", e))?;
+    
+    let builder = ParquetRecordBatchReaderBuilder::try_new(file)
+        .map_err(|e| anyhow::anyhow!("Failed to create Parquet reader builder: {}", e))?;
+    
+    let reader = builder
+        .build()
+        .map_err(|e| anyhow::anyhow!("Failed to build Parquet record batch reader: {}", e))?;
+    
+    let mut result = Vec::new();
+    
+    for batch_result in reader {
+        let batch = batch_result.map_err(|e| anyhow::anyhow!("Failed to read batch: {}", e))?;
+        
+        let address_array = get_string_column(&batch, "adress")?;
+        
+        for i in 0..batch.num_rows() {
+            let address_str = get_required_string(address_array, i);
+            if !address_str.is_empty() {
+                result.push(StoredAddress::new(address_str));
+            }
+        }
+    }
+    
+    Ok(result)
+}
+
 /// Read parking data from parquet file
 pub fn read_db_parquet(file: File) -> anyhow::Result<Vec<OutputData>> {
     let mut reader = create_parquet_reader(file)?;
