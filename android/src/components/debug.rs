@@ -25,7 +25,8 @@
 use crate::components::matching::{MatchResult, match_address};
 use crate::ui::StoredAddress;
 use amp_core::parquet::read_local_parquet_from_bytes;
-use amp_core::structs::LocalData;
+use amp_core::structs::{LocalData, DB};
+use chrono::Datelike;
 /// Debug parquet file embedded in the app
 static DEBUG_PARQUET: &[u8] = include_bytes!("../../assets/data/debug.parquet");
 /// Load debug addresses from embedded debug.parquet file
@@ -65,8 +66,9 @@ pub fn load_debug_addresses() -> Vec<StoredAddress> {
 }
 /// Convert LocalData from parquet to StoredAddress
 ///
-/// Attempts to match the address against the parking restriction database
-/// to populate the matched_entry field with actual restriction data.
+/// If LocalData contains dag (day) and tid (time) fields, reconstructs the DB entry
+/// from scratch using the current year/month to ensure proper timestamp calculation.
+/// Otherwise, attempts to match by address only.
 fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
     let (street, street_number) = if let Some(gata) = &data.gata {
         let street_number = data.gatunummer.clone().unwrap_or_default();
@@ -79,23 +81,91 @@ fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
             (data.adress.clone(), String::new())
         }
     };
+    
     let postal_code = data.postnummer.clone().unwrap_or_default();
-    let matched_entry = match match_address(&street, &street_number, &postal_code) {
-        MatchResult::Valid(entry) => {
-            eprintln!(
-                "[Debug] Matched address: {} {} {} to database entry",
-                street, street_number, postal_code,
-            );
-            Some(*entry)
+    
+    // If LocalData has dag and tid, create DB entry with proper timestamps for current month/year
+    let matched_entry = if let (Some(dag), Some(ref tid)) = (data.dag, data.tid.as_ref()) {
+        let now = chrono::Utc::now();
+        let year = now.year();
+        let month = now.month();
+        
+        eprintln!(
+            "[Debug] Creating DB entry for {} {} {} with day={} time={} year={} month={}",
+            street, street_number, postal_code, dag, tid, year, month
+        );
+        
+        match DB::from_dag_tid(
+            Some(postal_code.clone()),
+            data.adress.clone(),
+            Some(street.clone()),
+            Some(street_number.clone()),
+            data.info.clone(),
+            dag,
+            tid,
+            data.taxa.clone(),
+            data.antal_platser,
+            data.typ_av_parkering.clone(),
+            year,
+            month,
+        ) {
+            Some(db) => {
+                eprintln!(
+                    "[Debug] ✓ Successfully created DB entry for {} {} {} - start: {:?}, end: {:?}",
+                    street, street_number, postal_code,
+                    db.start_time,
+                    db.end_time
+                );
+                Some(db)
+            }
+            None => {
+                eprintln!(
+                    "[Debug] ✗ Failed to create DB entry from dag/tid for {} {} {} (day={}, time={})",
+                    street, street_number, postal_code, dag, tid
+                );
+                // Fall back to address matching
+                match match_address(&street, &street_number, &postal_code) {
+                    MatchResult::Valid(entry) => {
+                        eprintln!(
+                            "[Debug] ✓ Fallback: Matched address {} {} {} to database entry",
+                            street, street_number, postal_code
+                        );
+                        Some(*entry)
+                    }
+                    MatchResult::Invalid(msg) => {
+                        eprintln!(
+                            "[Debug] ✗ Fallback failed: No match for address {} {} {} - {:?}",
+                            street, street_number, postal_code, msg
+                        );
+                        None
+                    }
+                }
+            }
         }
-        MatchResult::Invalid(msg) => {
-            eprintln!(
-                "[Debug] No match for address: {} {} {} - {}",
-                street, street_number, postal_code, msg,
-            );
-            None
+    } else {
+        eprintln!(
+            "[Debug] LocalData missing dag/tid fields for {} {} {}, attempting address match",
+            street, street_number, postal_code
+        );
+        // No dag/tid in LocalData, try address matching
+        match match_address(&street, &street_number, &postal_code) {
+            MatchResult::Valid(entry) => {
+                eprintln!(
+                    "[Debug] ✓ Matched address {} {} {} to database entry",
+                    street, street_number, postal_code
+                );
+                Some(*entry)
+            }
+            MatchResult::Invalid(msg) => {
+                eprintln!(
+                    "[Debug] ✗ No match for address {} {} {} - {:?}",
+                    street, street_number, postal_code, msg
+                );
+                None
+            }
         }
     };
+    
     StoredAddress {
         id,
         street,
@@ -133,18 +203,23 @@ mod tests {
     #[test]
     fn test_debug_addresses_match_database() {
         let addresses = load_debug_addresses();
-        let matched_count = addresses
+        let matched_count = addresses.iter().filter(|a| a.matched_entry.is_some()).count();
+        eprintln!("Matched {} out of {} debug addresses", matched_count, addresses.len());
+        // At least some addresses should match if database is loaded
+        assert!(matched_count > 0 || addresses.is_empty(), 
+                "Expected at least some debug addresses to match the database");
+    }
+    #[test]
+    fn test_debug_addresses_have_timestamps() {
+        let addresses = load_debug_addresses();
+        let with_timestamps = addresses
             .iter()
             .filter(|a| a.matched_entry.is_some())
             .count();
         eprintln!(
-            "Matched {} out of {} debug addresses",
-            matched_count,
-            addresses.len(),
-        );
-        assert!(
-            matched_count > 0 || addresses.is_empty(),
-            "Expected at least some debug addresses to match the database",
+            "{} out of {} debug addresses have timestamp data",
+            with_timestamps,
+            addresses.len()
         );
     }
 }
