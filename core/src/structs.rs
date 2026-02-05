@@ -53,6 +53,123 @@ pub struct LocalData {
     pub antal_platser: Option<u64>,
     pub typ_av_parkering: Option<String>,
 }
+/// Represents a user-stored address that needs to be matched against parking data
+/// This is equivalent to clicking "Add Address" in the UI - only has the raw address string
+#[derive(Debug, Clone)]
+pub struct StoredAddress {
+    pub adress: String,
+}
+
+impl StoredAddress {
+    /// Create a new stored address from just an address string
+    /// This mimics the user typing an address and clicking "Add"
+    pub fn new(adress: String) -> Self {
+        Self { adress }
+    }
+
+    /// Convert to a LocalData entry by attempting to match against parking database
+    /// This is the "fuzzy matching" step that happens when loading debug addresses
+    pub fn to_local_data(
+        &self,
+        static_data: &[(String, DB)],
+    ) -> Option<LocalData> {
+        println!("[StoredAddress::to_local_data] Attempting to match: '{}'", self.adress);
+        
+        // Extract potential street name and number from address
+        let (street, number) = Self::parse_address(&self.adress);
+        println!("[StoredAddress::to_local_data] Parsed -> street: '{}', number: '{}'", street, number);
+
+        // Search for matches
+        for (stored_addr, db) in static_data {
+            if Self::fuzzy_match(stored_addr, &self.adress, &street, &number) {
+                println!("[StoredAddress::to_local_data] ✅ MATCH! User: '{}' <-> DB: '{}'", self.adress, stored_addr);
+                // Found a match! Convert DB entry to LocalData
+                return Some(LocalData {
+                    valid: true,
+                    active: false, // Will be calculated based on current time
+                    postnummer: db.postnummer.clone(),
+                    adress: self.adress.clone(), // Use the user's input address
+                    gata: db.gata.clone(),
+                    gatunummer: db.gatunummer.clone(),
+                    info: db.info.clone(),
+                    tid: Self::format_time_range(db),
+                    dag: Self::extract_day_from_db(db),
+                    taxa: db.taxa.clone(),
+                    antal_platser: db.antal_platser,
+                    typ_av_parkering: db.typ_av_parkering.clone(),
+                });
+            }
+        }
+
+        println!("[StoredAddress::to_local_data] ❌ No match found for: '{}'", self.adress);
+        None // No match found
+    }
+
+    /// Parse address into street name and number components
+    fn parse_address(address: &str) -> (String, String) {
+        // Simple parsing: last token with digits is likely the number
+        let parts: Vec<&str> = address.split_whitespace().collect();
+
+        if let Some(last) = parts.last() {
+            if last.chars().any(|c| c.is_ascii_digit()) {
+                let street = parts[..parts.len() - 1].join(" ");
+                return (street, last.to_string());
+            }
+        }
+
+        (address.to_string(), String::new())
+    }
+
+    /// Fuzzy matching logic - matches if:
+    /// 1. Street names match (case-insensitive, ignoring diacritics)
+    /// 2. Numbers match (ignoring building codes like U1, U4, etc.)
+    fn fuzzy_match(db_address: &str, user_address: &str, street: &str, number: &str) -> bool {
+        // Normalize for comparison
+        let normalize = |s: &str| {
+            s.to_lowercase()
+                .chars()
+                .filter(|c| c.is_alphanumeric() || c.is_whitespace())
+                .collect::<String>()
+        };
+
+        let db_norm = normalize(db_address);
+        let user_norm = normalize(user_address);
+        let street_norm = normalize(street);
+
+        // Check if street name is in the DB address
+        if !db_norm.contains(&street_norm) {
+            return false;
+        }
+
+        // If user provided a number, check if it matches
+        if !number.is_empty() {
+            let number_digits: String = number.chars().filter(|c| c.is_ascii_digit()).collect();
+            if !number_digits.is_empty() {
+                return db_norm.contains(&number_digits);
+            }
+        }
+
+        true
+    }
+
+    /// Format DB time range for display
+    fn format_time_range(db: &DB) -> Option<String> {
+        let start = db.start_time_swedish();
+        let end = db.end_time_swedish();
+        Some(format!(
+            "{:02}{:02}-{:02}{:02}",
+            start.hour(),
+            start.minute(),
+            end.hour(),
+            end.minute()
+        ))
+    }
+
+    /// Extract day of month from DB entry
+    fn extract_day_from_db(db: &DB) -> Option<u8> {
+        Some(db.start_time_swedish().day() as u8)
+    }
+}
 /// Parameters for creating a DB entry from day and time strings
 #[derive(Debug, Clone)]
 pub struct DBParams {
@@ -186,10 +303,6 @@ impl DB {
     /// - Unrealistic dates that could cause calculation errors
     /// - Future-proofing while allowing reasonable historical data
     pub fn from_params(params: DBParams) -> Option<Self> {
-        eprintln!(
-            "[DB::from_params] Input: year={}, month={}, dag={}, tid='{}', adress='{}'",
-            params.year, params.month, params.dag, params.tid, params.adress,
-        );
         if !(2020..=2100).contains(&params.year) {
             eprintln!("[DB] Invalid year: {} (must be 2020-2100)", params.year);
             return None;
@@ -199,146 +312,35 @@ impl DB {
             return None;
         }
         let parts: Vec<&str> = params.tid.split('-').collect();
-        eprintln!(
-            "[DB::from_params] Split tid into {} parts: {:?}",
-            parts.len(),
-            parts
-        );
         if parts.len() != 2 {
             eprintln!(
-                "[DB] Invalid time format: '{}' (expected HHMM-HHMM, got {} parts)",
-                params.tid,
-                parts.len(),
+                "[DB] Invalid time format: '{}' (expected HHMM-HHMM)",
+                params.tid
             );
             return None;
         }
         let parse_hhmm = |s: &str| -> Option<NaiveTime> {
             let s = s.trim();
-            eprintln!(
-                "[DB::from_params] Parsing time component: '{}' (length={})",
-                s,
-                s.len(),
-            );
             if s.len() != 4 {
-                eprintln!("[DB::from_params] Time component length != 4: '{}'", s);
                 return None;
             }
-            let hour_str = &s[0..2];
-            let minute_str = &s[2..4];
-            eprintln!(
-                "[DB::from_params] Parsing hour='{}' minute='{}'",
-                hour_str, minute_str,
-            );
-            let hour: u32 = match hour_str.parse() {
-                Ok(h) => h,
-                Err(e) => {
-                    eprintln!(
-                        "[DB::from_params] Failed to parse hour '{}': {}",
-                        hour_str, e,
-                    );
-                    return None;
-                }
-            };
-            let minute: u32 = match minute_str.parse() {
-                Ok(m) => m,
-                Err(e) => {
-                    eprintln!(
-                        "[DB::from_params] Failed to parse minute '{}': {}",
-                        minute_str, e,
-                    );
-                    return None;
-                }
-            };
-            eprintln!("[DB::from_params] Parsed hour={} minute={}", hour, minute);
-            match NaiveTime::from_hms_opt(hour, minute, 0) {
-                Some(time) => {
-                    eprintln!("[DB::from_params] Created NaiveTime: {:?}", time);
-                    Some(time)
-                }
-                None => {
-                    eprintln!(
-                        "[DB::from_params] Invalid time components: hour={} minute={}",
-                        hour, minute,
-                    );
-                    None
-                }
-            }
+            let hour: u32 = s[0..2].parse().ok()?;
+            let minute: u32 = s[2..4].parse().ok()?;
+            NaiveTime::from_hms_opt(hour, minute, 0)
         };
-        let start_naive_time = match parse_hhmm(parts[0]) {
-            Some(t) => t,
-            None => {
-                eprintln!(
-                    "[DB::from_params] Failed to parse start time from '{}'",
-                    parts[0],
-                );
-                return None;
-            }
-        };
-        let end_naive_time = match parse_hhmm(parts[1]) {
-            Some(t) => t,
-            None => {
-                eprintln!(
-                    "[DB::from_params] Failed to parse end time from '{}'",
-                    parts[1],
-                );
-                return None;
-            }
-        };
-        eprintln!(
-            "[DB::from_params] Creating date from year={} month={} day={}",
-            params.year, params.month, params.dag,
-        );
-        let date = match NaiveDate::from_ymd_opt(params.year, params.month, params.dag as u32) {
-            Some(d) => {
-                eprintln!("[DB::from_params] Created date: {:?}", d);
-                d
-            }
-            None => {
-                eprintln!(
-                    "[DB::from_params] Invalid date: year={} month={} day={}",
-                    params.year, params.month, params.dag,
-                );
-                return None;
-            }
-        };
+        let start_naive_time = parse_hhmm(parts[0])?;
+        let end_naive_time = parse_hhmm(parts[1])?;
+        let date = NaiveDate::from_ymd_opt(params.year, params.month, params.dag as u32)?;
         let start_datetime = date.and_time(start_naive_time);
         let end_datetime = date.and_time(end_naive_time);
-        eprintln!(
-            "[DB::from_params] Created naive datetimes: start={:?} end={:?}",
-            start_datetime, end_datetime,
-        );
-        let start_time = match SWEDISH_TZ.from_local_datetime(&start_datetime).single() {
-            Some(dt) => {
-                let utc = dt.with_timezone(&Utc);
-                eprintln!("[DB::from_params] Converted start time to UTC: {:?}", utc);
-                utc
-            }
-            None => {
-                eprintln!(
-                    "[DB::from_params] Failed to convert start datetime to Swedish timezone: {:?}",
-                    start_datetime,
-                );
-                return None;
-            }
-        };
-        let end_time = match SWEDISH_TZ.from_local_datetime(&end_datetime).single() {
-            Some(dt) => {
-                let utc = dt.with_timezone(&Utc);
-                eprintln!("[DB::from_params] Converted end time to UTC: {:?}", utc);
-                utc
-            }
-            None => {
-                eprintln!(
-                    "[DB::from_params] Failed to convert end datetime to Swedish timezone: {:?}",
-                    end_datetime,
-                );
-                return None;
-            }
-        };
-        eprintln!(
-            "[DB::from_params] SUCCESS! Created DB entry with times: start={:?} end={:?}",
-            start_time, end_time,
-        );
+        let start_time = SWEDISH_TZ
+            .from_local_datetime(&start_datetime)
+            .single()?
+            .with_timezone(&Utc);
+        let end_time = SWEDISH_TZ
+            .from_local_datetime(&end_datetime)
+            .single()?
+            .with_timezone(&Utc);
         Some(DB {
             postnummer: params.postnummer,
             adress: params.adress,
@@ -577,5 +579,11 @@ mod tests {
         .unwrap();
         let swedish_time = db.start_time_swedish();
         assert_eq!(swedish_time.timezone(), SWEDISH_TZ);
+    }
+    #[test]
+    fn test_stored_address_parse() {
+        let (street, number) = StoredAddress::parse_address("Kornettsgatan 18C");
+        assert_eq!(street, "Kornettsgatan");
+        assert_eq!(number, "18C");
     }
 }
