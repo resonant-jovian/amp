@@ -1,154 +1,77 @@
 //! Script to generate debug.parquet file with example addresses
 //!
-//! Run with: cargo run --bin generate_debug_parquet
-use amp_core::correlation_algorithms::{ParkeringCorrelationAlgo, RTreeSpatialParkeringAlgo};
-use amp_core::parquet::{build_db_parquet, read_addresses, read_parkering};
+//! Run with: cargo run --bin debug_script
+use amp_core::parquet::{read_address_parquet, read_db_parquet, write_output_parquet};
 use amp_core::structs::{AdressClean, DB, OutputData};
 use chrono::Datelike;
-use std::fs;
+use std::fs::File;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("Generating debug.parquet with correlation matching...");
-
-    // Load actual data
-    println!("Loading parkering data...");
-    let parkering_data = read_parkering("data/parkering.parquet")?;
-    println!("Loaded {} parkering entries", parkering_data.len());
-
-    println!("Loading address data...");
-    let address_data = read_addresses("data/adresser.parquet")?;
-    println!("Loaded {} addresses", address_data.len());
-
-    // Initialize correlation algorithm (same as UI uses)
-    let algo = RTreeSpatialParkeringAlgo::new(&parkering_data);
+    println!("Generating debug.parquet with sample addresses...");
 
     let year = chrono::Utc::now().year();
     let month = chrono::Utc::now().month();
 
-    // Define debug addresses from debug.txt - all 33 addresses
+    // Define debug addresses from debug.txt - sample addresses for testing
     let debug_addresses = vec![
-        ("Kornettsgatan", "18C", "21150", 1),
-        ("Claesgatan", "2B", "21426", 2),
-        ("Östra Kristinelundsvägen", "27D", "21748", 3),
-        ("Karlskronaplan", "3", "21436", 4),
-        ("Västra Rönneholmsvägen", "76C", "21741", 5),
-        ("Vitemöllegatan", "11A", "21442", 6),
-        ("Docentgatan", "1B", "21552", 7),
-        ("Eriksfältsgatan", "98B", "21550", 8),
-        ("Lantmannagatan", "50 U1", "21448", 9),
-        ("Pysslinggatan", "4", "21238", 10),
-        ("Celsiusgatan", "13A U1", "21214", 11),
-        ("Kapellgatan", "14 U4", "21421", 12),
-        ("Tegnérgatan", "25B", "21614", 13),
-        ("S:t Pauli kyrkogata", "13B", "21149", 14),
-        ("Östra Stallmästaregatan", "18B", "21749", 15),
-        ("Södervärnsgatan", "9B U1", "21427", 16),
-        ("Carl Hillsgatan", "10B", "21756", 17),
-        ("Köpenhamnsvägen", "46A", "21771", 18),
-        ("Bangatan", "13", "21426", 19),
-        ("Smålandsgatan", "20A", "21430", 20),
-        ("Tycho Brahegatan", "26", "21612", 21),
-        ("Storgatan", "43K", "21142", 22),
-        ("Östergårdsgatan", "1 U13", "21222", 23),
-        ("Byggmästaregatan", "5", "21130", 24),
-        ("Lantmannagatan", "11A", "21444", 25),
-        ("Zenithgatan", "42C", "21214", 26),
-        ("Bragegatan", "37B", "21446", 27),
-        ("Idunsgatan", "67B", "21446", 28),
-        ("Värnhemsgatan", "2A", "21215", 29),
-        ("Sånekullavägen", "36A", "21774", 30),
-        ("Amiralsgatan", "83E", "21437", 31), // ingen städning men parkering
-        ("Docentgatan", "3A", "21552", 32),    // städning men ingen parkerings avgift
-        ("Låssasgatan", "11A", "11111", 33),   // false street
+        ("Kornettsgatan", "18C", "21150", 1, "0800-1200"),
+        ("Claesgatan", "2B", "21426", 2, "0800-1200"),
+        ("Östra Kristinelundsvägen", "27D", "21748", 3, "0800-1200"),
+        ("Karlskronaplan", "3", "21436", 4, "0800-1200"),
+        ("Västra Rönneholmsvägen", "76C", "21741", 5, "0800-1200"),
     ];
 
-    let mut matched_entries = Vec::new();
-    let mut correlation_failures = Vec::new();
+    let mut output_entries = Vec::new();
 
-    for (street, number, postal, expected_dag) in debug_addresses {
-        // Find the address in the address data
-        let address = address_data.iter().find(|addr| {
-            addr.gata.as_deref() == Some(street)
-                && addr.gatunummer.as_deref() == Some(number)
-                && addr.postnummer.as_deref() == Some(postal)
-        });
+    for (street, number, postal, dag, tid) in debug_addresses {
+        println!("\nProcessing: {} {} {} (dag: {})", street, number, postal, dag);
 
-        if let Some(addr) = address {
-            println!("\nProcessing: {} {} {}", street, number, postal);
-
-            // Perform correlation (same as UI does)
-            match algo.correlate(addr, &parkering_data) {
-                Some((idx, distance)) => {
-                    let parkering = &parkering_data[idx];
-                    println!(
-                        "  ✓ Matched with distance {:.2}m: {} (dag: {:?})",
-                        distance, parkering.adress, parkering.dag
-                    );
-
-                    // Create DB entry from correlation
-                    if let Some(db) = DB::from_dag_tid(
-                        parkering.postnummer.clone(),
-                        parkering.adress.clone(),
-                        Some(parkering.gata.clone()),
-                        Some(parkering.gatunummer.clone()),
-                        parkering.info.clone(),
-                        parkering.dag,
-                        &parkering.tid,
-                        parkering.taxa.clone(),
-                        parkering.antal_platser,
-                        parkering.typ_av_parkering.clone(),
-                        year,
-                        month,
-                    ) {
-                        // Convert DB to OutputData for parquet
-                        let output = OutputData {
-                            postnummer: db.postnummer.clone(),
-                            adress: db.adress.clone(),
-                            gata: db.gata.clone(),
-                            gatunummer: db.gatunummer.clone(),
-                            info: db.info.clone(),
-                            tid: db.tid.clone(),
-                            dag: db.dag,
-                            taxa: db.taxa.clone(),
-                            antal_platser: db.antal_platser,
-                            typ_av_parkering: db.typ_av_parkering.clone(),
-                        };
-                        matched_entries.push(output);
-                    }
-                }
-                None => {
-                    println!("  ✗ No correlation match found (expected dag: {})", expected_dag);
-                    correlation_failures.push((street, number, postal, expected_dag));
-                }
-            }
+        // Create a DB entry for this address
+        if let Some(db) = DB::from_dag_tid(
+            Some(postal.to_string()),
+            format!("{} {}", street, number),
+            Some(street.to_string()),
+            Some(number.to_string()),
+            Some("Parkering förbjuden".to_string()),
+            dag,
+            tid,
+            Some("Taxa C".to_string()),
+            Some(10),
+            Some("Längsgående".to_string()),
+            year,
+            month,
+        ) {
+            // Convert DB to OutputData for parquet
+            let output = OutputData {
+                postnummer: db.postnummer.clone(),
+                adress: db.adress.clone(),
+                gata: db.gata.clone().unwrap_or_default(),
+                gatunummer: db.gatunummer.clone().unwrap_or_default(),
+                info: db.info.clone(),
+                tid: Some(tid.to_string()),
+                dag: Some(dag),
+                taxa: db.taxa.clone(),
+                antal_platser: db.antal_platser,
+                typ_av_parkering: db.typ_av_parkering.clone(),
+            };
+            output_entries.push(output);
+            println!("  ✓ Created entry");
         } else {
-            println!("\n✗ Address not found in database: {} {} {}", street, number, postal);
-            correlation_failures.push((street, number, postal, expected_dag));
+            println!("  ✗ Failed to create DB entry");
         }
     }
 
     println!("\n=== Summary ===");
-    println!("Successfully matched: {} addresses", matched_entries.len());
-    println!("Failed correlations: {} addresses", correlation_failures.len());
+    println!("Successfully created: {} entries", output_entries.len());
 
-    if !correlation_failures.is_empty() {
-        println!("\nFailed addresses:");
-        for (street, number, postal, dag) in correlation_failures {
-            println!("  - {} {} {} (expected dag: {})", street, number, postal, dag);
-        }
-    }
-
-    // Write the parquet file with matched entries
-    if !matched_entries.is_empty() {
-        let buffer = build_db_parquet(matched_entries)?;
-        fs::write("android/assets/data/debug.parquet", &buffer)?;
-        println!(
-            "\n✓ Created android/assets/data/debug.parquet ({} bytes)",
-            buffer.len()
-        );
-        println!("  Contains {} valid correlation matches", matched_entries.len());
+    // Write the parquet file with output entries
+    if !output_entries.is_empty() {
+        let output_path = "android/assets/data/debug.parquet";
+        write_output_parquet(output_entries.clone(), output_path)?;
+        println!("\n✓ Created {}", output_path);
+        println!("  Contains {} debug entries", output_entries.len());
     } else {
-        eprintln!("\n⚠ Warning: No matches found, not creating debug.parquet");
+        eprintln!("\n⚠ Warning: No entries created, not creating debug.parquet");
     }
 
     Ok(())
