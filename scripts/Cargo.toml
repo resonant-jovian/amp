@@ -6,6 +6,7 @@ edition = "2024"
 amp-core = { path = "../core" }
 rust_decimal.workspace = true
 parquet.workspace = true
+arrow.workspace = true
 
 [[bin]]
 name = "debug_script"
