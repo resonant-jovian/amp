@@ -22,14 +22,11 @@
 //!     addr.active = !addr.active;
 //! }
 //! ```
-
 use crate::ui::StoredAddress;
 use amp_core::parquet::read_local_parquet_from_bytes;
 use amp_core::structs::LocalData;
-
 /// Debug parquet file embedded in the app
 static DEBUG_PARQUET: &[u8] = include_bytes!("../../assets/data/debug.parquet");
-
 /// Load debug addresses from embedded debug.parquet file
 ///
 /// Reads the debug.parquet file that contains example addresses for testing.
@@ -65,7 +62,6 @@ pub fn load_debug_addresses() -> Vec<StoredAddress> {
         }
     }
 }
-
 /// Extract postal code from address string
 ///
 /// Debug.parquet addresses are in format: "Street Number PostalCode"
@@ -74,21 +70,14 @@ pub fn load_debug_addresses() -> Vec<StoredAddress> {
 /// This function extracts the last 5 digits (removing spaces) as the postal code.
 fn extract_postal_code_from_address(adress: &str) -> Option<String> {
     let parts: Vec<&str> = adress.split_whitespace().collect();
-    
-    // Try to find postal code in last 2 parts (handles "214 46" format)
     if parts.len() >= 2 {
-        // Try last two parts combined (e.g., "214" + "46" = "21446")
-        let last_two = format!("{}{}", parts[parts.len()-2], parts[parts.len()-1]);
-        
-        // Check if it's all digits and 5 characters
+        let last_two = format!("{}{}", parts[parts.len() - 2], parts[parts.len() - 1]);
         if last_two.chars().all(|c| c.is_ascii_digit()) && last_two.len() == 5 {
             return Some(last_two);
         }
     }
-    
     None
 }
-
 /// Convert LocalData from parquet to StoredAddress
 ///
 /// This follows the same logic as storage.rs but adds special handling for
@@ -108,8 +97,6 @@ fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
             (data.adress.clone(), String::new())
         }
     };
-    
-    // Extract postal code: use postnummer if present, otherwise extract from address
     let postal_code = if let Some(ref pc) = data.postnummer {
         if !pc.is_empty() {
             pc.clone()
@@ -119,7 +106,6 @@ fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
     } else {
         extract_postal_code_from_address(&data.adress).unwrap_or_default()
     };
-    
     StoredAddress {
         id,
         street,
@@ -130,11 +116,9 @@ fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
         matched_entry: None,
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn test_load_debug_addresses() {
         let addresses = load_debug_addresses();
@@ -142,23 +126,18 @@ mod tests {
             assert!(!addr.street.is_empty(), "Address should have a street name");
         }
     }
-
     #[test]
     fn test_extract_postal_code_from_address() {
         assert_eq!(
             extract_postal_code_from_address("Idunsgatan 67B 214 46"),
-            Some("21446".to_string())
+            Some("21446".to_string()),
         );
         assert_eq!(
             extract_postal_code_from_address("Kornettsgatan 18C 211 50"),
-            Some("21150".to_string())
+            Some("21150".to_string()),
         );
-        assert_eq!(
-            extract_postal_code_from_address("Storgatan 10"),
-            None
-        );
+        assert_eq!(extract_postal_code_from_address("Storgatan 10"), None);
     }
-
     #[test]
     fn test_debug_addresses_have_postal_codes() {
         let addresses = load_debug_addresses();
