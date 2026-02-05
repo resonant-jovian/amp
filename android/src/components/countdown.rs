@@ -240,8 +240,10 @@ pub enum TimeBucket {
     Within6Hours,
     /// Restriction ends within 1 day
     Within1Day,
-    /// Restriction ends within 1 month
+    /// Restriction ends within 1 month (30 days)
     Within1Month,
+    /// Restriction ends more than 1 month away (>30 days)
+    MoreThan1Month,
     /// Invalid, expired, or far-future restriction
     Invalid,
 }
@@ -255,7 +257,8 @@ impl TimeBucket {
             TimeBucket::Now => "Urgent (< 4h)",
             TimeBucket::Within6Hours => "Soon (< 6h)",
             TimeBucket::Within1Day => "Today (< 24h)",
-            TimeBucket::Within1Month => "This Month",
+            TimeBucket::Within1Month => "This Month (< 30d)",
+            TimeBucket::MoreThan1Month => "Later (> 30d)",
             TimeBucket::Invalid => "Invalid/Expired",
         }
     }
@@ -269,6 +272,7 @@ impl TimeBucket {
             TimeBucket::Within6Hours => "🟡",
             TimeBucket::Within1Day => "🟢",
             TimeBucket::Within1Month => "⚪",
+            TimeBucket::MoreThan1Month => "🔵",
             TimeBucket::Invalid => "⚫",
         }
     }
@@ -311,10 +315,10 @@ pub fn bucket_for(restriction: &DB) -> TimeBucket {
         TimeBucket::Within6Hours
     } else if remaining <= Duration::days(1) {
         TimeBucket::Within1Day
-    } else if remaining <= Duration::days(31) {
+    } else if remaining <= Duration::days(30) {
         TimeBucket::Within1Month
     } else {
-        TimeBucket::Invalid
+        TimeBucket::MoreThan1Month
     }
 }
 /// Group multiple restrictions by time bucket
@@ -407,6 +411,7 @@ mod tests {
                 | TimeBucket::Within6Hours
                 | TimeBucket::Within1Day
                 | TimeBucket::Within1Month
+                | TimeBucket::MoreThan1Month
                 | TimeBucket::Invalid
         ),);
     }
@@ -415,7 +420,8 @@ mod tests {
         assert_eq!(TimeBucket::Now.label(), "Urgent (< 4h)");
         assert_eq!(TimeBucket::Within6Hours.label(), "Soon (< 6h)");
         assert_eq!(TimeBucket::Within1Day.label(), "Today (< 24h)");
-        assert_eq!(TimeBucket::Within1Month.label(), "This Month");
+        assert_eq!(TimeBucket::Within1Month.label(), "This Month (< 30d)");
+        assert_eq!(TimeBucket::MoreThan1Month.label(), "Later (> 30d)");
         assert_eq!(TimeBucket::Invalid.label(), "Invalid/Expired");
     }
     #[test]
@@ -424,6 +430,7 @@ mod tests {
         assert_eq!(TimeBucket::Within6Hours.icon(), "🟡");
         assert_eq!(TimeBucket::Within1Day.icon(), "🟢");
         assert_eq!(TimeBucket::Within1Month.icon(), "⚪");
+        assert_eq!(TimeBucket::MoreThan1Month.icon(), "🔵");
         assert_eq!(TimeBucket::Invalid.icon(), "⚫");
     }
     #[test]

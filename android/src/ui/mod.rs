@@ -163,7 +163,7 @@ fn fuzzy_match_address(street: &str, street_number: &str, postal_code: &str) -> 
 }
 use crate::ui::{
     addresses::Addresses,
-    panels::{ActivePanel, InvalidPanel, OneDayPanel, OneMonthPanel, SixHoursPanel},
+    panels::{ActivePanel, InvalidPanel, MoreThan1MonthPanel, OneDayPanel, OneMonthPanel, SixHoursPanel},
     top_bar::TopBar,
 };
 /// Main application component
@@ -300,6 +300,7 @@ pub fn App() -> Element {
             SixHoursPanel { addresses: stored_addresses.read().clone() }
             OneDayPanel { addresses: stored_addresses.read().clone() }
             OneMonthPanel { addresses: stored_addresses.read().clone() }
+            MoreThan1MonthPanel { addresses: stored_addresses.read().clone() }
             InvalidPanel { addresses: stored_addresses.read().clone() }
         }
         script {}

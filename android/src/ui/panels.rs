@@ -211,7 +211,7 @@ pub fn OneDayPanel(addresses: Vec<StoredAddress>) -> Element {
         }
     }
 }
-/// Panel displaying addresses within 1 month
+/// Panel displaying addresses within 1 month (30 days)
 ///
 /// # Props
 /// * `addresses` - Vector of all StoredAddress entries (will be filtered)
@@ -234,6 +234,54 @@ pub fn OneMonthPanel(addresses: Vec<StoredAddress>) -> Element {
         div { class: "category-container category-month",
             div { class: "category-title", "Inom 1 månad" }
             div { class: "category-content", id: "categoryMonth",
+                if count == 0 {
+                    div { class: "empty-state", "Inga adresser" }
+                } else {
+                    div { class: "address-list",
+                        {
+                            addrs
+                                .into_iter()
+                                .enumerate()
+                                .map(|(i, addr)| {
+                                    rsx! {
+                                        AddressItem {
+                                            key: "{i}",
+                                            addr: addr.clone(),
+                                            index: i,
+                                            on_remove: move |_| {},
+                                        }
+                                    }
+                                })
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+/// Panel displaying addresses more than 1 month away (>30 days)
+///
+/// # Props
+/// * `addresses` - Vector of all StoredAddress entries (will be filtered)
+#[component]
+pub fn MoreThan1MonthPanel(addresses: Vec<StoredAddress>) -> Element {
+    let mut addrs: Vec<_> = addresses
+        .into_iter()
+        .filter(|a| a.valid && a.active)
+        .filter(|a| {
+            if let Some(entry) = &a.matched_entry {
+                matches!(bucket_for(entry), TimeBucket::MoreThan1Month)
+            } else {
+                false
+            }
+        })
+        .collect();
+    addrs = sorting_time(addrs);
+    let count = addrs.len();
+    rsx! {
+        div { class: "category-container category-later",
+            div { class: "category-title", "Senare (>30 dagar)" }
+            div { class: "category-content", id: "categoryLater",
                 if count == 0 {
                     div { class: "empty-state", "Inga adresser" }
                 } else {
