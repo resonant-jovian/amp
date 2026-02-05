@@ -4,23 +4,28 @@
 //! 1. Loads all 33 addresses from the hardcoded debug.txt data
 //! 2. Uses the actual KDTree correlation algorithm (same as local.parquet generation)
 //! 3. Correlates addresses with miljödata and parkeringsavgifter
-//! 4. Writes results to android/assets/data/debug.parquet
+//! 4. Writes results to android/assets/data/debug.parquet using LocalData schema
+//! 5. Sets active=true and valid=true (when miljödata exists)
 //!
 //! Run with: cargo run --bin debug_script
 use amp_core::api::api;
 use amp_core::correlation_algorithms::{
     CorrelationAlgo, KDTreeParkeringAlgo, KDTreeSpatialAlgo, ParkeringCorrelationAlgo,
 };
-use amp_core::parquet::write_output_parquet;
-use amp_core::structs::{AdressClean, OutputData};
+use amp_core::parquet::build_local_parquet;
+use amp_core::structs::{AdressClean, LocalData};
 use rust_decimal::Decimal;
+use std::fs;
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🔧 Debug Script - Generating debug.parquet with real matching\n");
+
     println!("📂 Loading data from JSON files...");
     let (all_addresses, miljodata, parkering) = api()?;
     println!("  ✓ Loaded {} addresses", all_addresses.len());
     println!("  ✓ Loaded {} miljödata zones", miljodata.len());
     println!("  ✓ Loaded {} parkering zones", parkering.len());
+
     let debug_specs = vec![
         ("211 50", "Kornettsgatan 18C", "Kornettsgatan", "18C"),
         ("214 26", "Claesgatan 2B", "Claesgatan", "2B"),
@@ -86,6 +91,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ("215 52", "Docentgatan 3A", "Docentgatan", "3A"),
         ("111 11", "Låssasgatan 11A", "Låssasgatan", "11A"),
     ];
+
     println!("\n🔍 Finding addresses in dataset...");
     let mut debug_addresses = Vec::new();
     for (postnummer, full_addr, gata, gatunummer) in debug_specs {
@@ -94,6 +100,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 && addr.postnummer.as_ref().map(|p| p.replace(" ", ""))
                     == Some(postnummer.replace(" ", ""))
         });
+
         if let Some(addr) = found {
             debug_addresses.push(addr.clone());
             println!("  ✓ Found: {}", full_addr);
@@ -111,36 +118,44 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             });
         }
     }
+
     println!(
         "\n📊 Successfully prepared {} debug addresses",
         debug_addresses.len()
     );
+
     println!("\n🔄 Running correlation with KDTree algorithm...");
     let miljo_algo = KDTreeSpatialAlgo::new(&miljodata);
     let parkering_algo = KDTreeParkeringAlgo::new(&parkering);
     let cutoff = 20.0;
-    let mut output_entries = Vec::new();
+
+    let mut local_entries = Vec::new();
     let mut matched_count = 0;
+
     for addr in &debug_addresses {
         let miljo_match = miljo_algo.correlate(addr, &miljodata);
-        let (miljo_info, miljo_tid, miljo_dag) = if let Some((idx, dist)) = miljo_match {
-            if dist <= cutoff {
-                if let Some(miljo_data) = miljodata.get(idx) {
-                    matched_count += 1;
-                    (
-                        Some(miljo_data.info.clone()),
-                        Some(miljo_data.tid.clone()),
-                        Some(miljo_data.dag),
-                    )
+
+        let (miljo_info, miljo_tid, miljo_dag, has_miljo) =
+            if let Some((idx, dist)) = miljo_match {
+                if dist <= cutoff {
+                    if let Some(miljo_data) = miljodata.get(idx) {
+                        matched_count += 1;
+                        (
+                            Some(miljo_data.info.clone()),
+                            Some(miljo_data.tid.clone()),
+                            Some(miljo_data.dag),
+                            true,
+                        )
+                    } else {
+                        (None, None, None, false)
+                    }
                 } else {
-                    (None, None, None)
+                    (None, None, None, false)
                 }
             } else {
-                (None, None, None)
-            }
-        } else {
-            (None, None, None)
-        };
+                (None, None, None, false)
+            };
+
         let parkering_match = parkering_algo.correlate(addr, &parkering);
         let (taxa, antal_platser, typ_av_parkering) = if let Some((idx, dist)) = parkering_match {
             if dist <= cutoff {
@@ -159,11 +174,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         } else {
             (None, None, None)
         };
-        let output = OutputData {
+
+        // Convert to LocalData with valid and active flags
+        let local_data = LocalData {
+            valid: has_miljo, // true when miljödata exists
+            active: true,     // default to true for debug addresses
             postnummer: addr.postnummer.clone(),
             adress: addr.adress.clone(),
-            gata: addr.gata.clone(),
-            gatunummer: addr.gatunummer.clone(),
+            gata: Some(addr.gata.clone()),
+            gatunummer: Some(addr.gatunummer.clone()),
             info: miljo_info,
             tid: miljo_tid,
             dag: miljo_dag,
@@ -171,26 +190,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             antal_platser,
             typ_av_parkering,
         };
-        output_entries.push(output);
+
+        local_entries.push(local_data);
     }
+
     println!("  ✓ Correlation complete");
     println!(
         "  ✓ Matched: {}/{} addresses",
         matched_count,
         debug_addresses.len()
     );
+
     let output_path = "android/assets/data/debug.parquet";
-    println!("\n💾 Writing to {}...", output_path);
-    write_output_parquet(output_entries.clone(), output_path)?;
+    println!("\n💾 Writing to {} using LocalData schema...", output_path);
+
+    // Build parquet bytes and write to file
+    let parquet_bytes = build_local_parquet(local_entries.clone())?;
+    fs::write(output_path, parquet_bytes)?;
+
     println!("\n✅ Debug script complete!");
     println!(
         "  ✓ Created {} with {} entries",
         output_path,
-        output_entries.len()
+        local_entries.len()
     );
     println!(
-        "  ✓ {} addresses have miljödata or parkering matches",
+        "  ✓ {} addresses have miljödata matches (valid=true)",
         matched_count
     );
+    println!("  ✓ All addresses set to active=true by default");
+    println!("  ✓ Schema: LocalData (compatible with Android debug mode)");
+
     Ok(())
 }
