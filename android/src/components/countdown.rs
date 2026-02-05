@@ -172,40 +172,27 @@ pub fn time_until_start(restriction: &DB) -> Option<Duration> {
 /// ```
 pub fn time_until_next_occurrence(restriction: &DB) -> Option<Duration> {
     let now = Utc::now();
-    
-    // If restriction hasn't ended yet, use normal calculation
     if let Some(duration) = restriction.time_until_end(now) {
         return Some(duration);
     }
-    
-    // Restriction has passed - calculate next month's occurrence
     let current_date = now.date_naive();
     let restriction_day = restriction.start_time_swedish().day();
-    
-    // Calculate next month
     let mut next_month = current_date.month() + 1;
     let mut next_year = current_date.year();
     if next_month > 12 {
         next_month = 1;
         next_year += 1;
     }
-    
-    // Try to create the date for next month
-    // This will fail for invalid dates like Feb 30
     use chrono::NaiveDate;
     let next_date = NaiveDate::from_ymd_opt(next_year, next_month, restriction_day)?;
-    
-    // Recreate the restriction times for next month
     let start_time = restriction.start_time_swedish().time();
     let next_datetime = next_date.and_time(start_time);
-    
     use amp_core::structs::SWEDISH_TZ;
     use chrono::TimeZone;
     let next_start = SWEDISH_TZ
         .from_local_datetime(&next_datetime)
         .single()?
         .with_timezone(&Utc);
-    
     if now < next_start {
         Some(next_start - now)
     } else {
@@ -540,10 +527,8 @@ mod tests {
     }
     #[test]
     fn test_time_until_next_occurrence() {
-        // Test with a date in the past
         let db = create_test_db(1, "0800-1200");
         let result = time_until_next_occurrence(&db);
-        // Should return Some duration to next month
         assert!(result.is_some());
     }
 }
