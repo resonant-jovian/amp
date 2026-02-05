@@ -186,6 +186,11 @@ impl DB {
     /// - Unrealistic dates that could cause calculation errors
     /// - Future-proofing while allowing reasonable historical data
     pub fn from_params(params: DBParams) -> Option<Self> {
+        eprintln!(
+            "[DB::from_params] Input: year={}, month={}, dag={}, tid='{}', adress='{}'",
+            params.year, params.month, params.dag, params.tid, params.adress
+        );
+        
         if !(2020..=2100).contains(&params.year) {
             eprintln!("[DB] Invalid year: {} (must be 2020-2100)", params.year);
             return None;
@@ -194,36 +199,140 @@ impl DB {
             eprintln!("[DB] Invalid month: {} (must be 1-12)", params.month);
             return None;
         }
+        
         let parts: Vec<&str> = params.tid.split('-').collect();
+        eprintln!("[DB::from_params] Split tid into {} parts: {:?}", parts.len(), parts);
+        
         if parts.len() != 2 {
             eprintln!(
-                "[DB] Invalid time format: '{}' (expected HHMM-HHMM)",
-                params.tid
+                "[DB] Invalid time format: '{}' (expected HHMM-HHMM, got {} parts)",
+                params.tid,
+                parts.len()
             );
             return None;
         }
+        
         let parse_hhmm = |s: &str| -> Option<NaiveTime> {
             let s = s.trim();
+            eprintln!("[DB::from_params] Parsing time component: '{}' (length={})", s, s.len());
+            
             if s.len() != 4 {
+                eprintln!("[DB::from_params] Time component length != 4: '{}'", s);
                 return None;
             }
-            let hour: u32 = s[0..2].parse().ok()?;
-            let minute: u32 = s[2..4].parse().ok()?;
-            NaiveTime::from_hms_opt(hour, minute, 0)
+            
+            let hour_str = &s[0..2];
+            let minute_str = &s[2..4];
+            eprintln!("[DB::from_params] Parsing hour='{}' minute='{}'", hour_str, minute_str);
+            
+            let hour: u32 = match hour_str.parse() {
+                Ok(h) => h,
+                Err(e) => {
+                    eprintln!("[DB::from_params] Failed to parse hour '{}': {}", hour_str, e);
+                    return None;
+                }
+            };
+            
+            let minute: u32 = match minute_str.parse() {
+                Ok(m) => m,
+                Err(e) => {
+                    eprintln!("[DB::from_params] Failed to parse minute '{}': {}", minute_str, e);
+                    return None;
+                }
+            };
+            
+            eprintln!("[DB::from_params] Parsed hour={} minute={}", hour, minute);
+            
+            match NaiveTime::from_hms_opt(hour, minute, 0) {
+                Some(time) => {
+                    eprintln!("[DB::from_params] Created NaiveTime: {:?}", time);
+                    Some(time)
+                }
+                None => {
+                    eprintln!("[DB::from_params] Invalid time components: hour={} minute={}", hour, minute);
+                    None
+                }
+            }
         };
-        let start_naive_time = parse_hhmm(parts[0])?;
-        let end_naive_time = parse_hhmm(parts[1])?;
-        let date = NaiveDate::from_ymd_opt(params.year, params.month, params.dag as u32)?;
+        
+        let start_naive_time = match parse_hhmm(parts[0]) {
+            Some(t) => t,
+            None => {
+                eprintln!("[DB::from_params] Failed to parse start time from '{}'", parts[0]);
+                return None;
+            }
+        };
+        
+        let end_naive_time = match parse_hhmm(parts[1]) {
+            Some(t) => t,
+            None => {
+                eprintln!("[DB::from_params] Failed to parse end time from '{}'", parts[1]);
+                return None;
+            }
+        };
+        
+        eprintln!(
+            "[DB::from_params] Creating date from year={} month={} day={}",
+            params.year, params.month, params.dag
+        );
+        
+        let date = match NaiveDate::from_ymd_opt(params.year, params.month, params.dag as u32) {
+            Some(d) => {
+                eprintln!("[DB::from_params] Created date: {:?}", d);
+                d
+            }
+            None => {
+                eprintln!(
+                    "[DB::from_params] Invalid date: year={} month={} day={}",
+                    params.year, params.month, params.dag
+                );
+                return None;
+            }
+        };
+        
         let start_datetime = date.and_time(start_naive_time);
         let end_datetime = date.and_time(end_naive_time);
-        let start_time = SWEDISH_TZ
-            .from_local_datetime(&start_datetime)
-            .single()?
-            .with_timezone(&Utc);
-        let end_time = SWEDISH_TZ
-            .from_local_datetime(&end_datetime)
-            .single()?
-            .with_timezone(&Utc);
+        
+        eprintln!(
+            "[DB::from_params] Created naive datetimes: start={:?} end={:?}",
+            start_datetime, end_datetime
+        );
+        
+        let start_time = match SWEDISH_TZ.from_local_datetime(&start_datetime).single() {
+            Some(dt) => {
+                let utc = dt.with_timezone(&Utc);
+                eprintln!("[DB::from_params] Converted start time to UTC: {:?}", utc);
+                utc
+            }
+            None => {
+                eprintln!(
+                    "[DB::from_params] Failed to convert start datetime to Swedish timezone: {:?}",
+                    start_datetime
+                );
+                return None;
+            }
+        };
+        
+        let end_time = match SWEDISH_TZ.from_local_datetime(&end_datetime).single() {
+            Some(dt) => {
+                let utc = dt.with_timezone(&Utc);
+                eprintln!("[DB::from_params] Converted end time to UTC: {:?}", utc);
+                utc
+            }
+            None => {
+                eprintln!(
+                    "[DB::from_params] Failed to convert end datetime to Swedish timezone: {:?}",
+                    end_datetime
+                );
+                return None;
+            }
+        };
+        
+        eprintln!(
+            "[DB::from_params] SUCCESS! Created DB entry with times: start={:?} end={:?}",
+            start_time, end_time
+        );
+        
         Some(DB {
             postnummer: params.postnummer,
             adress: params.adress,
