@@ -762,8 +762,8 @@ input[type=number] {
     right: 0;
     bottom: 0;
     background: rgba(224, 224, 224, 0.6);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(1px);
+    -webkit-backdrop-filter: blur(1px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -994,17 +994,17 @@ input[type=number] {
     right: 0;
     bottom: 0;
     background: rgba(224, 224, 224, 0.6);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(1px);
+    -webkit-backdrop-filter: blur(1px);
     z-index: 999;
     animation: fadeIn 0.2s ease;
 }
 
 /* Settings Dropdown Container - Fixed in top-right */
 .settings-dropdown {
-    position: fixed;
-    top: 16px;
-    right: 16px;
+    position: absolute;
+    top: 21px;
+    margin-right: 13px;
     width: 280px;
     max-height: 70vh;
     background: var(--color-bg);

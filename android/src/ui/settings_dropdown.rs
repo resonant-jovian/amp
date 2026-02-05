@@ -5,7 +5,6 @@ use dioxus_free_icons::icons::md_action_icons::{MdBugReport, MdInfo, MdSettings}
 use dioxus_free_icons::icons::md_navigation_icons::{MdExpandLess, MdExpandMore};
 use dioxus_free_icons::icons::md_social_icons::MdNotifications;
 use std::time::Duration;
-
 /// Represents which settings section is currently open
 #[derive(Clone, Copy, PartialEq)]
 enum OpenSection {
@@ -15,7 +14,6 @@ enum OpenSection {
     Info,
     Debug,
 }
-
 /// Settings dropdown panel component
 ///
 /// Displays a slide-in panel from the top-right with expandable settings sections.
@@ -54,33 +52,23 @@ pub fn SettingsDropdown(
 ) -> Element {
     let _settings = use_signal(load_settings);
     let mut open_section = use_signal(|| OpenSection::None);
-
-    // Helper to handle section toggle with animation delay
     let toggle_section = move |target_section: OpenSection| {
         spawn(async move {
             let current = open_section();
-            
             if current == target_section {
-                // Simply close if clicking the currently open section
                 open_section.set(OpenSection::None);
             } else if current != OpenSection::None {
-                // Close current section first
                 open_section.set(OpenSection::None);
-                // Wait for close animation to complete (300ms)
                 tokio::time::sleep(Duration::from_millis(300)).await;
-                // Open new section
                 open_section.set(target_section);
             } else {
-                // No section open, just open the target
                 open_section.set(target_section);
             }
         });
     };
-
     if !is_open {
         return rsx!();
     }
-
     rsx! {
         div { class: "settings-overlay", onclick: move |_| on_close.call(()),
             div {
