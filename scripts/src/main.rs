@@ -7,30 +7,36 @@
 //! 4. Writes results to android/assets/data/debug.parquet
 //!
 //! Run with: cargo run --bin debug_script
-
 use amp_core::api::api;
-use amp_core::correlation_algorithms::{KDTreeParkeringAlgo, KDTreeSpatialAlgo, ParkeringCorrelationAlgo, CorrelationAlgo};
+use amp_core::correlation_algorithms::{
+    CorrelationAlgo, KDTreeParkeringAlgo, KDTreeSpatialAlgo, ParkeringCorrelationAlgo,
+};
 use amp_core::parquet::write_output_parquet;
-use amp_core::structs::{AdressClean, MiljoeDataClean, OutputData, ParkeringsDataClean};
+use amp_core::structs::{AdressClean, OutputData};
 use rust_decimal::Decimal;
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🔧 Debug Script - Generating debug.parquet with real matching\n");
-
-    // Load the actual miljödata and parkeringsavgifter
     println!("📂 Loading data from JSON files...");
     let (all_addresses, miljodata, parkering) = api()?;
     println!("  ✓ Loaded {} addresses", all_addresses.len());
     println!("  ✓ Loaded {} miljödata zones", miljodata.len());
     println!("  ✓ Loaded {} parkering zones", parkering.len());
-
-    // Define the 33 debug addresses from debug.txt
     let debug_specs = vec![
         ("211 50", "Kornettsgatan 18C", "Kornettsgatan", "18C"),
         ("214 26", "Claesgatan 2B", "Claesgatan", "2B"),
-        ("217 48", "Östra Kristinelundsvägen 27D", "Östra Kristinelundsvägen", "27D"),
+        (
+            "217 48",
+            "Östra Kristinelundsvägen 27D",
+            "Östra Kristinelundsvägen",
+            "27D",
+        ),
         ("214 36", "Karlskronaplan 3", "Karlskronaplan", "3"),
-        ("217 41", "Västra Rönneholmsvägen 76C", "Västra Rönneholmsvägen", "76C"),
+        (
+            "217 41",
+            "Västra Rönneholmsvägen 76C",
+            "Västra Rönneholmsvägen",
+            "76C",
+        ),
         ("214 42", "Vitemöllegatan 11A", "Vitemöllegatan", "11A"),
         ("215 52", "Docentgatan 1B", "Docentgatan", "1B"),
         ("215 50", "Eriksfältsgatan 98B", "Eriksfältsgatan", "98B"),
@@ -39,16 +45,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ("212 14", "Celsiusgatan 13A U1", "Celsiusgatan", "13A U1"),
         ("214 21", "Kapellgatan 14 U4", "Kapellgatan", "14 U4"),
         ("216 14", "Tegnérgatan 25B", "Tegnérgatan", "25B"),
-        ("211 49", "S:t Pauli kyrkogata 13B", "S:t Pauli kyrkogata", "13B"),
-        ("217 49", "Östra Stallmästaregatan 18B", "Östra Stallmästaregatan", "18B"),
-        ("214 27", "Södervärnsgatan 9B U1", "Södervärnsgatan", "9B U1"),
+        (
+            "211 49",
+            "S:t Pauli kyrkogata 13B",
+            "S:t Pauli kyrkogata",
+            "13B",
+        ),
+        (
+            "217 49",
+            "Östra Stallmästaregatan 18B",
+            "Östra Stallmästaregatan",
+            "18B",
+        ),
+        (
+            "214 27",
+            "Södervärnsgatan 9B U1",
+            "Södervärnsgatan",
+            "9B U1",
+        ),
         ("217 56", "Carl Hillsgatan 10B", "Carl Hillsgatan", "10B"),
         ("217 71", "Köpenhamnsvägen 46A", "Köpenhamnsvägen", "46A"),
         ("214 26", "Bangatan 13", "Bangatan", "13"),
         ("214 30", "Smålandsgatan 20A", "Smålandsgatan", "20A"),
         ("216 12", "Tycho Brahegatan 26", "Tycho Brahegatan", "26"),
         ("211 42", "Storgatan 43K", "Storgatan", "43K"),
-        ("212 22", "Östergårdsgatan 1 U13", "Östergårdsgatan", "1 U13"),
+        (
+            "212 22",
+            "Östergårdsgatan 1 U13",
+            "Östergårdsgatan",
+            "1 U13",
+        ),
         ("211 30", "Byggmästaregatan 5", "Byggmästaregatan", "5"),
         ("214 44", "Lantmannagatan 11A", "Lantmannagatan", "11A"),
         ("212 14", "Zenithgatan 42C", "Zenithgatan", "42C"),
@@ -58,25 +84,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ("217 74", "Sånekullavägen 36A", "Sånekullavägen", "36A"),
         ("214 37", "Amiralsgatan 83E", "Amiralsgatan", "83E"),
         ("215 52", "Docentgatan 3A", "Docentgatan", "3A"),
-        ("111 11", "Låssasgatan 11A", "Låssasgatan", "11A"), // false street
+        ("111 11", "Låssasgatan 11A", "Låssasgatan", "11A"),
     ];
-
     println!("\n🔍 Finding addresses in dataset...");
     let mut debug_addresses = Vec::new();
-
     for (postnummer, full_addr, gata, gatunummer) in debug_specs {
-        // Try to find this address in the loaded addresses
         let found = all_addresses.iter().find(|addr| {
             addr.adress == full_addr
-                && addr.postnummer.as_ref().map(|p| p.replace(" ", "")) == Some(postnummer.replace(" ", ""))
+                && addr.postnummer.as_ref().map(|p| p.replace(" ", ""))
+                    == Some(postnummer.replace(" ", ""))
         });
-
         if let Some(addr) = found {
             debug_addresses.push(addr.clone());
             println!("  ✓ Found: {}", full_addr);
         } else {
-            // If not found, create a placeholder (this will likely have no matches)
-            println!("  ⚠ Not found in dataset: {} - creating placeholder", full_addr);
+            println!(
+                "  ⚠ Not found in dataset: {} - creating placeholder",
+                full_addr
+            );
             debug_addresses.push(AdressClean {
                 coordinates: [Decimal::ZERO, Decimal::ZERO],
                 postnummer: Some(postnummer.to_string()),
@@ -86,20 +111,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             });
         }
     }
-
-    println!("\n📊 Successfully prepared {} debug addresses", debug_addresses.len());
-
-    // Initialize correlation algorithms (same as server/main.rs uses)
+    println!(
+        "\n📊 Successfully prepared {} debug addresses",
+        debug_addresses.len()
+    );
     println!("\n🔄 Running correlation with KDTree algorithm...");
     let miljo_algo = KDTreeSpatialAlgo::new(&miljodata);
     let parkering_algo = KDTreeParkeringAlgo::new(&parkering);
-    let cutoff = 20.0; // Same as default in server
-
+    let cutoff = 20.0;
     let mut output_entries = Vec::new();
     let mut matched_count = 0;
-
     for addr in &debug_addresses {
-        // Correlate with miljödata
         let miljo_match = miljo_algo.correlate(addr, &miljodata);
         let (miljo_info, miljo_tid, miljo_dag) = if let Some((idx, dist)) = miljo_match {
             if dist <= cutoff {
@@ -119,8 +141,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         } else {
             (None, None, None)
         };
-
-        // Correlate with parkering
         let parkering_match = parkering_algo.correlate(addr, &parkering);
         let (taxa, antal_platser, typ_av_parkering) = if let Some((idx, dist)) = parkering_match {
             if dist <= cutoff {
@@ -139,8 +159,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         } else {
             (None, None, None)
         };
-
-        // Create OutputData entry
         let output = OutputData {
             postnummer: addr.postnummer.clone(),
             adress: addr.adress.clone(),
@@ -153,21 +171,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             antal_platser,
             typ_av_parkering,
         };
-
         output_entries.push(output);
     }
-
     println!("  ✓ Correlation complete");
-    println!("  ✓ Matched: {}/{} addresses", matched_count, debug_addresses.len());
-
-    // Write to debug.parquet
+    println!(
+        "  ✓ Matched: {}/{} addresses",
+        matched_count,
+        debug_addresses.len()
+    );
     let output_path = "android/assets/data/debug.parquet";
     println!("\n💾 Writing to {}...", output_path);
     write_output_parquet(output_entries.clone(), output_path)?;
-
     println!("\n✅ Debug script complete!");
-    println!("  ✓ Created {} with {} entries", output_path, output_entries.len());
-    println!("  ✓ {} addresses have miljödata or parkering matches", matched_count);
-
+    println!(
+        "  ✓ Created {} with {} entries",
+        output_path,
+        output_entries.len()
+    );
+    println!(
+        "  ✓ {} addresses have miljödata or parkering matches",
+        matched_count
+    );
     Ok(())
 }
