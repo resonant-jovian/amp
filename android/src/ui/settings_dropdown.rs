@@ -4,10 +4,21 @@ use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::md_action_icons::{MdBugReport, MdInfo, MdSettings};
 use dioxus_free_icons::icons::md_navigation_icons::{MdExpandLess, MdExpandMore};
 use dioxus_free_icons::icons::md_social_icons::MdNotifications;
+
+/// Represents which settings section is currently open
+#[derive(Clone, Copy, PartialEq)]
+enum OpenSection {
+    None,
+    Aviseringar,
+    Installningar,
+    Info,
+    Debug,
+}
+
 /// Settings dropdown panel component
 ///
 /// Displays a slide-in panel from the top-right with expandable settings sections.
-/// Each section can be independently expanded/collapsed.
+/// Only one section can be expanded at a time (accordion behavior).
 /// Uses neumorphic design system with gradient header matching the HTML reference.
 /// Settings items use scaled-down address-item container styling.
 ///
@@ -40,13 +51,12 @@ pub fn SettingsDropdown(
     on_toggle_debug: EventHandler<()>,
 ) -> Element {
     let _settings = use_signal(load_settings);
-    let mut aviseringar_open = use_signal(|| false);
-    let mut installningar_open = use_signal(|| false);
-    let mut info_open = use_signal(|| false);
-    let mut debug_open = use_signal(|| false);
+    let mut open_section = use_signal(|| OpenSection::None);
+
     if !is_open {
         return rsx!();
     }
+
     rsx! {
         div { class: "settings-overlay", onclick: move |_| on_close.call(()),
             div {
@@ -64,8 +74,14 @@ pub fn SettingsDropdown(
                     div { class: "settings-section",
                         button {
                             class: "settings-section-header",
-                            onclick: move |_| aviseringar_open.set(!aviseringar_open()),
-                            "aria-expanded": if aviseringar_open() { "true" } else { "false" },
+                            onclick: move |_| {
+                                if open_section() == OpenSection::Aviseringar {
+                                    open_section.set(OpenSection::None);
+                                } else {
+                                    open_section.set(OpenSection::Aviseringar);
+                                }
+                            },
+                            "aria-expanded": if open_section() == OpenSection::Aviseringar { "true" } else { "false" },
                             div { class: "settings-section-header-left",
                                 Icon {
                                     icon: MdNotifications,
@@ -75,7 +91,7 @@ pub fn SettingsDropdown(
                                 span { "Aviseringar" }
                             }
                             span { class: "settings-section-arrow",
-                                if aviseringar_open() {
+                                if open_section() == OpenSection::Aviseringar {
                                     Icon {
                                         icon: MdExpandLess,
                                         width: 16,
@@ -92,7 +108,7 @@ pub fn SettingsDropdown(
                         }
                         div {
                             class: "settings-section-content",
-                            "aria-hidden": if aviseringar_open() { "false" } else { "true" },
+                            "aria-hidden": if open_section() == OpenSection::Aviseringar { "false" } else { "true" },
                             div { class: "settings-section-body",
                                 div { class: "settings-toggle-item" }
                             }
@@ -101,14 +117,20 @@ pub fn SettingsDropdown(
                     div { class: "settings-section",
                         button {
                             class: "settings-section-header",
-                            onclick: move |_| installningar_open.set(!installningar_open()),
-                            "aria-expanded": if installningar_open() { "true" } else { "false" },
+                            onclick: move |_| {
+                                if open_section() == OpenSection::Installningar {
+                                    open_section.set(OpenSection::None);
+                                } else {
+                                    open_section.set(OpenSection::Installningar);
+                                }
+                            },
+                            "aria-expanded": if open_section() == OpenSection::Installningar { "true" } else { "false" },
                             div { class: "settings-section-header-left",
                                 Icon { icon: MdSettings, width: 16, height: 16 }
                                 span { "Inställningar" }
                             }
                             span { class: "settings-section-arrow",
-                                if installningar_open() {
+                                if open_section() == OpenSection::Installningar {
                                     Icon {
                                         icon: MdExpandLess,
                                         width: 16,
@@ -125,7 +147,7 @@ pub fn SettingsDropdown(
                         }
                         div {
                             class: "settings-section-content",
-                            "aria-hidden": if installningar_open() { "false" } else { "true" },
+                            "aria-hidden": if open_section() == OpenSection::Installningar { "false" } else { "true" },
                             div { class: "settings-section-body",
                                 div { class: "settings-toggle-item",
                                     div { class: "settings-item-text" }
@@ -136,14 +158,20 @@ pub fn SettingsDropdown(
                     div { class: "settings-section",
                         button {
                             class: "settings-section-header",
-                            onclick: move |_| info_open.set(!info_open()),
-                            "aria-expanded": if info_open() { "true" } else { "false" },
+                            onclick: move |_| {
+                                if open_section() == OpenSection::Info {
+                                    open_section.set(OpenSection::None);
+                                } else {
+                                    open_section.set(OpenSection::Info);
+                                }
+                            },
+                            "aria-expanded": if open_section() == OpenSection::Info { "true" } else { "false" },
                             div { class: "settings-section-header-left",
                                 Icon { icon: MdInfo, width: 16, height: 16 }
                                 span { "Info" }
                             }
                             span { class: "settings-section-arrow",
-                                if info_open() {
+                                if open_section() == OpenSection::Info {
                                     Icon {
                                         icon: MdExpandLess,
                                         width: 16,
@@ -160,7 +188,7 @@ pub fn SettingsDropdown(
                         }
                         div {
                             class: "settings-section-content",
-                            "aria-hidden": if info_open() { "false" } else { "true" },
+                            "aria-hidden": if open_section() == OpenSection::Info { "false" } else { "true" },
                             div { class: "settings-section-body",
                                 h4 { class: "info-heading", "Om appen" }
                                 p { class: "info-text",
@@ -175,8 +203,14 @@ pub fn SettingsDropdown(
                     div { class: "settings-section",
                         button {
                             class: "settings-section-header",
-                            onclick: move |_| debug_open.set(!debug_open()),
-                            "aria-expanded": if debug_open() { "true" } else { "false" },
+                            onclick: move |_| {
+                                if open_section() == OpenSection::Debug {
+                                    open_section.set(OpenSection::None);
+                                } else {
+                                    open_section.set(OpenSection::Debug);
+                                }
+                            },
+                            "aria-expanded": if open_section() == OpenSection::Debug { "true" } else { "false" },
                             div { class: "settings-section-header-left",
                                 Icon {
                                     icon: MdBugReport,
@@ -186,7 +220,7 @@ pub fn SettingsDropdown(
                                 span { "Debug" }
                             }
                             span { class: "settings-section-arrow",
-                                if debug_open() {
+                                if open_section() == OpenSection::Debug {
                                     Icon {
                                         icon: MdExpandLess,
                                         width: 16,
@@ -203,7 +237,7 @@ pub fn SettingsDropdown(
                         }
                         div {
                             class: "settings-section-content",
-                            "aria-hidden": if debug_open() { "false" } else { "true" },
+                            "aria-hidden": if open_section() == OpenSection::Debug { "false" } else { "true" },
                             div { class: "settings-section-body",
                                 div { class: "settings-toggle-item",
                                     div { class: "settings-item-text",
