@@ -722,12 +722,12 @@ input[type=number] {
 }
 
 .category-later .category-title {
-    background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.1);
+    background: linear-gradient(135deg, #00897B 0%, #00695C 100%);
+    box-shadow: 0 8px 16px rgba(0, 137, 123, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2);
 }
 
 .category-later .category-content {
-    background: rgba(0, 0, 0, 0.08);
+    background: rgba(0, 137, 123, 0.08);
 }
 
 .address-row {
