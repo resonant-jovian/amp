@@ -1,10 +1,9 @@
 //! Script to generate debug.parquet file with example addresses
 //!
 //! Run with: cargo run --bin debug_script
-use amp_core::parquet::{read_address_parquet, read_db_parquet, write_output_parquet};
-use amp_core::structs::{AdressClean, DB, OutputData};
+use amp_core::parquet::write_output_parquet;
+use amp_core::structs::{OutputData, DB};
 use chrono::Datelike;
-use std::fs::File;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Generating debug.parquet with sample addresses...");
