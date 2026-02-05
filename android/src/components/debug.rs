@@ -79,27 +79,23 @@ fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
             (data.adress.clone(), String::new())
         }
     };
-    
     let postal_code = data.postnummer.clone().unwrap_or_default();
-    
-    // Attempt to match address against parking database
     let matched_entry = match match_address(&street, &street_number, &postal_code) {
         MatchResult::Valid(entry) => {
             eprintln!(
                 "[Debug] Matched address: {} {} {} to database entry",
-                street, street_number, postal_code
+                street, street_number, postal_code,
             );
             Some(*entry)
         }
         MatchResult::Invalid(msg) => {
             eprintln!(
                 "[Debug] No match for address: {} {} {} - {}",
-                street, street_number, postal_code, msg
+                street, street_number, postal_code, msg,
             );
             None
         }
     };
-    
     StoredAddress {
         id,
         street,
@@ -137,10 +133,18 @@ mod tests {
     #[test]
     fn test_debug_addresses_match_database() {
         let addresses = load_debug_addresses();
-        let matched_count = addresses.iter().filter(|a| a.matched_entry.is_some()).count();
-        eprintln!("Matched {} out of {} debug addresses", matched_count, addresses.len());
-        // At least some addresses should match if database is loaded
-        assert!(matched_count > 0 || addresses.is_empty(), 
-                "Expected at least some debug addresses to match the database");
+        let matched_count = addresses
+            .iter()
+            .filter(|a| a.matched_entry.is_some())
+            .count();
+        eprintln!(
+            "Matched {} out of {} debug addresses",
+            matched_count,
+            addresses.len(),
+        );
+        assert!(
+            matched_count > 0 || addresses.is_empty(),
+            "Expected at least some debug addresses to match the database",
+        );
     }
 }
