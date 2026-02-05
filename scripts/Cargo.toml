@@ -4,7 +4,6 @@ edition = "2024"
 
 [dependencies]
 amp-core = { path = "../core" }
-rust_decimal.workspace = true
 parquet.workspace = true
 arrow.workspace = true
 
