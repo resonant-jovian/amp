@@ -280,8 +280,8 @@ pub fn MoreThan1MonthPanel(addresses: Vec<StoredAddress>) -> Element {
     let count = addrs.len();
     rsx! {
         div { class: "category-container category-later",
-            div { class: "category-title", "Senare (>30 dagar)" }
-            div { class: "category-content", id: "categoryLater",
+            div { class: "category-title", "30+ dagar)" }
+            div { class: "category-content", id: "category-later",
                 if count == 0 {
                     div { class: "empty-state", "Inga adresser" }
                 } else {
