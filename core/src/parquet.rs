@@ -599,3 +599,108 @@ pub fn build_local_parquet(data: Vec<LocalData>) -> anyhow::Result<Vec<u8>> {
         .map_err(|e| anyhow::anyhow!("Failed to close writer: {}", e))?;
     Ok(buffer)
 }
+/// Schema for settings data parquet format
+pub fn settings_data_schema() -> Arc<Schema> {
+    Arc::new(Schema::new(vec![
+        Field::new("stadning_nu", DataType::Boolean, false),
+        Field::new("sex_timmar", DataType::Boolean, false),
+        Field::new("en_dag", DataType::Boolean, false),
+        Field::new("theme", DataType::Utf8, false),
+        Field::new("language", DataType::Utf8, false),
+    ]))
+}
+/// Build SettingsData into a parquet-encoded in-memory buffer
+pub fn build_settings_parquet(data: Vec<SettingsData>) -> anyhow::Result<Vec<u8>> {
+    if data.is_empty() {
+        return Err(anyhow::anyhow!("Empty settings data"));
+    }
+    let schema = settings_data_schema();
+    let mut buffer = Vec::new();
+    let props = WriterProperties::builder()
+        .set_statistics_enabled(EnabledStatistics::None)
+        .build();
+    let mut writer = ArrowWriter::try_new(&mut buffer, schema.clone(), Some(props))
+        .map_err(|e| anyhow::anyhow!("Failed to create ArrowWriter: {}", e))?;
+    let mut stadning_nu_builder = BooleanBuilder::new();
+    let mut sex_timmar_builder = BooleanBuilder::new();
+    let mut en_dag_builder = BooleanBuilder::new();
+    let mut theme_builder = StringBuilder::new();
+    let mut language_builder = StringBuilder::new();
+    for row in data {
+        stadning_nu_builder.append_value(row.stadning_nu);
+        sex_timmar_builder.append_value(row.sex_timmar);
+        en_dag_builder.append_value(row.en_dag);
+        theme_builder.append_value(&row.theme);
+        language_builder.append_value(&row.language);
+    }
+    let batch = RecordBatch::try_new(
+        schema.clone(),
+        vec![
+            Arc::new(stadning_nu_builder.finish()),
+            Arc::new(sex_timmar_builder.finish()),
+            Arc::new(en_dag_builder.finish()),
+            Arc::new(theme_builder.finish()),
+            Arc::new(language_builder.finish()),
+        ],
+    )
+    .map_err(|e| anyhow::anyhow!("Failed to create record batch: {}", e))?;
+    writer
+        .write(&batch)
+        .map_err(|e| anyhow::anyhow!("Failed to write batch: {}", e))?;
+    writer
+        .close()
+        .map_err(|e| anyhow::anyhow!("Failed to close writer: {}", e))?;
+    Ok(buffer)
+}
+/// Read settings data from parquet file
+pub fn read_settings_parquet(file: File) -> anyhow::Result<Vec<SettingsData>> {
+    let mut reader = create_parquet_reader(file)?;
+    let mut result = Vec::new();
+    while let Some(batch) = reader.next().transpose()? {
+        let stadning_nu = get_boolean_column(&batch, "stadning_nu")?;
+        let sex_timmar = get_boolean_column(&batch, "sex_timmar")?;
+        let en_dag = get_boolean_column(&batch, "en_dag")?;
+        let theme = get_string_column(&batch, "theme")?;
+        let language = get_string_column(&batch, "language")?;
+        for i in 0..batch.num_rows() {
+            let entry = SettingsData {
+                stadning_nu: get_boolean_with_default(stadning_nu, i, true),
+                sex_timmar: get_boolean_with_default(sex_timmar, i, true),
+                en_dag: get_boolean_with_default(en_dag, i, false),
+                theme: get_required_string(theme, i),
+                language: get_required_string(language, i),
+            };
+            result.push(entry);
+        }
+    }
+    Ok(result)
+}
+/// Read SettingsData from embedded bytes (for Android)
+pub fn read_settings_parquet_from_bytes(bytes: &[u8]) -> anyhow::Result<Vec<SettingsData>> {
+    let bytes_obj = Bytes::copy_from_slice(bytes);
+    let builder = ParquetRecordBatchReaderBuilder::try_new(bytes_obj)
+        .map_err(|e| anyhow::anyhow!("Failed to create Parquet reader builder: {}", e))?;
+    let reader = builder
+        .build()
+        .map_err(|e| anyhow::anyhow!("Failed to build Parquet record batch reader: {}", e))?;
+    let mut result = Vec::new();
+    for batch_result in reader {
+        let batch = batch_result.map_err(|e| anyhow::anyhow!("Failed to read batch: {}", e))?;
+        let stadning_nu = get_boolean_column(&batch, "stadning_nu")?;
+        let sex_timmar = get_boolean_column(&batch, "sex_timmar")?;
+        let en_dag = get_boolean_column(&batch, "en_dag")?;
+        let theme = get_string_column(&batch, "theme")?;
+        let language = get_string_column(&batch, "language")?;
+        for i in 0..batch.num_rows() {
+            let entry = SettingsData {
+                stadning_nu: get_boolean_with_default(stadning_nu, i, true),
+                sex_timmar: get_boolean_with_default(sex_timmar, i, true),
+                en_dag: get_boolean_with_default(en_dag, i, false),
+                theme: get_required_string(theme, i),
+                language: get_required_string(language, i),
+            };
+            result.push(entry);
+        }
+    }
+    Ok(result)
+}

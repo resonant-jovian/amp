@@ -1,24 +1,25 @@
 //! Settings state management for Android app
 //!
-//! Provides persistent storage for user preferences including:
+//! Provides persistent storage for user preferences using Parquet format:
 //! - Notification settings (städas nu, 6 hours, 1 day before)
 //! - Theme preference (dark/light mode)
 //! - Language selection
-//! - Debug mode toggle
 //!
-//! Settings are stored in a JSON file for easy serialization.
-use serde::{Deserialize, Serialize};
+//! Settings are stored in a Parquet file (settings.parquet) for efficient binary storage.
+use amp_core::parquet::{build_settings_parquet, read_settings_parquet};
+use amp_core::structs::SettingsData;
 use std::fs;
+use std::fs::File;
 use std::path::PathBuf;
 use std::sync::Mutex;
 /// Thread-safe settings mutex
 static SETTINGS_LOCK: Mutex<()> = Mutex::new(());
 #[cfg(target_os = "android")]
-const SETTINGS_FILE_NAME: &str = "settings.json";
+const SETTINGS_FILE_NAME: &str = "settings.parquet";
 #[cfg(not(target_os = "android"))]
-const SETTINGS_FILE_NAME: &str = "settings.json";
+const SETTINGS_FILE_NAME: &str = "settings.parquet";
 /// Notification timing preferences
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct NotificationSettings {
     /// Notify when cleaning is currently happening
     pub stadning_nu: bool,
@@ -37,14 +38,28 @@ impl Default for NotificationSettings {
     }
 }
 /// Theme preference
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub enum Theme {
     #[default]
     Light,
     Dark,
 }
+impl Theme {
+    fn to_string(&self) -> String {
+        match self {
+            Theme::Light => "Light".to_string(),
+            Theme::Dark => "Dark".to_string(),
+        }
+    }
+    fn from_string(s: &str) -> Self {
+        match s {
+            "Dark" => Theme::Dark,
+            _ => Theme::Light,
+        }
+    }
+}
 /// Supported languages
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub enum Language {
     #[default]
     Svenska,
@@ -61,13 +76,46 @@ impl Language {
             Language::Francais => "Français",
         }
     }
+    fn to_string(&self) -> String {
+        self.as_str().to_string()
+    }
+    fn from_string(s: &str) -> Self {
+        match s {
+            "English" => Language::English,
+            "Espanol" => Language::Espanol,
+            "Francais" => Language::Francais,
+            _ => Language::Svenska,
+        }
+    }
 }
 /// Complete app settings
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub struct AppSettings {
     pub notifications: NotificationSettings,
     pub theme: Theme,
     pub language: Language,
+}
+/// Convert AppSettings to SettingsData for Parquet storage
+fn to_settings_data(settings: &AppSettings) -> SettingsData {
+    SettingsData {
+        stadning_nu: settings.notifications.stadning_nu,
+        sex_timmar: settings.notifications.sex_timmar,
+        en_dag: settings.notifications.en_dag,
+        theme: settings.theme.to_string(),
+        language: settings.language.to_string(),
+    }
+}
+/// Convert SettingsData from Parquet to AppSettings
+fn from_settings_data(data: SettingsData) -> AppSettings {
+    AppSettings {
+        notifications: NotificationSettings {
+            stadning_nu: data.stadning_nu,
+            sex_timmar: data.sex_timmar,
+            en_dag: data.en_dag,
+        },
+        theme: Theme::from_string(&data.theme),
+        language: Language::from_string(&data.language),
+    }
 }
 /// Get the settings file path
 #[cfg(target_os = "android")]
@@ -102,18 +150,22 @@ pub fn load_settings() -> AppSettings {
         match get_settings_path() {
             Ok(path) => {
                 if path.exists() {
-                    match fs::read_to_string(&path) {
-                        Ok(contents) => match serde_json::from_str::<AppSettings>(&contents) {
-                            Ok(settings) => {
-                                eprintln!("[Settings] Loaded from {:?}", path);
-                                return settings;
+                    match File::open(&path) {
+                        Ok(file) => match read_settings_parquet(file) {
+                            Ok(settings_vec) => {
+                                if let Some(settings_data) = settings_vec.first() {
+                                    eprintln!("[Settings] Loaded from {:?}", path);
+                                    return from_settings_data(settings_data.clone());
+                                } else {
+                                    eprintln!("[Settings] Parquet file empty, using defaults");
+                                }
                             }
                             Err(e) => {
-                                eprintln!("[Settings] Failed to parse settings: {}", e);
+                                eprintln!("[Settings] Failed to parse parquet: {}", e);
                             }
                         },
                         Err(e) => {
-                            eprintln!("[Settings] Failed to read file: {}", e);
+                            eprintln!("[Settings] Failed to open file: {}", e);
                         }
                     }
                 } else {
@@ -152,9 +204,10 @@ pub fn save_settings(settings: &AppSettings) -> Result<(), String> {
     #[cfg(any(target_os = "android", not(target_os = "android")))]
     {
         let path = get_settings_path()?;
-        let json = serde_json::to_string_pretty(settings)
-            .map_err(|e| format!("Failed to serialize settings: {}", e))?;
-        fs::write(&path, json).map_err(|e| format!("Failed to write settings file: {}", e))?;
+        let settings_data = to_settings_data(settings);
+        let buffer = build_settings_parquet(vec![settings_data])
+            .map_err(|e| format!("Failed to build parquet: {}", e))?;
+        fs::write(&path, buffer).map_err(|e| format!("Failed to write settings file: {}", e))?;
         eprintln!("[Settings] Saved to {:?}", path);
         Ok(())
     }
@@ -165,17 +218,41 @@ mod tests {
     #[test]
     fn test_default_settings() {
         let settings = AppSettings::default();
-        assert_eq!(settings.theme, Theme::Dark);
+        assert_eq!(settings.theme, Theme::Light);
         assert_eq!(settings.language, Language::Svenska);
         assert!(settings.notifications.stadning_nu);
         assert!(settings.notifications.sex_timmar);
         assert!(!settings.notifications.en_dag);
     }
     #[test]
-    fn test_settings_serialization() {
-        let settings = AppSettings::default();
-        let json = serde_json::to_string(&settings).unwrap();
-        let deserialized: AppSettings = serde_json::from_str(&json).unwrap();
-        assert_eq!(settings, deserialized);
+    fn test_settings_conversion_roundtrip() {
+        let original = AppSettings {
+            notifications: NotificationSettings {
+                stadning_nu: false,
+                sex_timmar: true,
+                en_dag: true,
+            },
+            theme: Theme::Dark,
+            language: Language::English,
+        };
+        let settings_data = to_settings_data(&original);
+        let restored = from_settings_data(settings_data);
+        assert_eq!(original, restored);
+    }
+    #[test]
+    fn test_settings_parquet_roundtrip() {
+        let settings = AppSettings {
+            notifications: NotificationSettings {
+                stadning_nu: true,
+                sex_timmar: false,
+                en_dag: true,
+            },
+            theme: Theme::Dark,
+            language: Language::Espanol,
+        };
+        let result = save_settings(&settings);
+        assert!(result.is_ok(), "Save should succeed");
+        let loaded = load_settings();
+        assert_eq!(settings, loaded, "Loaded settings should match saved");
     }
 }

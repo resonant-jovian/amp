@@ -422,6 +422,32 @@ impl CorrelationResult {
         }
     }
 }
+/// Settings data for Parquet persistence
+/// Contains app preferences for notifications, theme, and language
+#[derive(Debug, Clone, PartialEq)]
+pub struct SettingsData {
+    /// Notify when cleaning is currently happening
+    pub stadning_nu: bool,
+    /// Notify 6 hours before cleaning
+    pub sex_timmar: bool,
+    /// Notify 1 day before cleaning
+    pub en_dag: bool,
+    /// Theme preference: "Light" or "Dark"
+    pub theme: String,
+    /// Language: "Svenska", "English", "Espanol", or "Francais"
+    pub language: String,
+}
+impl Default for SettingsData {
+    fn default() -> Self {
+        Self {
+            stadning_nu: true,
+            sex_timmar: true,
+            en_dag: true,
+            theme: "Light".to_string(),
+            language: "Svenska".to_string(),
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;

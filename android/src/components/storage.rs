@@ -289,64 +289,7 @@ pub fn write_addresses_to_device(addresses: &[StoredAddress]) -> Result<(), Stri
         Ok(())
     }
 }
-/// Load addresses from parquet file
-#[cfg(target_os = "android")]
-fn load_from_parquet() -> Result<Vec<StoredAddress>, String> {
-    ensure_storage_files()?;
-    let local_path = get_local_parquet_path()?;
-    let file =
-        File::open(&local_path).map_err(|e| format!("Failed to open parquet file: {}", e))?;
-    let local_data =
-        read_local_parquet(file).map_err(|e| format!("Failed to read parquet data: {}", e))?;
-    let addresses: Vec<StoredAddress> = local_data
-        .into_iter()
-        .enumerate()
-        .filter(|(_, data)| !data.adress.is_empty())
-        .map(|(idx, data)| from_local_data(data, idx))
-        .collect();
-    Ok(addresses)
-}
-/// Save addresses to parquet file with backup rotation
-#[cfg(target_os = "android")]
-fn save_to_parquet(addresses: &[StoredAddress]) -> Result<(), String> {
-    let local_path = get_local_parquet_path()?;
-    let backup_path = get_backup_parquet_path()?;
-    let local_data: Vec<LocalData> = addresses.iter().map(to_local_data).collect();
-    let data_to_write = if local_data.is_empty() {
-        vec![LocalData {
-            valid: false,
-            active: false,
-            postnummer: None,
-            adress: String::new(),
-            gata: None,
-            gatunummer: None,
-            info: None,
-            tid: None,
-            dag: None,
-            taxa: None,
-            antal_platser: None,
-            typ_av_parkering: None,
-        }]
-    } else {
-        local_data
-    };
-    let buffer = build_local_parquet(data_to_write)
-        .map_err(|e| format!("Failed to build parquet: {}", e))?;
-    if backup_path.exists() {
-        fs::remove_file(&backup_path).map_err(|e| format!("Failed to delete old backup: {}", e))?;
-    }
-    if local_path.exists() {
-        fs::rename(&local_path, &backup_path)
-            .map_err(|e| format!("Failed to create backup: {}", e))?;
-    }
-    fs::write(&local_path, buffer).map_err(|e| format!("Failed to write parquet file: {}", e))?;
-    eprintln!(
-        "[Storage] Wrote {} addresses to {:?} (backup created)",
-        addresses.len(),
-        local_path,
-    );
-    Ok(())
-}
+
 /// Clear all stored addresses (thread-safe)
 ///
 /// Removes all saved addresses from persistent storage by writing empty files.
@@ -376,6 +319,137 @@ pub fn clear_all_addresses() -> Result<(), String> {
 pub fn count_stored_addresses() -> usize {
     read_addresses_from_device().len()
 }
+/// Load addresses from parquet file
+#[cfg(target_os = "android")]
+fn load_from_parquet() -> Result<Vec<StoredAddress>, String> {
+    eprintln!("[Storage::load_from_parquet] Starting load operation");
+    ensure_storage_files()?;
+    let local_path = get_local_parquet_path()?;
+    eprintln!(
+        "[Storage::load_from_parquet] Opening file: {:?}",
+        local_path
+    );
+    let file =
+        File::open(&local_path).map_err(|e| format!("Failed to open parquet file: {}", e))?;
+    eprintln!("[Storage::load_from_parquet] File opened successfully");
+    let local_data =
+        read_local_parquet(file).map_err(|e| format!("Failed to read parquet data: {}", e))?;
+    eprintln!(
+        "[Storage::load_from_parquet] Read {} LocalData entries from parquet",
+        local_data.len(),
+    );
+    let addresses: Vec<StoredAddress> = local_data
+        .into_iter()
+        .enumerate()
+        .filter(|(idx, data)| {
+            let keep = !data.adress.is_empty();
+            if !keep {
+                eprintln!(
+                    "[Storage::load_from_parquet] Filtering out empty address at index {}",
+                    idx,
+                );
+            }
+            keep
+        })
+        .map(|(idx, data)| {
+            eprintln!(
+                "[Storage::load_from_parquet] Converting entry {}: adress='{}', valid={}, active={}",
+                idx,
+                data.adress,
+                data.valid,
+                data.active,
+            );
+            from_local_data(data, idx)
+        })
+        .collect();
+    eprintln!(
+        "[Storage::load_from_parquet] Successfully loaded {} addresses",
+        addresses.len(),
+    );
+    Ok(addresses)
+}
+/// Save addresses to parquet file with backup rotation
+#[cfg(target_os = "android")]
+fn save_to_parquet(addresses: &[StoredAddress]) -> Result<(), String> {
+    eprintln!(
+        "[Storage::save_to_parquet] Starting save operation for {} addresses",
+        addresses.len(),
+    );
+    let local_path = get_local_parquet_path()?;
+    let backup_path = get_backup_parquet_path()?;
+    eprintln!("[Storage::save_to_parquet] Converting StoredAddress to LocalData");
+    let local_data: Vec<LocalData> = addresses
+        .iter()
+        .enumerate()
+        .map(|(idx, addr)| {
+            eprintln!(
+                "[Storage::save_to_parquet] Converting address {}: {} {}, postal_code={}, valid={}, active={}",
+                idx,
+                addr.street,
+                addr.street_number,
+                addr.postal_code,
+                addr.valid,
+                addr.active,
+            );
+            to_local_data(addr)
+        })
+        .collect();
+    let data_to_write = if local_data.is_empty() {
+        eprintln!("[Storage::save_to_parquet] No data to write, creating empty placeholder",);
+        vec![LocalData {
+            valid: false,
+            active: false,
+            postnummer: None,
+            adress: String::new(),
+            gata: None,
+            gatunummer: None,
+            info: None,
+            tid: None,
+            dag: None,
+            taxa: None,
+            antal_platser: None,
+            typ_av_parkering: None,
+        }]
+    } else {
+        local_data
+    };
+    eprintln!(
+        "[Storage::save_to_parquet] Building parquet buffer for {} entries",
+        data_to_write.len(),
+    );
+    let buffer = build_local_parquet(data_to_write)
+        .map_err(|e| format!("Failed to build parquet: {}", e))?;
+    eprintln!(
+        "[Storage::save_to_parquet] Built parquet buffer of {} bytes",
+        buffer.len(),
+    );
+    if backup_path.exists() {
+        eprintln!(
+            "[Storage::save_to_parquet] Deleting old backup: {:?}",
+            backup_path
+        );
+        fs::remove_file(&backup_path).map_err(|e| format!("Failed to delete old backup: {}", e))?;
+    }
+    if local_path.exists() {
+        eprintln!(
+            "[Storage::save_to_parquet] Renaming {:?} to {:?}",
+            local_path, backup_path,
+        );
+        fs::rename(&local_path, &backup_path)
+            .map_err(|e| format!("Failed to create backup: {}", e))?;
+    }
+    eprintln!(
+        "[Storage::save_to_parquet] Writing new file to {:?}",
+        local_path
+    );
+    fs::write(&local_path, buffer).map_err(|e| format!("Failed to write parquet file: {}", e))?;
+    eprintln!(
+        "[Storage::save_to_parquet] ✅ Successfully wrote {} addresses to {:?} (backup created)",
+        addresses.len(),
+        local_path,
+    );
+    Ok(())
+}
 #[cfg(test)]
 mod tests {
     #[allow(unused_imports)]
@@ -399,5 +473,70 @@ mod tests {
         assert_eq!(original.postal_code, restored.postal_code);
         assert_eq!(original.valid, restored.valid);
         assert_eq!(original.active, restored.active);
+    }
+    #[allow(unused_imports)]
+    use super::*;
+    #[test]
+    #[cfg(target_os = "android")]
+    fn test_to_from_local_data_roundtrip() {
+        let original = StoredAddress {
+            id: 1,
+            street: "Storgatan".to_string(),
+            street_number: "10".to_string(),
+            postal_code: "22100".to_string(),
+            valid: true,
+            active: true,
+            matched_entry: None,
+        };
+        let local_data = to_local_data(&original);
+        let restored = from_local_data(local_data, 1);
+        assert_eq!(original.street, restored.street);
+        assert_eq!(original.street_number, restored.street_number);
+        assert_eq!(original.postal_code, restored.postal_code);
+        assert_eq!(original.valid, restored.valid);
+        assert_eq!(original.active, restored.active);
+    }
+    #[test]
+    #[cfg(target_os = "android")]
+    fn test_storage_parquet_roundtrip() {
+        let _ = clear_all_addresses();
+        let addresses = vec![
+            StoredAddress {
+                id: 1,
+                street: "Kornettsgatan".to_string(),
+                street_number: "18C".to_string(),
+                postal_code: "21438".to_string(),
+                valid: true,
+                active: false,
+                matched_entry: None,
+            },
+            StoredAddress {
+                id: 2,
+                street: "Storgatan".to_string(),
+                street_number: "5".to_string(),
+                postal_code: "22100".to_string(),
+                valid: true,
+                active: true,
+                matched_entry: None,
+            },
+        ];
+        let save_result = write_addresses_to_device(&addresses);
+        assert!(
+            save_result.is_ok(),
+            "Save should succeed: {:?}",
+            save_result
+        );
+        let loaded = read_addresses_from_device();
+        assert_eq!(loaded.len(), 2, "Should load 2 addresses");
+        assert_eq!(loaded[0].street, "Kornettsgatan");
+        assert_eq!(loaded[0].street_number, "18C");
+        assert_eq!(loaded[0].postal_code, "21438");
+        assert_eq!(loaded[0].valid, true);
+        assert_eq!(loaded[0].active, false);
+        assert_eq!(loaded[1].street, "Storgatan");
+        assert_eq!(loaded[1].street_number, "5");
+        assert_eq!(loaded[1].postal_code, "22100");
+        assert_eq!(loaded[1].valid, true);
+        assert_eq!(loaded[1].active, true);
     }
 }
