@@ -25,12 +25,10 @@
 //! ```
 use crate::ui::StoredAddress;
 use amp_core::parquet::load_debug_addresses as load_from_parquet;
-
 /// Debug parquet file embedded in the app
 /// Contains 'adress' and 'postnummer' fields - all other fields are NULL
 /// This mimics user input via "Add Address" button
 static DEBUG_PARQUET: &[u8] = include_bytes!("../../assets/data/debug.parquet");
-
 /// Load debug addresses from embedded debug.parquet file
 ///
 /// Reads the minimal debug.parquet file that contains address strings and postal codes.
@@ -47,46 +45,36 @@ static DEBUG_PARQUET: &[u8] = include_bytes!("../../assets/data/debug.parquet");
 ///
 /// let debug_addrs = debug::load_debug_addresses();
 /// println!("Loaded {} debug addresses", debug_addrs.len());
-/// 
+///
 /// // Check how many matched successfully
 /// let valid_count = debug_addrs.iter().filter(|a| a.valid).count();
 /// println!("{} addresses matched parking database", valid_count);
 /// ```
 pub fn load_debug_addresses() -> Vec<StoredAddress> {
     eprintln!("[Debug] Loading debug addresses from embedded parquet");
-    
     match load_from_parquet(DEBUG_PARQUET) {
         Ok(debug_addresses) => {
             eprintln!(
                 "[Debug] Successfully loaded {} debug addresses from minimal parquet",
                 debug_addresses.len(),
             );
-            
-            // Convert core::DebugAddress to UI::StoredAddress using fuzzy matching
             let ui_addresses: Vec<StoredAddress> = debug_addresses
                 .into_iter()
                 .map(|debug_addr| {
-                    // Parse the address string to extract street and number components
                     let (street, street_number) = parse_address(&debug_addr.adress);
-                    
                     eprintln!(
                         "[Debug] Creating address: '{}' + '{}' (postal: {})",
-                        street, street_number, debug_addr.postnummer
+                        street, street_number, debug_addr.postnummer,
                     );
-                    
-                    // Use StoredAddress::new() which performs fuzzy matching
-                    // Pass the postal code from the parquet file
                     StoredAddress::new(street, street_number, debug_addr.postnummer)
                 })
                 .collect();
-            
             let valid_count = ui_addresses.iter().filter(|a| a.valid).count();
             eprintln!(
                 "[Debug] Fuzzy matching results: {}/{} addresses matched parking database",
                 valid_count,
                 ui_addresses.len(),
             );
-            
             ui_addresses
         }
         Err(e) => {
@@ -95,7 +83,6 @@ pub fn load_debug_addresses() -> Vec<StoredAddress> {
         }
     }
 }
-
 /// Parse address string into street name and street number
 ///
 /// Addresses are in format: "Kornettsgatan 18C" or "Östra Kristinelundsvägen 27D"
@@ -121,12 +108,9 @@ pub fn load_debug_addresses() -> Vec<StoredAddress> {
 /// ```
 fn parse_address(address: &str) -> (String, String) {
     let parts: Vec<&str> = address.split_whitespace().collect();
-    
     if parts.is_empty() {
         return (String::new(), String::new());
     }
-    
-    // Find the first part that contains a digit - that's where the street number starts
     let mut number_start_idx = None;
     for (i, part) in parts.iter().enumerate() {
         if part.chars().any(|c| c.is_ascii_digit()) {
@@ -134,121 +118,96 @@ fn parse_address(address: &str) -> (String, String) {
             break;
         }
     }
-    
     match number_start_idx {
         Some(idx) if idx > 0 => {
-            // Split at the first part with a digit
             let street = parts[..idx].join(" ");
             let street_number = parts[idx..].join(" ");
             (street, street_number)
         }
-        Some(_) => {
-            // First part contains digit (unusual but possible)
-            // Treat entire address as number
-            (String::new(), address.to_string())
-        }
-        None => {
-            // No digits found - entire address is street name
-            (address.to_string(), String::new())
-        }
+        Some(_) => (String::new(), address.to_string()),
+        None => (address.to_string(), String::new()),
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn test_load_debug_addresses() {
         let addresses = load_debug_addresses();
-        // Should load addresses from embedded parquet
         assert!(!addresses.is_empty(), "Should load debug addresses");
-        
         for addr in &addresses {
-            assert!(!addr.street.is_empty() || !addr.street_number.is_empty(), 
-                "Address should have street or number: {:?}", addr);
+            assert!(
+                !addr.street.is_empty() || !addr.street_number.is_empty(),
+                "Address should have street or number: {:?}",
+                addr,
+            );
         }
     }
-    
     #[test]
     fn test_parse_address_simple() {
         let (street, number) = parse_address("Kornettsgatan 18C");
         assert_eq!(street, "Kornettsgatan");
         assert_eq!(number, "18C");
     }
-    
     #[test]
     fn test_parse_address_with_unit() {
         let (street, number) = parse_address("Lantmannagatan 50 U1");
         assert_eq!(street, "Lantmannagatan");
         assert_eq!(number, "50 U1");
     }
-    
     #[test]
     fn test_parse_address_multi_word_street() {
         let (street, number) = parse_address("Östra Kristinelundsvägen 27D");
         assert_eq!(street, "Östra Kristinelundsvägen");
         assert_eq!(number, "27D");
     }
-    
     #[test]
     fn test_parse_address_complex_unit() {
         let (street, number) = parse_address("Celsiusgatan 13A U1");
         assert_eq!(street, "Celsiusgatan");
         assert_eq!(number, "13A U1");
     }
-    
     #[test]
     fn test_parse_address_complex_unit_2() {
         let (street, number) = parse_address("Östergårdsgatan 1 U13");
         assert_eq!(street, "Östergårdsgatan");
         assert_eq!(number, "1 U13");
     }
-    
     #[test]
     fn test_parse_address_colon_in_name() {
         let (street, number) = parse_address("S:t Pauli kyrkogata 13B");
         assert_eq!(street, "S:t Pauli kyrkogata");
         assert_eq!(number, "13B");
     }
-    
     #[test]
     fn test_parse_address_no_number() {
         let (street, number) = parse_address("Storgatan");
         assert_eq!(street, "Storgatan");
         assert_eq!(number, "");
     }
-    
     #[test]
     fn test_debug_addresses_use_fuzzy_matching() {
         let addresses = load_debug_addresses();
-        
-        // At least some addresses should successfully match via fuzzy matching
         let valid_count = addresses.iter().filter(|a| a.valid).count();
-        
-        // We expect most real Malmö addresses to match
-        // (the test data includes one fake address "Låssasgatan" that shouldn't match)
         assert!(
             valid_count > 0,
             "Expected at least some addresses to match via fuzzy matching, got {}/{}",
             valid_count,
-            addresses.len()
+            addresses.len(),
         );
     }
-    
     #[test]
     fn test_debug_addresses_have_postal_codes() {
         let addresses = load_debug_addresses();
-        
-        // All addresses should have postal codes from the parquet file
-        let with_postal = addresses.iter().filter(|a| !a.postal_code.is_empty()).count();
-        
-        // Most addresses should have postal codes (allowing for potential parsing issues)
+        let with_postal = addresses
+            .iter()
+            .filter(|a| !a.postal_code.is_empty())
+            .count();
         assert!(
             with_postal as f64 / addresses.len() as f64 > 0.9,
             "Expected >90% of addresses to have postal codes, got {}/{}",
             with_postal,
-            addresses.len()
+            addresses.len(),
         );
     }
 }

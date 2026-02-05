@@ -189,14 +189,12 @@ fn write_batch_and_close(mut writer: ArrowWriter<File>, batch: RecordBatch) -> a
         .map_err(|e| anyhow::anyhow!("Failed to close writer: {}", e))?;
     Ok(())
 }
-
 /// Debug address entry with address string and postal code
 #[derive(Debug, Clone)]
 pub struct DebugAddress {
     pub adress: String,
     pub postnummer: String,
 }
-
 /// Load debug addresses from minimal parquet file (contains address and postal code)
 ///
 /// This function reads a parquet file with 'adress' and 'postnummer' fields.
@@ -230,23 +228,18 @@ pub fn load_debug_addresses(bytes: &[u8]) -> anyhow::Result<Vec<DebugAddress>> {
     let reader = builder
         .build()
         .map_err(|e| anyhow::anyhow!("Failed to build Parquet record batch reader: {}", e))?;
-    
     let mut result = Vec::new();
-    
     for batch_result in reader {
         let batch = batch_result.map_err(|e| anyhow::anyhow!("Failed to read batch: {}", e))?;
-        
         let address_array = get_string_column(&batch, "adress")?;
         let postnummer_array = get_string_column(&batch, "postnummer")?;
-        
         for i in 0..batch.num_rows() {
             let address_str = get_required_string(address_array, i);
             let postnummer_str = get_required_string(postnummer_array, i);
-            
             if !address_str.is_empty() {
                 println!(
                     "[load_debug_addresses] Loaded: '{}' ({})",
-                    address_str, postnummer_str
+                    address_str, postnummer_str,
                 );
                 result.push(DebugAddress {
                     adress: address_str,
@@ -255,14 +248,12 @@ pub fn load_debug_addresses(bytes: &[u8]) -> anyhow::Result<Vec<DebugAddress>> {
             }
         }
     }
-    
     println!(
         "[load_debug_addresses] Successfully loaded {} debug addresses",
         result.len(),
     );
     Ok(result)
 }
-
 /// Load debug addresses from a file path (for non-Android/desktop testing)
 ///
 /// # Arguments
@@ -278,19 +269,14 @@ pub fn load_debug_addresses_from_file(path: &str) -> anyhow::Result<Vec<DebugAdd
     let reader = builder
         .build()
         .map_err(|e| anyhow::anyhow!("Failed to build Parquet record batch reader: {}", e))?;
-    
     let mut result = Vec::new();
-    
     for batch_result in reader {
         let batch = batch_result.map_err(|e| anyhow::anyhow!("Failed to read batch: {}", e))?;
-        
         let address_array = get_string_column(&batch, "adress")?;
         let postnummer_array = get_string_column(&batch, "postnummer")?;
-        
         for i in 0..batch.num_rows() {
             let address_str = get_required_string(address_array, i);
             let postnummer_str = get_required_string(postnummer_array, i);
-            
             if !address_str.is_empty() {
                 result.push(DebugAddress {
                     adress: address_str,
@@ -299,10 +285,8 @@ pub fn load_debug_addresses_from_file(path: &str) -> anyhow::Result<Vec<DebugAdd
             }
         }
     }
-    
     Ok(result)
 }
-
 /// Read parking data from parquet file
 pub fn read_db_parquet(file: File) -> anyhow::Result<Vec<OutputData>> {
     let mut reader = create_parquet_reader(file)?;
