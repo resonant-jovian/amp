@@ -1,4 +1,4 @@
-use chrono::{DateTime, NaiveDate, NaiveTime, TimeZone, Utc};
+use chrono::{DateTime, Datelike, NaiveDate, NaiveTime, TimeZone, Timelike, Utc};
 use chrono_tz::{Europe::Stockholm, Tz};
 use rust_decimal::Decimal;
 /// Swedish timezone constant for all time operations
@@ -59,36 +59,35 @@ pub struct LocalData {
 pub struct StoredAddress {
     pub adress: String,
 }
-
 impl StoredAddress {
     /// Create a new stored address from just an address string
     /// This mimics the user typing an address and clicking "Add"
     pub fn new(adress: String) -> Self {
         Self { adress }
     }
-
     /// Convert to a LocalData entry by attempting to match against parking database
     /// This is the "fuzzy matching" step that happens when loading debug addresses
-    pub fn to_local_data(
-        &self,
-        static_data: &[(String, DB)],
-    ) -> Option<LocalData> {
-        println!("[StoredAddress::to_local_data] Attempting to match: '{}'", self.adress);
-        
-        // Extract potential street name and number from address
+    pub fn to_local_data(&self, static_data: &[(String, DB)]) -> Option<LocalData> {
+        println!(
+            "[StoredAddress::to_local_data] Attempting to match: '{}'",
+            self.adress,
+        );
         let (street, number) = Self::parse_address(&self.adress);
-        println!("[StoredAddress::to_local_data] Parsed -> street: '{}', number: '{}'", street, number);
-
-        // Search for matches
+        println!(
+            "[StoredAddress::to_local_data] Parsed -> street: '{}', number: '{}'",
+            street, number,
+        );
         for (stored_addr, db) in static_data {
             if Self::fuzzy_match(stored_addr, &self.adress, &street, &number) {
-                println!("[StoredAddress::to_local_data] ✅ MATCH! User: '{}' <-> DB: '{}'", self.adress, stored_addr);
-                // Found a match! Convert DB entry to LocalData
+                println!(
+                    "[StoredAddress::to_local_data] ✅ MATCH! User: '{}' <-> DB: '{}'",
+                    self.adress, stored_addr,
+                );
                 return Some(LocalData {
                     valid: true,
-                    active: false, // Will be calculated based on current time
+                    active: false,
                     postnummer: db.postnummer.clone(),
-                    adress: self.adress.clone(), // Use the user's input address
+                    adress: self.adress.clone(),
                     gata: db.gata.clone(),
                     gatunummer: db.gatunummer.clone(),
                     info: db.info.clone(),
@@ -100,58 +99,47 @@ impl StoredAddress {
                 });
             }
         }
-
-        println!("[StoredAddress::to_local_data] ❌ No match found for: '{}'", self.adress);
-        None // No match found
+        println!(
+            "[StoredAddress::to_local_data] ❌ No match found for: '{}'",
+            self.adress,
+        );
+        None
     }
-
     /// Parse address into street name and number components
     fn parse_address(address: &str) -> (String, String) {
-        // Simple parsing: last token with digits is likely the number
         let parts: Vec<&str> = address.split_whitespace().collect();
-
-        if let Some(last) = parts.last() {
-            if last.chars().any(|c| c.is_ascii_digit()) {
-                let street = parts[..parts.len() - 1].join(" ");
-                return (street, last.to_string());
-            }
+        if let Some(last) = parts.last()
+            && last.chars().any(|c| c.is_ascii_digit())
+        {
+            let street = parts[..parts.len() - 1].join(" ");
+            return (street, last.to_string());
         }
-
         (address.to_string(), String::new())
     }
-
     /// Fuzzy matching logic - matches if:
     /// 1. Street names match (case-insensitive, ignoring diacritics)
     /// 2. Numbers match (ignoring building codes like U1, U4, etc.)
     fn fuzzy_match(db_address: &str, user_address: &str, street: &str, number: &str) -> bool {
-        // Normalize for comparison
         let normalize = |s: &str| {
             s.to_lowercase()
                 .chars()
                 .filter(|c| c.is_alphanumeric() || c.is_whitespace())
                 .collect::<String>()
         };
-
         let db_norm = normalize(db_address);
-        let user_norm = normalize(user_address);
+        let _user_norm = normalize(user_address);
         let street_norm = normalize(street);
-
-        // Check if street name is in the DB address
         if !db_norm.contains(&street_norm) {
             return false;
         }
-
-        // If user provided a number, check if it matches
         if !number.is_empty() {
             let number_digits: String = number.chars().filter(|c| c.is_ascii_digit()).collect();
             if !number_digits.is_empty() {
                 return db_norm.contains(&number_digits);
             }
         }
-
         true
     }
-
     /// Format DB time range for display
     fn format_time_range(db: &DB) -> Option<String> {
         let start = db.start_time_swedish();
@@ -161,10 +149,9 @@ impl StoredAddress {
             start.hour(),
             start.minute(),
             end.hour(),
-            end.minute()
+            end.minute(),
         ))
     }
-
     /// Extract day of month from DB entry
     fn extract_day_from_db(db: &DB) -> Option<u8> {
         Some(db.start_time_swedish().day() as u8)
