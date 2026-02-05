@@ -45,7 +45,7 @@
 //! println!("Urgency: {:?}", bucket);
 //! ```
 use amp_core::structs::DB;
-use chrono::{Duration, Utc};
+use chrono::{Datelike, Duration, Utc};
 /// Calculate remaining duration until parking restriction ends
 ///
 /// Uses the DB struct's `time_until_end` method to calculate the duration
@@ -140,6 +140,78 @@ pub fn time_until_start(restriction: &DB) -> Option<Duration> {
     let now = Utc::now();
     restriction.time_until_start(now)
 }
+/// Calculate duration until next occurrence of this restriction
+///
+/// If the restriction has already passed this month, calculates when it will
+/// occur next month. Handles edge cases like February 29/30.
+///
+/// # Arguments
+/// * `restriction` - DB entry containing restriction information
+///
+/// # Returns
+/// Some(Duration) if a future occurrence exists, None if the date is invalid
+/// (e.g., February 30 or February 29 in non-leap years)
+///
+/// # Examples
+/// ```no_run
+/// use amp_android::countdown::time_until_next_occurrence;
+/// use amp_core::structs::DB;
+///
+/// # let db = DB::from_dag_tid(
+/// #     Some("22100".to_string()),
+/// #     "Test".to_string(),
+/// #     None, None, None,
+/// #     3, "0800-1200",
+/// #     None, None, None,
+/// #     2024, 2,
+/// # ).unwrap();
+/// // If today is Feb 5, this will calculate time until March 3
+/// if let Some(duration) = time_until_next_occurrence(&db) {
+///     println!("Next occurrence in {} days", duration.num_days());
+/// }
+/// ```
+pub fn time_until_next_occurrence(restriction: &DB) -> Option<Duration> {
+    let now = Utc::now();
+    
+    // If restriction hasn't ended yet, use normal calculation
+    if let Some(duration) = restriction.time_until_end(now) {
+        return Some(duration);
+    }
+    
+    // Restriction has passed - calculate next month's occurrence
+    let current_date = now.date_naive();
+    let restriction_day = restriction.start_time_swedish().day();
+    
+    // Calculate next month
+    let mut next_month = current_date.month() + 1;
+    let mut next_year = current_date.year();
+    if next_month > 12 {
+        next_month = 1;
+        next_year += 1;
+    }
+    
+    // Try to create the date for next month
+    // This will fail for invalid dates like Feb 30
+    use chrono::NaiveDate;
+    let next_date = NaiveDate::from_ymd_opt(next_year, next_month, restriction_day)?;
+    
+    // Recreate the restriction times for next month
+    let start_time = restriction.start_time_swedish().time();
+    let next_datetime = next_date.and_time(start_time);
+    
+    use amp_core::structs::SWEDISH_TZ;
+    use chrono::TimeZone;
+    let next_start = SWEDISH_TZ
+        .from_local_datetime(&next_datetime)
+        .single()?
+        .with_timezone(&Utc);
+    
+    if now < next_start {
+        Some(next_start - now)
+    } else {
+        None
+    }
+}
 /// Format countdown as human-readable string with adaptive granularity
 ///
 /// Converts the remaining duration into a formatted string, adapting
@@ -173,7 +245,7 @@ pub fn time_until_start(restriction: &DB) -> Option<Duration> {
 /// }
 /// ```
 pub fn format_countdown(restriction: &DB) -> Option<String> {
-    let remaining = remaining_duration(restriction)?;
+    let remaining = time_until_next_occurrence(restriction)?;
     let bucket = bucket_for(restriction);
     match bucket {
         TimeBucket::Now | TimeBucket::Within6Hours | TimeBucket::Within1Day => {
@@ -218,7 +290,7 @@ pub fn format_countdown(restriction: &DB) -> Option<String> {
 /// }
 /// ```
 pub fn format_countdown_compact(restriction: &DB) -> Option<String> {
-    let remaining = remaining_duration(restriction)?;
+    let remaining = time_until_next_occurrence(restriction)?;
     let days = remaining.num_days();
     let hours = remaining.num_hours() % 24;
     let minutes = remaining.num_minutes() % 60;
@@ -280,7 +352,8 @@ impl TimeBucket {
 /// Categorize restriction by time remaining until deadline
 ///
 /// Assigns a TimeBucket based on how much time is left before
-/// the parking restriction ends.
+/// the parking restriction ends. For restrictions that have already
+/// passed this month, calculates time until next month's occurrence.
 ///
 /// # Arguments
 /// * `restriction` - DB entry containing restriction timestamps
@@ -305,7 +378,7 @@ impl TimeBucket {
 /// println!("Urgency: {} {}", bucket.icon(), bucket.label());
 /// ```
 pub fn bucket_for(restriction: &DB) -> TimeBucket {
-    let remaining = match remaining_duration(restriction) {
+    let remaining = match time_until_next_occurrence(restriction) {
         Some(d) => d,
         None => return TimeBucket::Invalid,
     };
@@ -464,5 +537,13 @@ mod tests {
         let _is_active = db.is_active(now);
         let _time_until_end = db.time_until_end(now);
         let _time_until_start = db.time_until_start(now);
+    }
+    #[test]
+    fn test_time_until_next_occurrence() {
+        // Test with a date in the past
+        let db = create_test_db(1, "0800-1200");
+        let result = time_until_next_occurrence(&db);
+        // Should return Some duration to next month
+        assert!(result.is_some());
     }
 }
