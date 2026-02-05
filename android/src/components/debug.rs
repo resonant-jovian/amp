@@ -66,9 +66,34 @@ pub fn load_debug_addresses() -> Vec<StoredAddress> {
     }
 }
 
+/// Extract postal code from address string
+///
+/// Debug.parquet addresses are in format: "Street Number PostalCode"
+/// e.g., "Idunsgatan 67B 214 46" where "214 46" is the postal code
+///
+/// This function extracts the last 5 digits (removing spaces) as the postal code.
+fn extract_postal_code_from_address(adress: &str) -> Option<String> {
+    let parts: Vec<&str> = adress.split_whitespace().collect();
+    
+    // Try to find postal code in last 2 parts (handles "214 46" format)
+    if parts.len() >= 2 {
+        // Try last two parts combined (e.g., "214" + "46" = "21446")
+        let last_two = format!("{}{}", parts[parts.len()-2], parts[parts.len()-1]);
+        
+        // Check if it's all digits and 5 characters
+        if last_two.chars().all(|c| c.is_ascii_digit()) && last_two.len() == 5 {
+            return Some(last_two);
+        }
+    }
+    
+    None
+}
+
 /// Convert LocalData from parquet to StoredAddress
 ///
-/// This is identical to the conversion in storage.rs to ensure consistency.
+/// This follows the same logic as storage.rs but adds special handling for
+/// debug.parquet where postal codes are embedded in the address string.
+///
 /// The matched_entry is set to None here - validation happens later via
 /// check_and_update_validity() when addresses are loaded in the UI.
 fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
@@ -84,11 +109,22 @@ fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
         }
     };
     
+    // Extract postal code: use postnummer if present, otherwise extract from address
+    let postal_code = if let Some(ref pc) = data.postnummer {
+        if !pc.is_empty() {
+            pc.clone()
+        } else {
+            extract_postal_code_from_address(&data.adress).unwrap_or_default()
+        }
+    } else {
+        extract_postal_code_from_address(&data.adress).unwrap_or_default()
+    };
+    
     StoredAddress {
         id,
         street,
         street_number,
-        postal_code: data.postnummer.unwrap_or_default(),
+        postal_code,
         valid: data.valid,
         active: data.active,
         matched_entry: None,
@@ -108,6 +144,22 @@ mod tests {
     }
 
     #[test]
+    fn test_extract_postal_code_from_address() {
+        assert_eq!(
+            extract_postal_code_from_address("Idunsgatan 67B 214 46"),
+            Some("21446".to_string())
+        );
+        assert_eq!(
+            extract_postal_code_from_address("Kornettsgatan 18C 211 50"),
+            Some("21150".to_string())
+        );
+        assert_eq!(
+            extract_postal_code_from_address("Storgatan 10"),
+            None
+        );
+    }
+
+    #[test]
     fn test_debug_addresses_have_postal_codes() {
         let addresses = load_debug_addresses();
         for addr in &addresses {
@@ -118,15 +170,12 @@ mod tests {
                     "Postal code should be 5 digits: {}",
                     addr.postal_code,
                 );
+                assert!(
+                    addr.postal_code.chars().all(|c| c.is_ascii_digit()),
+                    "Postal code should be all digits: {}",
+                    addr.postal_code,
+                );
             }
         }
-    }
-
-    #[test]
-    fn test_debug_addresses_match_database() {
-        let addresses = load_debug_addresses();
-        let matched_count = addresses.iter().filter(|a| a.matched_entry.is_some()).count();
-        eprintln!("Matched {} out of {} debug addresses", matched_count, addresses.len());
-        // matched_entry is None initially, validation happens later
     }
 }
