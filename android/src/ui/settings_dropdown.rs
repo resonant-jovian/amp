@@ -4,6 +4,7 @@ use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::md_action_icons::{MdBugReport, MdInfo, MdSettings};
 use dioxus_free_icons::icons::md_navigation_icons::{MdExpandLess, MdExpandMore};
 use dioxus_free_icons::icons::md_social_icons::MdNotifications;
+use std::time::Duration;
 
 /// Represents which settings section is currently open
 #[derive(Clone, Copy, PartialEq)]
@@ -19,6 +20,7 @@ enum OpenSection {
 ///
 /// Displays a slide-in panel from the top-right with expandable settings sections.
 /// Only one section can be expanded at a time (accordion behavior).
+/// Switching between sections uses a 300ms delay for smooth animation.
 /// Uses neumorphic design system with gradient header matching the HTML reference.
 /// Settings items use scaled-down address-item container styling.
 ///
@@ -53,6 +55,28 @@ pub fn SettingsDropdown(
     let _settings = use_signal(load_settings);
     let mut open_section = use_signal(|| OpenSection::None);
 
+    // Helper to handle section toggle with animation delay
+    let toggle_section = move |target_section: OpenSection| {
+        spawn(async move {
+            let current = open_section();
+            
+            if current == target_section {
+                // Simply close if clicking the currently open section
+                open_section.set(OpenSection::None);
+            } else if current != OpenSection::None {
+                // Close current section first
+                open_section.set(OpenSection::None);
+                // Wait for close animation to complete (300ms)
+                tokio::time::sleep(Duration::from_millis(300)).await;
+                // Open new section
+                open_section.set(target_section);
+            } else {
+                // No section open, just open the target
+                open_section.set(target_section);
+            }
+        });
+    };
+
     if !is_open {
         return rsx!();
     }
@@ -74,13 +98,7 @@ pub fn SettingsDropdown(
                     div { class: "settings-section",
                         button {
                             class: "settings-section-header",
-                            onclick: move |_| {
-                                if open_section() == OpenSection::Aviseringar {
-                                    open_section.set(OpenSection::None);
-                                } else {
-                                    open_section.set(OpenSection::Aviseringar);
-                                }
-                            },
+                            onclick: move |_| toggle_section(OpenSection::Aviseringar),
                             "aria-expanded": if open_section() == OpenSection::Aviseringar { "true" } else { "false" },
                             div { class: "settings-section-header-left",
                                 Icon {
@@ -117,13 +135,7 @@ pub fn SettingsDropdown(
                     div { class: "settings-section",
                         button {
                             class: "settings-section-header",
-                            onclick: move |_| {
-                                if open_section() == OpenSection::Installningar {
-                                    open_section.set(OpenSection::None);
-                                } else {
-                                    open_section.set(OpenSection::Installningar);
-                                }
-                            },
+                            onclick: move |_| toggle_section(OpenSection::Installningar),
                             "aria-expanded": if open_section() == OpenSection::Installningar { "true" } else { "false" },
                             div { class: "settings-section-header-left",
                                 Icon { icon: MdSettings, width: 16, height: 16 }
@@ -158,13 +170,7 @@ pub fn SettingsDropdown(
                     div { class: "settings-section",
                         button {
                             class: "settings-section-header",
-                            onclick: move |_| {
-                                if open_section() == OpenSection::Info {
-                                    open_section.set(OpenSection::None);
-                                } else {
-                                    open_section.set(OpenSection::Info);
-                                }
-                            },
+                            onclick: move |_| toggle_section(OpenSection::Info),
                             "aria-expanded": if open_section() == OpenSection::Info { "true" } else { "false" },
                             div { class: "settings-section-header-left",
                                 Icon { icon: MdInfo, width: 16, height: 16 }
@@ -203,13 +209,7 @@ pub fn SettingsDropdown(
                     div { class: "settings-section",
                         button {
                             class: "settings-section-header",
-                            onclick: move |_| {
-                                if open_section() == OpenSection::Debug {
-                                    open_section.set(OpenSection::None);
-                                } else {
-                                    open_section.set(OpenSection::Debug);
-                                }
-                            },
+                            onclick: move |_| toggle_section(OpenSection::Debug),
                             "aria-expanded": if open_section() == OpenSection::Debug { "true" } else { "false" },
                             div { class: "settings-section-header-left",
                                 Icon {
