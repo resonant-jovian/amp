@@ -163,7 +163,9 @@ fn fuzzy_match_address(street: &str, street_number: &str, postal_code: &str) -> 
 }
 use crate::ui::{
     addresses::Addresses,
-    panels::{ActivePanel, InvalidPanel, MoreThan1MonthPanel, OneDayPanel, OneMonthPanel, SixHoursPanel},
+    panels::{
+        ActivePanel, InvalidPanel, MoreThan1MonthPanel, OneDayPanel, OneMonthPanel, SixHoursPanel,
+    },
     top_bar::TopBar,
 };
 /// Main application component
