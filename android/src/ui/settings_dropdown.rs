@@ -1,9 +1,10 @@
 use crate::components::settings::load_settings;
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
-use dioxus_free_icons::icons::md_action_icons::{MdBugReport, MdInfo, MdSettings};
+use dioxus_free_icons::icons::fa_brands_icons::FaDev;
+use dioxus_free_icons::icons::md_action_icons::{MdInfo, MdSettings};
 use dioxus_free_icons::icons::md_navigation_icons::{MdExpandLess, MdExpandMore};
-use dioxus_free_icons::icons::md_social_icons::MdNotifications;
+use dioxus_free_icons::icons::md_social_icons::MdNotificationsActive;
 use std::time::Duration;
 /// Represents which settings section is currently open
 #[derive(Clone, Copy, PartialEq)]
@@ -90,7 +91,7 @@ pub fn SettingsDropdown(
                             "aria-expanded": if open_section() == OpenSection::Aviseringar { "true" } else { "false" },
                             div { class: "settings-section-header-left",
                                 Icon {
-                                    icon: MdNotifications,
+                                    icon: MdNotificationsActive,
                                     width: 16,
                                     height: 16,
                                 }
@@ -200,11 +201,7 @@ pub fn SettingsDropdown(
                             onclick: move |_| toggle_section(OpenSection::Debug),
                             "aria-expanded": if open_section() == OpenSection::Debug { "true" } else { "false" },
                             div { class: "settings-section-header-left",
-                                Icon {
-                                    icon: MdBugReport,
-                                    width: 16,
-                                    height: 16,
-                                }
+                                Icon { icon: FaDev, width: 16, height: 16 }
                                 span { "Debug" }
                             }
                             span { class: "settings-section-arrow",

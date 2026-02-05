@@ -3,7 +3,7 @@ use crate::ui::confirm_dialog::ConfirmDialog;
 use crate::ui::info_dialog::InfoDialog;
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
-use dioxus_free_icons::icons::md_device_icons::MdGraphicEq;
+use dioxus_free_icons::icons::md_action_icons::MdInfo;
 /// Address list component displaying all stored addresses with toggle and remove controls
 ///
 /// Includes confirmation dialog for removals and info dialog for viewing address details.
@@ -83,7 +83,7 @@ pub fn Addresses(
                                                 button {
                                                     class: "address-info-icon",
                                                     onclick: move |_| handle_info_click(addr_clone.clone()),
-                                                    Icon { icon: MdGraphicEq, width: 16, height: 16 }
+                                                    Icon { icon: MdInfo, width: 16, height: 16 }
                                                 }
                                                 span { "{address_display}" }
                                             }

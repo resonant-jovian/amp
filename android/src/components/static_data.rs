@@ -55,29 +55,26 @@ const PARQUET_BYTES: &[u8] = include_bytes!("../../assets/data/db.parquet");
 ///
 /// # Returns
 /// Tuple of (year, month) to use for creating the DB entry
-fn determine_year_month(day: u8, current_year: i32, current_month: u32, current_day: u32) -> (i32, u32) {
-    // Check if date is valid in current month
-    let current_month_valid = NaiveDate::from_ymd_opt(current_year, current_month, day as u32).is_some();
-    
-    // If valid in current month and hasn't passed yet, use current month
+fn determine_year_month(
+    day: u8,
+    current_year: i32,
+    current_month: u32,
+    current_day: u32,
+) -> (i32, u32) {
+    let current_month_valid =
+        NaiveDate::from_ymd_opt(current_year, current_month, day as u32).is_some();
     if current_month_valid && (day as u32) >= current_day {
         return (current_year, current_month);
     }
-    
-    // Otherwise, use next month
     let mut next_month = current_month + 1;
     let mut next_year = current_year;
     if next_month > 12 {
         next_month = 1;
         next_year += 1;
     }
-    
-    // Verify the date is valid in next month, otherwise it's truly invalid
     if NaiveDate::from_ymd_opt(next_year, next_month, day as u32).is_some() {
         (next_year, next_month)
     } else {
-        // Date is invalid in both months (shouldn't happen for normal dates)
-        // Fall back to current month and let DB::from_dag_tid handle it
         (current_year, current_month)
     }
 }
@@ -100,9 +97,10 @@ fn load_parking_data() -> HashMap<String, DB> {
             let current_year = now.year();
             let current_month = now.month();
             let current_day = now.day();
-            
-            eprintln!("[StaticData] Current date: {}-{:02}-{:02}", current_year, current_month, current_day);
-            
+            eprintln!(
+                "[StaticData] Current date: {}-{:02}-{:02}",
+                current_year, current_month, current_day,
+            );
             for record in records {
                 let Some(dag) = record.dag else {
                     eprintln!("[StaticData] Skipping record without dag field");
@@ -112,10 +110,8 @@ fn load_parking_data() -> HashMap<String, DB> {
                     eprintln!("[StaticData] Skipping record without tid field");
                     continue;
                 };
-                
-                // Determine best year/month for this day
-                let (year, month) = determine_year_month(dag, current_year, current_month, current_day);
-                
+                let (year, month) =
+                    determine_year_month(dag, current_year, current_month, current_day);
                 if let Some(db) = DB::from_dag_tid(
                     record.postnummer.clone(),
                     record.adress.clone(),
@@ -141,7 +137,7 @@ fn load_parking_data() -> HashMap<String, DB> {
                 } else {
                     eprintln!(
                         "[StaticData] Failed to create DB from record: {} {} {} (day {}, tried {}-{:02})",
-                        record.gata, record.gatunummer, dag, dag, year, month
+                        record.gata, record.gatunummer, dag, dag, year, month,
                     );
                 }
             }
@@ -443,28 +439,24 @@ mod tests {
     }
     #[test]
     fn test_determine_year_month_future_date() {
-        // Test with a future date in current month
         let (year, month) = determine_year_month(25, 2026, 2, 5);
         assert_eq!(year, 2026);
         assert_eq!(month, 2);
     }
     #[test]
     fn test_determine_year_month_past_date() {
-        // Test with a past date in current month (should use next month)
         let (year, month) = determine_year_month(3, 2026, 2, 5);
         assert_eq!(year, 2026);
         assert_eq!(month, 3);
     }
     #[test]
     fn test_determine_year_month_invalid_date() {
-        // Test with Feb 30 (should use next month where it's valid)
         let (year, month) = determine_year_month(30, 2026, 2, 5);
         assert_eq!(year, 2026);
         assert_eq!(month, 3);
     }
     #[test]
     fn test_determine_year_month_feb_29_non_leap() {
-        // Test with Feb 29 in non-leap year (should use next month)
         let (year, month) = determine_year_month(29, 2026, 2, 5);
         assert_eq!(year, 2026);
         assert_eq!(month, 3);
