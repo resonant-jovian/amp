@@ -1,4 +1,4 @@
-package com.amp
+package se.malmo.skaggbyran.amp
 
 import android.app.NotificationChannel
 import android.app.NotificationManager

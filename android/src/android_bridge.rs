@@ -205,8 +205,7 @@ fn get_android_context() -> Result<JObject<'static>, String> {
 fn create_notification_channels() -> Result<(), String> {
     let mut env = get_jni_env()?;
     let context = get_android_context()?;
-    let helper_class = env
-        .find_class("com/amp/NotificationHelper")
+    let helper_class = env.find_class("se/malmo/skaggbyran/amp/NotificationHelper")
         .map_err(|e| format!("Failed to find NotificationHelper class: {:?}", e))?;
     env.call_static_method(
         helper_class,
@@ -254,8 +253,7 @@ fn show_notification(
     let j_body = env
         .new_string(body)
         .map_err(|e| format!("Failed to create Java string for body: {:?}", e))?;
-    let helper_class = env
-        .find_class("com/amp/NotificationHelper")
+    let helper_class = env.find_class("se/malmo/skaggbyran/amp/NotificationHelper")
         .map_err(|e| format!("Failed to find NotificationHelper class: {:?}", e))?;
     env.call_static_method(
         helper_class,
