@@ -28,15 +28,12 @@
 //! };
 //! notify_active(&address);
 //! ```
-
 use crate::components::settings::load_settings;
 use crate::ui::StoredAddress;
-
 /// Notification channel IDs
 const CHANNEL_ACTIVE: &str = "amp_active";
 const CHANNEL_SIX_HOURS: &str = "amp_six_hours";
 const CHANNEL_ONE_DAY: &str = "amp_one_day";
-
 /// Initialize notification channels on app startup (Android 8+)
 ///
 /// Creates three notification channels with different importance levels:
@@ -62,7 +59,6 @@ const CHANNEL_ONE_DAY: &str = "amp_one_day";
 pub fn initialize_notification_channels() {
     crate::android_bridge::initialize_notification_channels_jni();
 }
-
 /// Send notification when address enters "1 day" panel
 ///
 /// Sends a low-priority, silent notification to remind the user about
@@ -93,20 +89,17 @@ pub fn notify_one_day(address: &StoredAddress) {
     if !settings.notifications.en_dag {
         eprintln!(
             "[Notifications] Skipping 1-day notification for {} {} (disabled in settings)",
-            address.street, address.street_number
+            address.street, address.street_number,
         );
         return;
     }
-
     let title = "📅 Street cleaning tomorrow";
     let body = format!(
         "Street cleaning tomorrow on {}. Plan to move your car from {} {}.",
-        address.street, address.street, address.street_number
+        address.street, address.street, address.street_number,
     );
-
     send_notification(CHANNEL_ONE_DAY, title, &body, address.id);
 }
-
 /// Send notification when address enters "6 hours" panel
 ///
 /// Sends a high-priority notification with sound and vibration to warn
@@ -137,20 +130,17 @@ pub fn notify_six_hours(address: &StoredAddress) {
     if !settings.notifications.sex_timmar {
         eprintln!(
             "[Notifications] Skipping 6-hour notification for {} {} (disabled in settings)",
-            address.street, address.street_number
+            address.street, address.street_number,
         );
         return;
     }
-
     let title = "⏰ Street cleaning in 6 hours";
     let body = format!(
         "Street cleaning starting soon on {}. Consider moving your car from {} {}.",
-        address.street, address.street, address.street_number
+        address.street, address.street, address.street_number,
     );
-
     send_notification(CHANNEL_SIX_HOURS, title, &body, address.id);
 }
-
 /// Send notification when address enters "active now" panel
 ///
 /// Sends an urgent, high-priority notification with sound, vibration, and
@@ -181,20 +171,17 @@ pub fn notify_active(address: &StoredAddress) {
     if !settings.notifications.stadning_nu {
         eprintln!(
             "[Notifications] Skipping active notification for {} {} (disabled in settings)",
-            address.street, address.street_number
+            address.street, address.street_number,
         );
         return;
     }
-
     let title = "🚫 Street cleaning NOW!";
     let body = format!(
         "Street cleaning active on {}. Your car at {} {} is in an active zone!",
-        address.street, address.street, address.street_number
+        address.street, address.street, address.street_number,
     );
-
     send_notification(CHANNEL_ACTIVE, title, &body, address.id);
 }
-
 /// Internal: Send notification via android_bridge to JNI
 ///
 /// Routes notification requests through the android_bridge module,
@@ -208,34 +195,23 @@ pub fn notify_active(address: &StoredAddress) {
 fn send_notification(channel_id: &str, title: &str, body: &str, notification_id: usize) {
     eprintln!(
         "[Notifications] Sending: channel={}, title={}, id={}",
-        channel_id, title, notification_id
+        channel_id, title, notification_id,
     );
-
-    crate::android_bridge::send_notification_jni(
-        channel_id,
-        notification_id as i32,
-        title,
-        body,
-    );
+    crate::android_bridge::send_notification_jni(channel_id, notification_id as i32, title, body);
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn test_notification_constants() {
         assert_eq!(CHANNEL_ACTIVE, "amp_active");
         assert_eq!(CHANNEL_SIX_HOURS, "amp_six_hours");
         assert_eq!(CHANNEL_ONE_DAY, "amp_one_day");
     }
-
     #[test]
     fn test_initialize_channels_no_panic() {
-        // Should not panic on any platform
         initialize_notification_channels();
     }
-
     #[test]
     fn test_notify_functions_no_panic() {
         let address = StoredAddress {
@@ -247,16 +223,12 @@ mod tests {
             active: false,
             matched_entry: None,
         };
-
-        // All notification functions should handle mock mode gracefully
         notify_one_day(&address);
         notify_six_hours(&address);
         notify_active(&address);
     }
-
     #[test]
     fn test_send_notification_internal() {
-        // Test internal function doesn't panic
         send_notification(CHANNEL_ACTIVE, "Test", "Body", 999);
     }
 }

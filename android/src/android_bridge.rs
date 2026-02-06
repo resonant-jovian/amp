@@ -19,17 +19,14 @@
 //! // Initialize notifications
 //! android_bridge::initialize_notification_channels_jni();
 //! ```
-
 #[cfg(target_os = "android")]
 use jni::{
+    JNIEnv, JavaVM,
     objects::{JClass, JObject, JString, JValue},
     sys::jint,
-    JNIEnv, JavaVM,
 };
-
 #[cfg(target_os = "android")]
 use ndk_context;
-
 /// Initialize Android notification channels
 ///
 /// Creates three notification channels for Android 8.0+ (API 26+):
@@ -59,19 +56,21 @@ pub fn initialize_notification_channels_jni() {
     {
         match create_notification_channels() {
             Ok(()) => {
-                eprintln!("[Android Bridge] Notification channels initialized successfully");
+                eprintln!("[Android Bridge] Notification channels initialized successfully",);
             }
             Err(e) => {
-                eprintln!("[Android Bridge] Failed to initialize notification channels: {}", e);
+                eprintln!(
+                    "[Android Bridge] Failed to initialize notification channels: {}",
+                    e,
+                );
             }
         }
     }
     #[cfg(not(target_os = "android"))]
     {
-        eprintln!("[Mock Android Bridge] Notification channels initialized (no-op on non-Android)");
+        eprintln!("[Mock Android Bridge] Notification channels initialized (no-op on non-Android)",);
     }
 }
-
 /// Send a notification via Android NotificationManager
 ///
 /// Displays a notification using the specified channel and content.
@@ -101,25 +100,20 @@ pub fn initialize_notification_channels_jni() {
 ///     "Your car is in an active zone"
 /// );
 /// ```
-pub fn send_notification_jni(
-    channel_id: &str,
-    notification_id: i32,
-    title: &str,
-    body: &str,
-) {
+pub fn send_notification_jni(channel_id: &str, notification_id: i32, title: &str, body: &str) {
     #[cfg(target_os = "android")]
     {
         match show_notification(channel_id, notification_id, title, body) {
             Ok(()) => {
                 eprintln!(
                     "[Android Bridge] Notification sent: channel={}, id={}, title='{}'",
-                    channel_id, notification_id, title
+                    channel_id, notification_id, title,
                 );
             }
             Err(e) => {
                 eprintln!(
                     "[Android Bridge] Failed to send notification (channel={}, id={}): {}",
-                    channel_id, notification_id, e
+                    channel_id, notification_id, e,
                 );
             }
         }
@@ -128,11 +122,10 @@ pub fn send_notification_jni(
     {
         eprintln!(
             "[Mock Android Bridge] Would send notification: channel='{}', id={}, title='{}', body='{}'",
-            channel_id, notification_id, title, body
+            channel_id, notification_id, title, body,
         );
     }
 }
-
 /// Get JNIEnv for the current thread
 ///
 /// Uses ndk_context to get the JavaVM and attaches the current thread.
@@ -147,24 +140,15 @@ pub fn send_notification_jni(
 /// - Thread-safe and works from any Rust thread
 #[cfg(target_os = "android")]
 fn get_jni_env() -> Result<JNIEnv<'static>, String> {
-    // Get the Android context from ndk_context
     let ctx = ndk_context::android_context();
     let vm_ptr = ctx.vm() as *mut jni::sys::JavaVM;
-    
-    // Safety: The VM pointer from ndk_context is valid for the app lifetime
     let vm = unsafe { JavaVM::from_raw(vm_ptr) }
         .map_err(|e| format!("Failed to create JavaVM from ndk_context: {:?}", e))?;
-    
-    // Attach current thread to get JNIEnv
     let env = vm
         .attach_current_thread()
         .map_err(|e| format!("Failed to attach thread to JavaVM: {:?}", e))?;
-    
-    // Safety: We're extending the lifetime to 'static because the VM is valid
-    // for the entire application lifetime
     Ok(unsafe { std::mem::transmute(env) })
 }
-
 /// Get Android Context object
 ///
 /// Retrieves the Android Context (Activity or Application) for use in JNI calls.
@@ -181,17 +165,12 @@ fn get_jni_env() -> Result<JNIEnv<'static>, String> {
 fn get_android_context<'a>(env: &'a JNIEnv<'a>) -> Result<JObject<'a>, String> {
     let ctx = ndk_context::android_context();
     let activity_ptr = ctx.context() as *mut jni::sys::_jobject;
-    
-    // Safety: The activity pointer from ndk_context is valid
     let activity = unsafe { JObject::from_raw(activity_ptr) };
-    
     if activity.is_null() {
         return Err("Android context is null".to_string());
     }
-    
     Ok(activity)
 }
-
 /// Create notification channels via JNI
 ///
 /// Calls NotificationHelper.createNotificationChannels(Context) using JNI.
@@ -208,13 +187,9 @@ fn get_android_context<'a>(env: &'a JNIEnv<'a>) -> Result<JObject<'a>, String> {
 fn create_notification_channels() -> Result<(), String> {
     let env = get_jni_env()?;
     let context = get_android_context(&env)?;
-    
-    // Find the NotificationHelper class
     let helper_class = env
         .find_class("com/amp/NotificationHelper")
         .map_err(|e| format!("Failed to find NotificationHelper class: {:?}", e))?;
-    
-    // Call the static createNotificationChannels method
     env.call_static_method(
         helper_class,
         "createNotificationChannels",
@@ -222,10 +197,8 @@ fn create_notification_channels() -> Result<(), String> {
         &[JValue::Object(&context)],
     )
     .map_err(|e| format!("Failed to call createNotificationChannels: {:?}", e))?;
-    
     Ok(())
 }
-
 /// Show a notification via JNI
 ///
 /// Calls NotificationHelper.showNotification(...) using JNI with proper
@@ -254,26 +227,18 @@ fn show_notification(
 ) -> Result<(), String> {
     let env = get_jni_env()?;
     let context = get_android_context(&env)?;
-    
-    // Convert Rust strings to Java strings
     let j_channel_id = env
         .new_string(channel_id)
         .map_err(|e| format!("Failed to create Java string for channel_id: {:?}", e))?;
-    
     let j_title = env
         .new_string(title)
         .map_err(|e| format!("Failed to create Java string for title: {:?}", e))?;
-    
     let j_body = env
         .new_string(body)
         .map_err(|e| format!("Failed to create Java string for body: {:?}", e))?;
-    
-    // Find the NotificationHelper class
     let helper_class = env
         .find_class("com/amp/NotificationHelper")
         .map_err(|e| format!("Failed to find NotificationHelper class: {:?}", e))?;
-    
-    // Call the static showNotification method
     env.call_static_method(
         helper_class,
         "showNotification",
@@ -287,10 +252,8 @@ fn show_notification(
         ],
     )
     .map_err(|e| format!("Failed to call showNotification: {:?}", e))?;
-    
     Ok(())
 }
-
 /// Read device GPS location
 ///
 /// Attempts to get the current device location using Android LocationManager.
@@ -331,11 +294,10 @@ pub fn read_device_gps_location() -> Option<(f64, f64)> {
     }
     #[cfg(not(target_os = "android"))]
     {
-        eprintln!("[Mock Android Bridge] GPS location requested - platform not supported");
+        eprintln!("[Mock Android Bridge] GPS location requested - platform not supported",);
         None
     }
 }
-
 /// Get Android location using JNI and LocationManager
 ///
 /// # Returns
@@ -354,7 +316,6 @@ fn get_android_location() -> Result<(f64, f64), String> {
             .to_string(),
     )
 }
-
 /// Get device model and manufacturer information
 ///
 /// # Returns
@@ -373,37 +334,25 @@ pub fn get_device_info() -> String {
         "Mock Device (Testing)".to_string()
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn test_read_gps_location_non_android() {
         let result = read_device_gps_location();
         assert_eq!(result, None);
     }
-
     #[test]
     fn test_device_info() {
         let info = get_device_info();
         assert!(!info.is_empty());
     }
-
     #[test]
     fn test_initialize_channels_no_panic() {
-        // Should not panic on any platform
         initialize_notification_channels_jni();
     }
-
     #[test]
     fn test_send_notification_no_panic() {
-        // Should not panic on any platform
-        send_notification_jni(
-            "amp_active",
-            1,
-            "Test Title",
-            "Test Body"
-        );
+        send_notification_jni("amp_active", 1, "Test Title", "Test Body");
     }
 }
