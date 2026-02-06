@@ -55,6 +55,8 @@ use amp_core::parquet::{build_local_parquet, read_local_parquet};
 #[allow(unused_imports)]
 use amp_core::structs::{DB, DBParams, LocalData};
 #[allow(unused_imports)]
+use chrono::{Datelike, Timelike};
+#[allow(unused_imports)]
 use std::fs::File;
 #[allow(unused_imports)]
 use std::fs::{self};
@@ -325,8 +327,8 @@ fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
                 );
                 Some(*db_entry)
             }
-            crate::components::matching::MatchResult::Invalid(err) => {
-                eprintln!("[Storage::from_local_data] ⚠️ Re-match failed: {}", err);
+            crate::components::matching::MatchResult::Invalid => {
+                eprintln!("[Storage::from_local_data] ⚠️ Re-match failed");
                 None
             }
         }

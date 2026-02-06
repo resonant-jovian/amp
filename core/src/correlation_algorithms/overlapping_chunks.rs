@@ -94,23 +94,19 @@
 //! ```
 //!
 //! [`CHUNK_SIZE`]: CHUNK_SIZE
-
 use crate::correlation_algorithms::common::*;
 use crate::correlation_algorithms::{CorrelationAlgo, ParkeringCorrelationAlgo};
 use crate::structs::{AdressClean, MiljoeDataClean, ParkeringsDataClean};
 use std::collections::HashMap;
-
 /// Chunk size in degrees (~1.1 km at Swedish latitudes).
 ///
 /// This is 20× larger than the standard grid cell size used by other algorithms.
 const CHUNK_SIZE: f64 = 0.01;
-
 /// Overlap factor (currently unused but reserved for future enhancements).
 ///
 /// Could be used to add explicit padding around chunks beyond natural
 /// bounding box overlap.
 const _OVERLAP_FACTOR: f64 = 0.2;
-
 /// Overlapping chunks algorithm for environmental parking restrictions.
 ///
 /// Uses large chunks with bounding-box-based overlap to improve boundary
@@ -131,7 +127,6 @@ pub struct OverlappingChunksAlgo {
     /// Chunk HashMap mapping (chunk_x, chunk_y) to line indices
     chunks: HashMap<(i32, i32), Vec<usize>>,
 }
-
 impl OverlappingChunksAlgo {
     /// Create a new overlapping chunks spatial index.
     ///
@@ -165,17 +160,14 @@ impl OverlappingChunksAlgo {
                 line.coordinates[1][0].to_f64(),
                 line.coordinates[1][1].to_f64(),
             ) {
-                // Calculate bounding box
                 let min_x = x1.min(x2);
                 let max_x = x1.max(x2);
                 let min_y = y1.min(y2);
                 let max_y = y1.max(y2);
-                // Find all chunks bounding box intersects
                 let chunk_min_x = (min_x / CHUNK_SIZE).floor() as i32;
                 let chunk_max_x = (max_x / CHUNK_SIZE).floor() as i32;
                 let chunk_min_y = (min_y / CHUNK_SIZE).floor() as i32;
                 let chunk_max_y = (max_y / CHUNK_SIZE).floor() as i32;
-                // Add line to all intersecting chunks
                 for cx in chunk_min_x..=chunk_max_x {
                     for cy in chunk_min_y..=chunk_max_y {
                         chunks.entry((cx, cy)).or_default().push(idx);
@@ -186,7 +178,6 @@ impl OverlappingChunksAlgo {
         Self { chunks }
     }
 }
-
 impl CorrelationAlgo for OverlappingChunksAlgo {
     /// Correlate address with parking lines using overlapping chunks.
     ///
@@ -218,7 +209,6 @@ impl CorrelationAlgo for OverlappingChunksAlgo {
         let chunk_x = (point[0] / CHUNK_SIZE).floor() as i32;
         let chunk_y = (point[1] / CHUNK_SIZE).floor() as i32;
         let mut best: Option<(usize, f64)> = None;
-        // Search 3×3 neighborhood
         for dx in -1..=1 {
             for dy in -1..=1 {
                 let check_chunk = (chunk_x + dx, chunk_y + dy);
@@ -244,19 +234,16 @@ impl CorrelationAlgo for OverlappingChunksAlgo {
         }
         best
     }
-
     fn name(&self) -> &'static str {
         "Overlapping Chunks"
     }
 }
-
 /// Overlapping chunks algorithm for parking zones (parkeringsdata).
 ///
 /// Identical logic to [`OverlappingChunksAlgo`] but operates on parking zone data.
 pub struct OverlappingChunksParkeringAlgo {
     chunks: HashMap<(i32, i32), Vec<usize>>,
 }
-
 impl OverlappingChunksParkeringAlgo {
     /// Create a new overlapping chunks spatial index for parking zones.
     ///
@@ -300,7 +287,6 @@ impl OverlappingChunksParkeringAlgo {
         Self { chunks }
     }
 }
-
 impl ParkeringCorrelationAlgo for OverlappingChunksParkeringAlgo {
     /// Correlate address with parking zone lines using overlapping chunks.
     ///
@@ -345,23 +331,19 @@ impl ParkeringCorrelationAlgo for OverlappingChunksParkeringAlgo {
         }
         best
     }
-
     fn name(&self) -> &'static str {
         "Overlapping Chunks (Parkering)"
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn test_chunk_calculation() {
         let x = 13.1;
         let chunk_x = (x / CHUNK_SIZE).floor() as i32;
         assert!(chunk_x > 0);
     }
-
     #[test]
     fn test_overlap_coverage() {
         let overlap_size = CHUNK_SIZE * _OVERLAP_FACTOR;

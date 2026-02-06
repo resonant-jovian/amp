@@ -53,11 +53,9 @@
 //!     println!("Parking restriction is currently active!");
 //! }
 //! ```
-
 use chrono::{DateTime, Datelike, NaiveDate, NaiveTime, TimeZone, Timelike, Utc};
 use chrono_tz::{Europe::Stockholm, Tz};
 use rust_decimal::Decimal;
-
 /// Swedish timezone constant for all time operations.
 ///
 /// This is set to `Europe/Stockholm` and automatically handles:
@@ -67,7 +65,6 @@ use rust_decimal::Decimal;
 /// All [`DB`] timestamps are stored in UTC but interpreted in this timezone
 /// for display and active status calculations.
 pub const SWEDISH_TZ: Tz = Stockholm;
-
 /// Clean address data with coordinates and postal information.
 ///
 /// Represents a single address point loaded from GeoJSON, typically from
@@ -88,7 +85,6 @@ pub struct AdressClean {
     pub gata: String,
     pub gatunummer: String,
 }
-
 /// Environmental parking restriction data (street cleaning zones).
 ///
 /// Represents a line segment with time-restricted parking, typically for
@@ -108,7 +104,6 @@ pub struct MiljoeDataClean {
     pub tid: String,
     pub dag: u8,
 }
-
 /// Parking zone data with pricing information.
 ///
 /// Represents a paid parking zone segment, typically with hourly rates
@@ -128,7 +123,6 @@ pub struct ParkeringsDataClean {
     pub antal_platser: u64,
     pub typ_av_parkering: String,
 }
-
 /// Correlation result combining address and parking information.
 ///
 /// This is the result of spatial matching between an address and nearby
@@ -169,7 +163,6 @@ pub struct OutputData {
     pub antal_platser: Option<u64>,
     pub typ_av_parkering: Option<String>,
 }
-
 /// User's saved address with matched parking information and active status.
 ///
 /// This represents a user-added address that has been matched against the
@@ -196,7 +189,6 @@ pub struct LocalData {
     pub antal_platser: Option<u64>,
     pub typ_av_parkering: Option<String>,
 }
-
 /// User-stored address awaiting correlation with parking database.
 ///
 /// This represents a minimal address entry (just the address string) that
@@ -216,7 +208,6 @@ pub struct LocalData {
 pub struct StoredAddress {
     pub adress: String,
 }
-
 impl StoredAddress {
     /// Create a new stored address from an address string.
     ///
@@ -228,7 +219,6 @@ impl StoredAddress {
     pub fn new(adress: String) -> Self {
         Self { adress }
     }
-
     /// Convert to [`LocalData`] by fuzzy-matching against the parking database.
     ///
     /// This performs the address matching step that happens when loading saved
@@ -266,13 +256,11 @@ impl StoredAddress {
             "[StoredAddress::to_local_data] Attempting to match: '{}'",
             self.adress,
         );
-
         let (street, number) = Self::parse_address(&self.adress);
         println!(
             "[StoredAddress::to_local_data] Parsed -> street: '{}', number: '{}'",
             street, number,
         );
-
         for (stored_addr, db) in static_data {
             if Self::fuzzy_match(stored_addr, &self.adress, &street, &number) {
                 println!(
@@ -295,14 +283,12 @@ impl StoredAddress {
                 });
             }
         }
-
         println!(
             "[StoredAddress::to_local_data] ❌ No match found for: '{}'",
             self.adress,
         );
         None
     }
-
     /// Parse address into street name and number components.
     ///
     /// # Arguments
@@ -324,17 +310,14 @@ impl StoredAddress {
     /// ```
     fn parse_address(address: &str) -> (String, String) {
         let parts: Vec<&str> = address.split_whitespace().collect();
-
         if let Some(last) = parts.last()
             && last.chars().any(|c| c.is_ascii_digit())
         {
             let street = parts[..parts.len() - 1].join(" ");
             return (street, last.to_string());
         }
-
         (address.to_string(), String::new())
     }
-
     /// Fuzzy matching logic for address comparison.
     ///
     /// Matches if:
@@ -354,25 +337,20 @@ impl StoredAddress {
                 .filter(|c| c.is_alphanumeric() || c.is_whitespace())
                 .collect::<String>()
         };
-
         let db_norm = normalize(db_address);
         let _user_norm = normalize(user_address);
         let street_norm = normalize(street);
-
         if !db_norm.contains(&street_norm) {
             return false;
         }
-
         if !number.is_empty() {
             let number_digits: String = number.chars().filter(|c| c.is_ascii_digit()).collect();
             if !number_digits.is_empty() {
                 return db_norm.contains(&number_digits);
             }
         }
-
         true
     }
-
     /// Format DB time range for display.
     ///
     /// Converts Swedish timezone timestamps to "HHMM-HHMM" format.
@@ -387,13 +365,11 @@ impl StoredAddress {
             end.minute(),
         ))
     }
-
     /// Extract day of month from DB entry.
     fn extract_day_from_db(db: &DB) -> Option<u8> {
         Some(db.start_time_swedish().day() as u8)
     }
 }
-
 /// Parameters for creating a [`DB`] entry from day and time strings.
 ///
 /// This struct groups all parameters needed to create a time-based parking
@@ -437,7 +413,6 @@ pub struct DBParams {
     pub year: i32,
     pub month: u32,
 }
-
 /// Time-aware parking restriction with Swedish timezone support.
 ///
 /// Represents a parking restriction that applies during a specific time window
@@ -519,7 +494,6 @@ pub struct DB {
     /// Type of parking (e.g., "Längsgående 6" for parallel parking)
     pub typ_av_parkering: Option<String>,
 }
-
 impl DB {
     /// Create a new DB entry from day and time strings (legacy interface).
     ///
@@ -583,7 +557,6 @@ impl DB {
             month,
         })
     }
-
     /// Create a new DB entry from [`DBParams`] struct (preferred interface).
     ///
     /// This is the recommended way to create DB entries as it's cleaner than
@@ -633,12 +606,10 @@ impl DB {
             eprintln!("[DB] Invalid year: {} (must be 2020-2100)", params.year);
             return None;
         }
-
         if !(1..=12).contains(&params.month) {
             eprintln!("[DB] Invalid month: {} (must be 1-12)", params.month);
             return None;
         }
-
         let parts: Vec<&str> = params.tid.split('-').collect();
         if parts.len() != 2 {
             eprintln!(
@@ -647,7 +618,6 @@ impl DB {
             );
             return None;
         }
-
         let parse_hhmm = |s: &str| -> Option<NaiveTime> {
             let s = s.trim();
             if s.len() != 4 {
@@ -657,14 +627,11 @@ impl DB {
             let minute: u32 = s[2..4].parse().ok()?;
             NaiveTime::from_hms_opt(hour, minute, 0)
         };
-
         let start_naive_time = parse_hhmm(parts[0])?;
         let end_naive_time = parse_hhmm(parts[1])?;
-
         let date = NaiveDate::from_ymd_opt(params.year, params.month, params.dag as u32)?;
         let start_datetime = date.and_time(start_naive_time);
         let end_datetime = date.and_time(end_naive_time);
-
         let start_time = SWEDISH_TZ
             .from_local_datetime(&start_datetime)
             .single()?
@@ -673,7 +640,6 @@ impl DB {
             .from_local_datetime(&end_datetime)
             .single()?
             .with_timezone(&Utc);
-
         Some(DB {
             postnummer: params.postnummer,
             adress: params.adress,
@@ -687,7 +653,6 @@ impl DB {
             typ_av_parkering: params.typ_av_parkering,
         })
     }
-
     /// Check if the restriction is currently active.
     ///
     /// # Arguments
@@ -715,7 +680,6 @@ impl DB {
     pub fn is_active(&self, now: DateTime<Utc>) -> bool {
         now >= self.start_time && now < self.end_time
     }
-
     /// Get duration until restriction starts (if in future).
     ///
     /// # Arguments
@@ -733,7 +697,6 @@ impl DB {
             None
         }
     }
-
     /// Get duration until restriction ends (if active or in future).
     ///
     /// # Arguments
@@ -766,7 +729,6 @@ impl DB {
             None
         }
     }
-
     /// Get start time in Swedish timezone for display.
     ///
     /// Converts the internally-stored UTC timestamp to Swedish timezone.
@@ -783,13 +745,12 @@ impl DB {
     /// #     15, "0800-1200", None, None, None, 2024, 1
     /// # ).unwrap();
     /// let swedish_time = db.start_time_swedish();
-    /// println!("Restriction starts at {:02}:{:02}", 
+    /// println!("Restriction starts at {:02}:{:02}",
     ///     swedish_time.hour(), swedish_time.minute());
     /// ```
     pub fn start_time_swedish(&self) -> DateTime<Tz> {
         self.start_time.with_timezone(&SWEDISH_TZ)
     }
-
     /// Get end time in Swedish timezone for display.
     ///
     /// Converts the internally-stored UTC timestamp to Swedish timezone.
@@ -800,7 +761,6 @@ impl DB {
         self.end_time.with_timezone(&SWEDISH_TZ)
     }
 }
-
 /// Result of address-to-parking correlation with distance information.
 ///
 /// This extends [`OutputData`] with optional distance measurements to the
@@ -812,7 +772,6 @@ pub struct CorrelationResult {
     pub miljo_match: Option<(f64, String)>,
     pub parkering_match: Option<(f64, String)>,
 }
-
 impl OutputData {
     /// Check if this address has any parking data matches.
     ///
@@ -822,7 +781,6 @@ impl OutputData {
     pub fn has_match(&self) -> bool {
         self.info.is_some() || self.taxa.is_some()
     }
-
     /// Get human-readable description of which datasets matched.
     ///
     /// # Returns
@@ -840,7 +798,6 @@ impl OutputData {
         }
     }
 }
-
 /// [`OutputData`] extended with distance measurements to matched zones.
 ///
 /// Used for correlation algorithms that track distances to parking zones
@@ -850,7 +807,6 @@ pub struct OutputDataWithDistance {
     pub miljo_distance: Option<f64>,
     pub parkering_distance: Option<f64>,
 }
-
 impl OutputDataWithDistance {
     /// Get the closest distance among all matches.
     ///
@@ -867,7 +823,6 @@ impl OutputDataWithDistance {
         }
     }
 }
-
 impl CorrelationResult {
     /// Get human-readable description of which datasets matched.
     ///
@@ -881,7 +836,6 @@ impl CorrelationResult {
         }
     }
 }
-
 /// User preferences for notifications, theme, and language.
 ///
 /// This data is persisted in Parquet format and synced with the Android app.
@@ -913,7 +867,6 @@ pub struct SettingsData {
     /// Language: "Svenska", "English", "Espanol", or "Francais"
     pub language: String,
 }
-
 impl Default for SettingsData {
     /// Create default settings with Swedish language and light theme.
     ///
@@ -933,11 +886,9 @@ impl Default for SettingsData {
         }
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn test_db_from_dag_tid() {
         let db = DB::from_dag_tid(
@@ -958,7 +909,6 @@ mod tests {
         let db = db.unwrap();
         assert_eq!(db.adress, "Åhusgatan1");
     }
-
     #[test]
     fn test_db_from_params() {
         let db = DB::from_params(DBParams {
@@ -979,7 +929,6 @@ mod tests {
         let db = db.unwrap();
         assert_eq!(db.adress, "Åhusgatan1");
     }
-
     #[test]
     fn test_db_is_active() {
         let db = DB::from_dag_tid(
@@ -997,7 +946,6 @@ mod tests {
             1,
         )
         .unwrap();
-
         let during = DateTime::<Utc>::from_naive_utc_and_offset(
             chrono::NaiveDate::from_ymd_opt(2024, 1, 15)
                 .unwrap()
@@ -1006,7 +954,6 @@ mod tests {
             Utc,
         );
         assert!(db.is_active(during));
-
         let before = DateTime::<Utc>::from_naive_utc_and_offset(
             chrono::NaiveDate::from_ymd_opt(2024, 1, 15)
                 .unwrap()
@@ -1016,7 +963,6 @@ mod tests {
         );
         assert!(!db.is_active(before));
     }
-
     #[test]
     fn test_year_validation() {
         let db = DB::from_dag_tid(
@@ -1034,7 +980,6 @@ mod tests {
             1,
         );
         assert!(db.is_none());
-
         let db = DB::from_dag_tid(
             None,
             "Test".to_string(),
@@ -1050,7 +995,6 @@ mod tests {
             1,
         );
         assert!(db.is_none());
-
         let db = DB::from_dag_tid(
             None,
             "Test".to_string(),
@@ -1067,7 +1011,6 @@ mod tests {
         );
         assert!(db.is_some());
     }
-
     #[test]
     fn test_swedish_timezone() {
         let db = DB::from_dag_tid(
@@ -1085,11 +1028,9 @@ mod tests {
             1,
         )
         .unwrap();
-
         let swedish_time = db.start_time_swedish();
         assert_eq!(swedish_time.timezone(), SWEDISH_TZ);
     }
-
     #[test]
     fn test_stored_address_parse() {
         let (street, number) = StoredAddress::parse_address("Kornettsgatan 18C");

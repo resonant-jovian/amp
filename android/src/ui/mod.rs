@@ -172,14 +172,12 @@
 //! - [`crate::components`]: Business logic layer
 //! - [`crate::android_bridge`]: Native Android integration
 //! - [`LifecycleManager`]: Background task management
-
 pub mod addresses;
 pub mod confirm_dialog;
 pub mod info_dialog;
 pub mod panels;
 pub mod settings_dropdown;
 pub mod top_bar;
-
 use crate::components::address_utils::normalize_string;
 use crate::components::debug::load_debug_addresses;
 use crate::components::lifecycle::{LifecycleManager, handle_active_toggle, handle_address_change};
@@ -190,13 +188,10 @@ use amp_core::structs::DB;
 use dioxus::prelude::*;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
-
 static CSS: Asset = asset!("/assets/style.css");
-
 /// Maximum Levenshtein distance for fuzzy matching
 /// Lower values = stricter matching
-const MAX_LEVENSHTEIN_DISTANCE: usize = 3;
-
+const _MAX_LEVENSHTEIN_DISTANCE: usize = 3;
 /// Represents a locally stored address with validation and activation state
 ///
 /// Each address is assigned a unique UUID for tracking and can be toggled active/inactive.
@@ -241,7 +236,6 @@ pub struct StoredAddress {
     /// The matched database entry (if valid)
     pub matched_entry: Option<DB>,
 }
-
 impl StoredAddress {
     /// Create a new stored address and attempt to match against database
     ///
@@ -287,7 +281,6 @@ impl StoredAddress {
         }
     }
 }
-
 /// Convert UUID to usize for ID storage
 ///
 /// Uses the first 8 bytes of the UUID as a usize.
@@ -305,7 +298,6 @@ fn uuid_to_usize(uuid: &Uuid) -> usize {
         bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
     ])
 }
-
 /// Fuzzy match address against database using Levenshtein distance
 ///
 /// Implements multi-stage matching strategy:
@@ -356,20 +348,15 @@ fn uuid_to_usize(uuid: &Uuid) -> usize {
 /// assert!(result.is_none());
 /// ```
 fn fuzzy_match_address(street: &str, street_number: &str, postal_code: &str) -> Option<DB> {
-    // Try exact match first (fast path)
     match match_address(street, street_number, postal_code) {
         MatchResult::Valid(entry) => return Some(*entry),
         MatchResult::Invalid => {}
     }
-
-    // Fall back to fuzzy matching
     use crate::components::matching::get_parking_data;
     let data = get_parking_data();
-
     let street_norm = normalize_string(street);
     let street_number_norm = normalize_string(street_number);
     let postal_code_norm = postal_code.trim().replace(' ', "");
-
     for entry in data.values() {
         let entry_street_norm = entry
             .gata
@@ -386,23 +373,14 @@ fn fuzzy_match_address(street: &str, street_number: &str, postal_code: &str) -> 
             .as_ref()
             .map(|pn| pn.replace(' ', ""))
             .unwrap_or_default();
-
-        // Calculate Levenshtein distance for street name
         let street_distance = strsim::levenshtein(&street_norm, &entry_street_norm);
-
-        // Street matches if exact or within Levenshtein threshold or substring
         let street_match = if street_norm == entry_street_norm {
-            true
-        } else if street_distance <= MAX_LEVENSHTEIN_DISTANCE {
             true
         } else {
             entry_street_norm.contains(&street_norm) || street_norm.contains(&entry_street_norm)
         };
-
-        // Number and postal code must match exactly
         let number_match = entry_number_norm == street_number_norm;
         let postal_match = entry_postal_norm == postal_code_norm;
-
         if street_match && number_match && postal_match {
             eprintln!(
                 "[FuzzyMatch] Found match: '{}' matches '{}' (distance: {})",
@@ -411,14 +389,12 @@ fn fuzzy_match_address(street: &str, street_number: &str, postal_code: &str) -> 
             return Some(entry.clone());
         }
     }
-
     eprintln!(
         "[FuzzyMatch] No match found for: {} {} {}",
         street, street_number, postal_code,
     );
     None
 }
-
 use crate::ui::{
     addresses::Addresses,
     panels::{
@@ -426,7 +402,6 @@ use crate::ui::{
     },
     top_bar::TopBar,
 };
-
 /// Main application component
 ///
 /// Manages a list of stored addresses and provides UI for:
@@ -485,17 +460,14 @@ use crate::ui::{
 /// ```
 #[component]
 pub fn App() -> Element {
-    let mut stored_addresses = use_signal::<Vec<StoredAddress>>(Vec::new());
+    let mut stored_addresses = use_signal::<Vec<StoredAddress>>(Vec::new);
     let mut debug_mode = use_signal(|| false);
     let mut lifecycle_manager = use_signal::<Option<Arc<Mutex<LifecycleManager>>>>(|| None);
-
-    // Initialize lifecycle and load addresses on startup
     use_effect(move || {
         let mut manager = LifecycleManager::new();
         manager.start();
         let manager_arc = Arc::new(Mutex::new(manager));
         lifecycle_manager.set(Some(manager_arc.clone()));
-
         let loaded = read_addresses_from_device();
         if !loaded.is_empty() {
             info!("Loaded {} addresses from storage", loaded.len());
@@ -513,8 +485,6 @@ pub fn App() -> Element {
             stored_addresses.set(Vec::new());
         }
     });
-
-    // Check for daily tasks (validity updates)
     use_effect(move || {
         if let Some(manager_arc) = lifecycle_manager.read().as_ref()
             && let Ok(manager) = manager_arc.lock()
@@ -527,7 +497,6 @@ pub fn App() -> Element {
             }
         }
     });
-
     let handle_add_address = move |args: (String, String, String)| {
         if debug_mode() {
             warn!("Cannot add addresses in debug mode (read-only)");
@@ -538,18 +507,14 @@ pub fn App() -> Element {
             "handle_add_address called with street='{}', street_number='{}', postal_code='{}'",
             street, street_number, postal_code
         );
-
         let new_addr = StoredAddress::new(street, street_number, postal_code);
         let mut addrs = stored_addresses.write();
-
-        // Check for duplicates (case-insensitive)
         let is_duplicate = addrs.iter().any(|a| {
             normalize_string(&a.street) == normalize_string(&new_addr.street)
                 && normalize_string(&a.street_number) == normalize_string(&new_addr.street_number)
                 && a.postal_code.trim().replace(' ', "")
                     == new_addr.postal_code.trim().replace(' ', "")
         });
-
         if !is_duplicate {
             info!("Adding new address, total now: {}", addrs.len() + 1);
             addrs.push(new_addr);
@@ -558,7 +523,6 @@ pub fn App() -> Element {
             warn!("Duplicate address detected (case-insensitive), not adding");
         }
     };
-
     let handle_toggle_active = move |id: usize| {
         info!("toggle_active called for id {}", id);
         let mut addrs = stored_addresses.write();
@@ -572,7 +536,6 @@ pub fn App() -> Element {
             }
         }
     };
-
     let handle_remove_address = move |id: usize| {
         if debug_mode() {
             warn!("Cannot remove addresses in debug mode (read-only)");
@@ -589,7 +552,6 @@ pub fn App() -> Element {
             handle_address_change(&addrs);
         }
     };
-
     let handle_toggle_debug = move |_| {
         let new_debug_mode = !debug_mode();
         debug_mode.set(new_debug_mode);
@@ -603,7 +565,6 @@ pub fn App() -> Element {
             stored_addresses.set(loaded);
         }
     };
-
     rsx! {
         Stylesheet { href: CSS }
         TopBar {

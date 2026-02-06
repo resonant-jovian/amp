@@ -77,7 +77,6 @@
 //! - Unit testing without UI
 //! - Code reuse across platforms
 //! - Clear dependency boundaries
-
 pub mod address_utils;
 pub mod countdown;
 pub mod debug;

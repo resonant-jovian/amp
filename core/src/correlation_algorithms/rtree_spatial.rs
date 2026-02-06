@@ -88,12 +88,10 @@
 //!
 //! [`MAX_DISTANCE_METERS`]: crate::correlation_algorithms::common::MAX_DISTANCE_METERS
 //! [`CELL_SIZE`]: crate::correlation_algorithms::common::CELL_SIZE
-
 use crate::correlation_algorithms::common::*;
 use crate::correlation_algorithms::{CorrelationAlgo, ParkeringCorrelationAlgo};
 use crate::structs::{AdressClean, MiljoeDataClean, ParkeringsDataClean};
 use std::collections::HashMap;
-
 /// R-tree-inspired spatial index for environmental parking restrictions.
 ///
 /// Uses a uniform grid to partition space and accelerate nearest-neighbor queries.
@@ -118,7 +116,6 @@ pub struct RTreeSpatialAlgo {
     /// Grid cell size in degrees (default: 0.0005)
     cell_size: f64,
 }
-
 /// Internal line segment representation with converted coordinates.
 ///
 /// Stores f64 coordinates to avoid repeated Decimal-to-f64 conversions
@@ -132,7 +129,6 @@ struct LineSegment {
     /// End point [longitude, latitude] in f64
     end: [f64; 2],
 }
-
 impl RTreeSpatialAlgo {
     /// Create a new R-tree spatial index from parking lines.
     ///
@@ -187,7 +183,6 @@ impl RTreeSpatialAlgo {
         }
     }
 }
-
 impl CorrelationAlgo for RTreeSpatialAlgo {
     /// Correlate address with environmental parking lines using spatial index.
     ///
@@ -234,12 +229,10 @@ impl CorrelationAlgo for RTreeSpatialAlgo {
         }
         best
     }
-
     fn name(&self) -> &'static str {
         "R-Tree Spatial"
     }
 }
-
 /// R-tree-inspired spatial index for parking zones (parkeringsdata).
 ///
 /// Identical logic to [`RTreeSpatialAlgo`] but operates on parking zone data.
@@ -249,7 +242,6 @@ pub struct RTreeSpatialParkeringAlgo {
     lines: Vec<LineSegment>,
     cell_size: f64,
 }
-
 impl RTreeSpatialParkeringAlgo {
     /// Create a new R-tree spatial index from parking zone lines.
     ///
@@ -294,7 +286,6 @@ impl RTreeSpatialParkeringAlgo {
         }
     }
 }
-
 impl ParkeringCorrelationAlgo for RTreeSpatialParkeringAlgo {
     /// Correlate address with parking zone lines using spatial index.
     ///
@@ -327,16 +318,13 @@ impl ParkeringCorrelationAlgo for RTreeSpatialParkeringAlgo {
         }
         best
     }
-
     fn name(&self) -> &'static str {
         "R-Tree Spatial (Parkering)"
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn test_line_cells() {
         let cells = line_cells(13.0, 55.0, 13.1, 55.1, CELL_SIZE);

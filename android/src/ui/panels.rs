@@ -136,12 +136,10 @@
 //! - [`crate::components::countdown`]: Countdown calculation logic
 //! - [`crate::ui::StoredAddress`]: Address data structure
 //! - [`crate::ui::App`]: Root component using panels
-
 use crate::components::countdown::{TimeBucket, bucket_for, format_countdown, remaining_duration};
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
 use tokio::time::Duration;
-
 /// Display an address with countdown timer in appropriate category.
 ///
 /// This component:
@@ -182,37 +180,26 @@ use tokio::time::Duration;
 fn AddressItem(addr: StoredAddress, index: usize, on_remove: EventHandler<usize>) -> Element {
     let mut countdown = use_signal(|| "...".to_string());
     let addr_clone = addr.clone();
-
-    // Spawn async countdown updater
     use_future(move || {
         let addr_for_future = addr_clone.clone();
         async move {
-            // Determine update interval based on time bucket
             let bucket = addr_for_future
                 .matched_entry
                 .as_ref()
                 .map(bucket_for)
                 .unwrap_or(TimeBucket::Invalid);
-
-            // Set initial countdown
             if let Some(matched) = &addr_for_future.matched_entry {
                 countdown.set(format_countdown(matched).unwrap_or_else(|| "...".to_string()));
             }
-
-            // No updates for invalid addresses
             if bucket == TimeBucket::Invalid {
                 return;
             }
-
-            // Choose update frequency based on urgency
             let update_interval = match bucket {
                 TimeBucket::Now | TimeBucket::Within6Hours | TimeBucket::Within1Day => {
-                    Duration::from_secs(1) // Update every second for urgent
+                    Duration::from_secs(1)
                 }
-                _ => Duration::from_secs(60), // Update every minute for planning
+                _ => Duration::from_secs(60),
             };
-
-            // Update loop
             loop {
                 tokio::time::sleep(update_interval).await;
                 let new_countdown = addr_for_future
@@ -224,12 +211,10 @@ fn AddressItem(addr: StoredAddress, index: usize, on_remove: EventHandler<usize>
             }
         }
     });
-
     let address_display = format!(
         "{} {}, {}",
         addr.street, addr.street_number, addr.postal_code,
     );
-
     rsx! {
         div { class: "address-item",
             div { class: "address-text", "{address_display}" }
@@ -237,7 +222,6 @@ fn AddressItem(addr: StoredAddress, index: usize, on_remove: EventHandler<usize>
         }
     }
 }
-
 /// Sort addresses by remaining time until restriction becomes active.
 ///
 /// Addresses with earlier restrictions are sorted first. Addresses without
@@ -280,7 +264,6 @@ pub fn sorting_time(mut active_addrs: Vec<StoredAddress>) -> Vec<StoredAddress> 
     });
     active_addrs
 }
-
 /// Panel displaying addresses with parking restrictions currently active.
 ///
 /// Shows addresses where the parking restriction is happening **right now**.
@@ -323,10 +306,8 @@ pub fn ActivePanel(addresses: Vec<StoredAddress>) -> Element {
             }
         })
         .collect();
-
     active_addrs = sorting_time(active_addrs);
     let active_count = active_addrs.len();
-
     rsx! {
         div { class: "category-container category-active",
             div { class: "category-title", "Städas nu" }
@@ -356,7 +337,6 @@ pub fn ActivePanel(addresses: Vec<StoredAddress>) -> Element {
         }
     }
 }
-
 /// Panel displaying addresses with restrictions becoming active within 6 hours.
 ///
 /// Shows addresses requiring attention soon, typically styled in orange/warning colors.
@@ -398,10 +378,8 @@ pub fn SixHoursPanel(addresses: Vec<StoredAddress>) -> Element {
             }
         })
         .collect();
-
     addrs = sorting_time(addrs);
     let count = addrs.len();
-
     rsx! {
         div { class: "category-container category-6h",
             div { class: "category-title", "Inom 6 timmar" }
@@ -431,7 +409,6 @@ pub fn SixHoursPanel(addresses: Vec<StoredAddress>) -> Element {
         }
     }
 }
-
 /// Panel displaying addresses with restrictions becoming active within 24 hours.
 ///
 /// Shows addresses requiring attention today, typically styled in yellow/caution colors.
@@ -473,10 +450,8 @@ pub fn OneDayPanel(addresses: Vec<StoredAddress>) -> Element {
             }
         })
         .collect();
-
     addrs = sorting_time(addrs);
     let count = addrs.len();
-
     rsx! {
         div { class: "category-container category-24h",
             div { class: "category-title", "Inom 1 dag" }
@@ -506,7 +481,6 @@ pub fn OneDayPanel(addresses: Vec<StoredAddress>) -> Element {
         }
     }
 }
-
 /// Panel displaying addresses with restrictions becoming active within 1 month (30 days).
 ///
 /// Shows addresses for planning ahead, typically styled in green colors.
@@ -548,10 +522,8 @@ pub fn OneMonthPanel(addresses: Vec<StoredAddress>) -> Element {
             }
         })
         .collect();
-
     addrs = sorting_time(addrs);
     let count = addrs.len();
-
     rsx! {
         div { class: "category-container category-month",
             div { class: "category-title", "Inom 1 månad" }
@@ -581,7 +553,6 @@ pub fn OneMonthPanel(addresses: Vec<StoredAddress>) -> Element {
         }
     }
 }
-
 /// Panel displaying addresses with restrictions more than 1 month away (>30 days).
 ///
 /// Shows addresses for long-term planning, typically styled in blue/info colors.
@@ -623,10 +594,8 @@ pub fn MoreThan1MonthPanel(addresses: Vec<StoredAddress>) -> Element {
             }
         })
         .collect();
-
     addrs = sorting_time(addrs);
     let count = addrs.len();
-
     rsx! {
         div { class: "category-container category-later",
             div { class: "category-title", "30+ dagar" }
@@ -656,7 +625,6 @@ pub fn MoreThan1MonthPanel(addresses: Vec<StoredAddress>) -> Element {
         }
     }
 }
-
 /// Panel displaying addresses with no valid parking restriction data.
 ///
 /// Shows addresses that:
@@ -695,11 +663,8 @@ pub fn InvalidPanel(addresses: Vec<StoredAddress>) -> Element {
         .into_iter()
         .filter(|a| a.active && !a.valid)
         .collect();
-
-    // Sort by postal code instead of time
     addrs.sort_by(|a, b| a.postal_code.cmp(&b.postal_code));
     let count = addrs.len();
-
     rsx! {
         div { class: "category-container category-invalid",
             div { class: "category-title", "Ingen städning" }

@@ -78,12 +78,10 @@
 //! ```
 //!
 //! [`RTreeSpatialAlgo`]: crate::correlation_algorithms::RTreeSpatialAlgo
-
 use crate::correlation_algorithms::common::*;
 use crate::correlation_algorithms::{CorrelationAlgo, ParkeringCorrelationAlgo};
 use crate::structs::{AdressClean, MiljoeDataClean, ParkeringsDataClean};
 use std::collections::HashMap;
-
 /// KD-tree-inspired spatial index using grid implementation.
 ///
 /// Despite the name, uses identical grid-based approach as [`RTreeSpatialAlgo`].
@@ -110,7 +108,6 @@ pub struct KDTreeSpatialAlgo {
     /// Grid cell size in degrees
     cell_size: f64,
 }
-
 /// Internal line segment representation with converted coordinates.
 #[derive(Clone)]
 struct LineSegment {
@@ -121,7 +118,6 @@ struct LineSegment {
     /// End point [longitude, latitude]
     end: [f64; 2],
 }
-
 impl KDTreeSpatialAlgo {
     /// Create a new KD-tree-inspired spatial index.
     ///
@@ -170,7 +166,6 @@ impl KDTreeSpatialAlgo {
         }
     }
 }
-
 impl CorrelationAlgo for KDTreeSpatialAlgo {
     /// Correlate address with parking lines using grid-based spatial index.
     ///
@@ -210,12 +205,10 @@ impl CorrelationAlgo for KDTreeSpatialAlgo {
         }
         best
     }
-
     fn name(&self) -> &'static str {
         "KD-Tree Spatial"
     }
 }
-
 /// KD-tree-inspired spatial index for parking zones.
 ///
 /// Identical implementation to [`KDTreeSpatialAlgo`] but for parking zone data.
@@ -224,7 +217,6 @@ pub struct KDTreeParkeringAlgo {
     lines: Vec<LineSegment>,
     cell_size: f64,
 }
-
 impl KDTreeParkeringAlgo {
     /// Create a new KD-tree-inspired spatial index for parking zones.
     ///
@@ -269,7 +261,6 @@ impl KDTreeParkeringAlgo {
         }
     }
 }
-
 impl ParkeringCorrelationAlgo for KDTreeParkeringAlgo {
     /// Correlate address with parking zone lines.
     ///
@@ -302,16 +293,13 @@ impl ParkeringCorrelationAlgo for KDTreeParkeringAlgo {
         }
         best
     }
-
     fn name(&self) -> &'static str {
         "KD-Tree Spatial Index (Parkering)"
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn test_line_cells() {
         let cells = line_cells(13.0, 55.0, 13.1, 55.1, CELL_SIZE);

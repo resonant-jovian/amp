@@ -92,14 +92,12 @@
 //! - [`ConfirmDialog`]: Removal confirmation modal
 //! - [`InfoDialog`]: Parking details modal
 //! - [`crate::ui::StoredAddress`]: Address data structure
-
 use crate::ui::StoredAddress;
 use crate::ui::confirm_dialog::ConfirmDialog;
 use crate::ui::info_dialog::InfoDialog;
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::md_action_icons::MdInfo;
-
 /// Address list component displaying all stored addresses with toggle and remove controls.
 ///
 /// This component provides a comprehensive interface for managing saved addresses:
@@ -185,19 +183,13 @@ pub fn Addresses(
     let mut pending_remove_id = use_signal(|| None::<usize>);
     let mut show_info = use_signal(|| false);
     let mut selected_address = use_signal(|| None::<StoredAddress>);
-
-    // Sort addresses by postal code for easy scanning
     let mut sorted_addresses = stored_addresses.clone();
     sorted_addresses.sort_by(|a, b| a.postal_code.cmp(&b.postal_code));
-
-    // Handle remove button click (shows confirmation)
     let mut handle_remove_click = move |addr_id: usize| {
         info!("Remove button clicked for address id: {}", addr_id);
         pending_remove_id.set(Some(addr_id));
         show_confirm.set(true);
     };
-
-    // Handle remove confirmation (actually removes)
     let handle_confirm_remove = move |_| {
         if let Some(id) = pending_remove_id() {
             info!("Removal confirmed for address id: {}", id);
@@ -206,15 +198,11 @@ pub fn Addresses(
         show_confirm.set(false);
         pending_remove_id.set(None);
     };
-
-    // Handle remove cancellation
     let handle_cancel = move |_| {
         info!("Removal cancelled");
         show_confirm.set(false);
         pending_remove_id.set(None);
     };
-
-    // Handle info icon click (shows detail dialog)
     let mut handle_info_click = move |addr: StoredAddress| {
         info!(
             "Info button clicked for address: {} {}",
@@ -223,14 +211,11 @@ pub fn Addresses(
         selected_address.set(Some(addr));
         show_info.set(true);
     };
-
-    // Handle info dialog close
     let handle_close_info = move |_| {
         info!("Info dialog closed");
         show_info.set(false);
         selected_address.set(None);
     };
-
     rsx! {
         div { class: "category-container category-addresses",
             div { class: "category-title", "Adresser" }
@@ -285,7 +270,6 @@ pub fn Addresses(
                     }
                 }
             }
-            // Modals (shown conditionally)
             ConfirmDialog {
                 is_open: show_confirm(),
                 title: "Bekräfta borttagning".to_string(),

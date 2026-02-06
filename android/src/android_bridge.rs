@@ -16,34 +16,6 @@
 //!     println!("Location: {}, {}", lat, lon);
 //! }
 //! ```
-#[cfg(target_os = "android")]
-use jni::{
-    JNIEnv,
-    objects::{JObject, JValue},
-};
-#[cfg(target_os = "android")]
-use std::sync::OnceLock;
-#[cfg(target_os = "android")]
-static JVM: OnceLock<jni::JavaVM> = OnceLock::new();
-/// Initialize JVM reference for Android operations
-///
-/// Must be called during app startup before any Android bridge functions.
-/// This stores the JavaVM reference for later use in location services.
-///
-/// # Arguments
-/// * `env` - JNI environment reference from Android
-///
-/// # Platform
-/// Only available on Android targets
-#[cfg(target_os = "android")]
-pub fn init_jvm(env: &JNIEnv) {
-    if let Ok(vm) = env.get_java_vm() {
-        let _ = JVM.set(vm);
-        eprintln!("[Android Bridge] JVM initialized successfully");
-    } else {
-        eprintln!("[Android Bridge] Failed to get JavaVM reference");
-    }
-}
 /// Read device GPS location
 ///
 /// Attempts to get the current device location using Android LocationManager.

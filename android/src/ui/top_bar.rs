@@ -123,7 +123,6 @@
 //! - [`SettingsDropdown`]: Settings panel component
 //! - [`crate::android_bridge::read_device_gps_location`]: GPS access
 //! - [`crate::components::geo::find_address_by_coordinates`]: Address lookup
-
 use crate::android_bridge::read_device_gps_location;
 use crate::components::geo::find_address_by_coordinates;
 use crate::ui::settings_dropdown::SettingsDropdown;
@@ -131,7 +130,6 @@ use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::md_image_icons::MdBlurOn;
 use dioxus_free_icons::icons::md_maps_icons::MdAddLocationAlt;
-
 /// Top navigation bar with address input and controls.
 ///
 /// Provides the primary interface for adding addresses with manual entry,
@@ -247,8 +245,6 @@ pub fn TopBar(
     let mut address_input = use_signal(String::new);
     let mut postal_code_input = use_signal(String::new);
     let mut show_settings = use_signal(|| false);
-
-    // Handle "Lägg till" button click
     let handle_add_click = move |_| {
         let address_str = address_input();
         let postal_code = postal_code_input();
@@ -256,54 +252,35 @@ pub fn TopBar(
             "Add button clicked: address='{}', postal_code='{}'",
             address_str, postal_code
         );
-
-        // Validate non-empty fields
         if address_str.trim().is_empty() || postal_code.trim().is_empty() {
             warn!("Validation failed: empty fields");
             return;
         }
-
-        // Parse address into street and street_number
-        // Expected format: "Street Number" (e.g., "Storgatan 10")
         let street_words: Vec<&str> = address_str.split_whitespace().collect();
         if street_words.len() < 2 {
             warn!("Address parsing failed: need at least 2 words");
             return;
         }
-
-        // Last word is street number, rest is street name
         let street_number = street_words[street_words.len() - 1].to_string();
         let street = street_words[..street_words.len() - 1].join(" ");
-
         info!(
             "Parsed: street='{}', street_number='{}', postal_code='{}'",
             street, street_number, postal_code
         );
-
-        // Call parent event handler
         on_add_address.call((street, street_number, postal_code.to_string()));
-
-        // Clear input fields on success
         address_input.set(String::new());
         postal_code_input.set(String::new());
         info!("Address added successfully");
     };
-
-    // Handle GPS button click
     let handle_gps_click = move |_| {
         info!("GPS button clicked - reading device location");
-
         if let Some((lat, lon)) = read_device_gps_location() {
             info!("Got location: lat={}, lon={}", lat, lon);
-
-            // Find nearest address in database
             if let Some(entry) = find_address_by_coordinates(lat, lon) {
                 info!(
                     "Found address: {:?} {:?}, {:?}",
                     entry.gata, entry.gatunummer, entry.postnummer
                 );
-
-                // Auto-populate input fields
                 let full_address = format!("{:?} {:?}", entry.gata, entry.gatunummer);
                 address_input.set(full_address);
                 postal_code_input.set(
@@ -320,8 +297,6 @@ pub fn TopBar(
             warn!("Could not read device location - check permissions");
         }
     };
-
-    // Handle settings button click (toggle dropdown)
     let handle_settings_click = move |_| {
         let new_state = !show_settings();
         show_settings.set(new_state);
@@ -330,16 +305,12 @@ pub fn TopBar(
             if new_state { "open" } else { "closed" }
         );
     };
-
-    // Handle settings dropdown close
     let handle_close_settings = move |_| {
         info!("Settings dropdown closed");
         show_settings.set(false);
     };
-
     rsx! {
         div { class: "category-container topbar-container",
-            // Title bar with settings button
             div { class: "category-title topbar-title",
                 div { class: "topbar-title-content",
                     span { class: "topbar-title-text", "amp" }
@@ -351,7 +322,6 @@ pub fn TopBar(
                     }
                 }
             }
-            // Input fields
             div { class: "category-content topbar-content",
                 div { class: "topbar-inputs-row",
                     div { class: "address-item topbar-input-item",
@@ -379,7 +349,6 @@ pub fn TopBar(
                         }
                     }
                 }
-                // Action buttons
                 div { class: "topbar-buttons-row",
                     button {
                         class: "topbar-btn",
@@ -397,7 +366,6 @@ pub fn TopBar(
                 }
             }
         }
-        // Settings dropdown (slide-in panel)
         SettingsDropdown {
             is_open: show_settings(),
             on_close: handle_close_settings,

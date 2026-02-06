@@ -60,11 +60,9 @@
 //! [`Decimal`]: rust_decimal::Decimal
 //! [`MAX_DISTANCE_METERS`]: crate::correlation_algorithms::common::MAX_DISTANCE_METERS
 //! [`distance_point_to_line`]: crate::correlation_algorithms::common::distance_point_to_line
-
 use crate::correlation_algorithms::common::*;
 use crate::correlation_algorithms::{CorrelationAlgo, ParkeringCorrelationAlgo};
 use crate::structs::{AdressClean, MiljoeDataClean, ParkeringsDataClean};
-
 /// Distance-based algorithm for environmental parking restrictions.
 ///
 /// Uses brute-force search with perpendicular distance calculation.
@@ -82,7 +80,6 @@ use crate::structs::{AdressClean, MiljoeDataClean, ParkeringsDataClean};
 /// let result = algo.correlate(&address, &parking_lines);
 /// ```
 pub struct DistanceBasedAlgo;
-
 impl CorrelationAlgo for DistanceBasedAlgo {
     /// Correlate address with environmental parking lines using brute-force.
     ///
@@ -121,17 +118,14 @@ impl CorrelationAlgo for DistanceBasedAlgo {
             })
             .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
     }
-
     fn name(&self) -> &'static str {
         "Distance-Based"
     }
 }
-
 /// Distance-based algorithm for parking zones (parkeringsdata).
 ///
 /// Identical logic to [`DistanceBasedAlgo`] but operates on parking zone data.
 pub struct DistanceBasedParkeringAlgo;
-
 impl ParkeringCorrelationAlgo for DistanceBasedParkeringAlgo {
     /// Correlate address with parking zone lines using brute-force.
     ///
@@ -165,7 +159,6 @@ impl ParkeringCorrelationAlgo for DistanceBasedParkeringAlgo {
             })
             .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
     }
-
     fn name(&self) -> &'static str {
         "Distance-Based (Parkering)"
     }

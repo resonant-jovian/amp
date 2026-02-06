@@ -74,7 +74,6 @@
 //! - **Fastest**: [`GridNearestAlgo`] - 2-3x faster than R-tree, slight accuracy tradeoff
 //! - **Most Accurate**: [`OverlappingChunksAlgo`] - Handles edge cases better
 //! - **Debugging**: [`RaycastingAlgo`] - Visual verification of point-line relationships
-
 pub mod common;
 pub mod distance_based;
 pub mod grid_nearest;
@@ -82,9 +81,7 @@ pub mod kdtree_spatial;
 pub mod overlapping_chunks;
 pub mod raycasting;
 pub mod rtree_spatial;
-
 use crate::structs::{AdressClean, MiljoeDataClean, ParkeringsDataClean};
-
 /// Trait for environmental parking correlation algorithms (miljödata).
 ///
 /// All algorithms must implement this trait to be compatible with the
@@ -123,13 +120,11 @@ pub trait CorrelationAlgo {
         address: &AdressClean,
         parking_lines: &[MiljoeDataClean],
     ) -> Option<(usize, f64)>;
-
     /// Get the name of this algorithm for display and logging.
     ///
     /// Used in benchmark reports and debug output.
     fn name(&self) -> &'static str;
 }
-
 /// Trait for parking zone correlation algorithms (parkeringsdata).
 ///
 /// Identical to [`CorrelationAlgo`] but operates on parking zone data
@@ -162,12 +157,9 @@ pub trait ParkeringCorrelationAlgo: Send + Sync {
         address: &AdressClean,
         parking_lines: &[ParkeringsDataClean],
     ) -> Option<(usize, f64)>;
-
     /// Get the name of this algorithm for display and logging.
     fn name(&self) -> &'static str;
 }
-
-// Re-export algorithm implementations
 pub use distance_based::DistanceBasedAlgo;
 pub use distance_based::DistanceBasedParkeringAlgo;
 pub use grid_nearest::GridNearestAlgo;

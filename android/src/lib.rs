@@ -115,7 +115,7 @@
 //! class MainActivity : ComponentActivity() {
 //!     external fun rustInitialize(): Boolean
 //!     external fun rustSearchAddress(address: String): String
-//!     
+//!
 //!     companion object {
 //!         init {
 //!             System.loadLibrary("amp_android")
@@ -186,19 +186,13 @@
 //! - [`storage`]: Data persistence and Parquet handling
 //! - [`LifecycleManager`]: Android lifecycle management
 //! - [`AppSettings`]: Configuration management
-
 pub mod android_bridge;
-
 #[cfg(target_os = "android")]
 pub mod android_utils;
-
 pub mod components;
 pub mod ui;
-
-// Re-export commonly used types for convenience
 #[cfg(target_os = "android")]
 pub use android_utils::{get_android_files_dir, init_android_storage};
-
 pub use components::{
     lifecycle::LifecycleManager,
     settings::{AppSettings, Language, Theme},

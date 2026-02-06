@@ -70,7 +70,6 @@
 //! [`LocalData`]: crate::structs::LocalData
 //! [`AdressClean`]: crate::structs::AdressClean
 //! [`SettingsData`]: crate::structs::SettingsData
-
 use crate::structs::*;
 use anyhow;
 use arrow::array::{
@@ -90,7 +89,6 @@ use parquet::{
 };
 use rust_decimal::prelude::FromPrimitive;
 use std::{fs::File, sync::Arc};
-
 /// Schema for [`OutputData`] parquet format.
 ///
 /// Defines 10 columns with mixed nullability:
@@ -117,7 +115,6 @@ pub fn output_data_schema() -> Arc<Schema> {
         Field::new("typ_av_parkering", DataType::Utf8, true),
     ]))
 }
-
 /// Schema for [`AdressClean`] parquet format.
 ///
 /// Defines 6 columns with coordinate data:
@@ -140,7 +137,6 @@ pub fn adress_clean_schema() -> Arc<Schema> {
         Field::new("gatunummer", DataType::Utf8, false),
     ]))
 }
-
 /// Schema for [`LocalData`] parquet format.
 ///
 /// Defines 12 columns including validation and active status:
@@ -168,7 +164,6 @@ pub fn local_data_schema() -> Arc<Schema> {
         Field::new("typ_av_parkering", DataType::Utf8, true),
     ]))
 }
-
 /// Extract a StringArray column from a RecordBatch.
 ///
 /// # Errors
@@ -186,7 +181,6 @@ fn get_string_column<'a>(
         .downcast_ref::<StringArray>()
         .ok_or_else(|| anyhow::anyhow!("{} column missing or wrong type", column_name))
 }
-
 /// Extract a BooleanArray column from a RecordBatch.
 ///
 /// # Errors
@@ -202,7 +196,6 @@ fn get_boolean_column<'a>(
         .downcast_ref::<BooleanArray>()
         .ok_or_else(|| anyhow::anyhow!("{} column missing or wrong type", column_name))
 }
-
 /// Extract a UInt8Array column from a RecordBatch.
 ///
 /// Used for reading `dag` (day of month) fields.
@@ -217,7 +210,6 @@ fn get_u8_column<'a>(batch: &'a RecordBatch, column_name: &str) -> anyhow::Resul
         .downcast_ref::<UInt8Array>()
         .ok_or_else(|| anyhow::anyhow!("{} column missing or wrong type", column_name))
 }
-
 /// Extract a UInt64Array column from a RecordBatch.
 ///
 /// Used for reading `antal_platser` (number of parking spots) fields.
@@ -235,7 +227,6 @@ fn get_u64_column<'a>(
         .downcast_ref::<UInt64Array>()
         .ok_or_else(|| anyhow::anyhow!("{} column missing or wrong type", column_name))
 }
-
 /// Get optional string value from StringArray at index.
 ///
 /// Returns `None` if the value is null, `Some(String)` otherwise.
@@ -246,7 +237,6 @@ fn get_optional_string(array: &StringArray, index: usize) -> Option<String> {
         Some(array.value(index).to_string())
     }
 }
-
 /// Get required string value from StringArray at index.
 ///
 /// Returns empty string if value is null (used for non-nullable schema fields).
@@ -257,7 +247,6 @@ fn get_required_string(array: &StringArray, index: usize) -> String {
         array.value(index).to_string()
     }
 }
-
 /// Get optional u8 value from UInt8Array at index.
 ///
 /// Returns `None` if the value is null.
@@ -268,7 +257,6 @@ fn get_optional_u8(array: &UInt8Array, index: usize) -> Option<u8> {
         Some(array.value(index))
     }
 }
-
 /// Get optional u64 value from UInt64Array at index.
 ///
 /// Returns `None` if the value is null.
@@ -279,7 +267,6 @@ fn get_optional_u64(array: &UInt64Array, index: usize) -> Option<u64> {
         Some(array.value(index))
     }
 }
-
 /// Get boolean value from BooleanArray at index with default fallback.
 ///
 /// Returns the default value if the cell is null.
@@ -290,7 +277,6 @@ fn get_boolean_with_default(array: &BooleanArray, index: usize, default: bool) -
         array.value(index)
     }
 }
-
 /// Create a Parquet reader from a file handle.
 ///
 /// Sets up the Arrow reader for batch-wise reading of Parquet data.
@@ -308,7 +294,6 @@ fn create_parquet_reader(
         .map_err(|e| anyhow::anyhow!("Failed to build Parquet record batch reader: {}", e))?;
     Ok(reader)
 }
-
 /// Append optional string to StringBuilder.
 ///
 /// Appends null if `value` is `None`, otherwise appends the string value.
@@ -318,7 +303,6 @@ fn append_optional_string(builder: &mut StringBuilder, value: &Option<String>) {
         None => builder.append_null(),
     }
 }
-
 /// Append optional u8 to UInt8Builder.
 ///
 /// Appends null if `value` is `None`.
@@ -328,7 +312,6 @@ fn append_optional_u8(builder: &mut UInt8Builder, value: &Option<u8>) {
         None => builder.append_null(),
     }
 }
-
 /// Append optional u64 to UInt64Builder.
 ///
 /// Appends null if `value` is `None`.
@@ -338,7 +321,6 @@ fn append_optional_u64(builder: &mut UInt64Builder, value: &Option<u64>) {
         None => builder.append_null(),
     }
 }
-
 /// Create ArrowWriter with standard properties.
 ///
 /// Creates a Parquet writer with:
@@ -356,7 +338,6 @@ fn create_arrow_writer(path: &str, schema: Arc<Schema>) -> anyhow::Result<ArrowW
     ArrowWriter::try_new(file, schema, Some(props))
         .map_err(|e| anyhow::anyhow!("Failed to create ArrowWriter: {}", e))
 }
-
 /// Write a single batch and close the writer.
 ///
 /// Helper function to write one RecordBatch and properly close the writer.
@@ -373,7 +354,6 @@ fn write_batch_and_close(mut writer: ArrowWriter<File>, batch: RecordBatch) -> a
         .map_err(|e| anyhow::anyhow!("Failed to close writer: {}", e))?;
     Ok(())
 }
-
 /// Minimal address entry for testing and debugging.
 ///
 /// Contains only address string and postal code, used for:
@@ -385,7 +365,6 @@ pub struct DebugAddress {
     pub adress: String,
     pub postnummer: String,
 }
-
 /// Load debug addresses from embedded bytes.
 ///
 /// Reads a minimal parquet file with `adress` and `postnummer` columns.
@@ -457,7 +436,6 @@ pub fn load_debug_addresses(bytes: &[u8]) -> anyhow::Result<Vec<DebugAddress>> {
     );
     Ok(result)
 }
-
 /// Load debug addresses from a file path.
 ///
 /// File-based version of [`load_debug_addresses`] for desktop/server testing.
@@ -499,7 +477,6 @@ pub fn load_debug_addresses_from_file(path: &str) -> anyhow::Result<Vec<DebugAdd
     }
     Ok(result)
 }
-
 /// Read [`OutputData`] from a parquet file.
 ///
 /// Loads correlated address and parking information from persistent storage.
@@ -550,7 +527,6 @@ pub fn read_db_parquet(file: File) -> anyhow::Result<Vec<OutputData>> {
     }
     Ok(result)
 }
-
 /// Read [`LocalData`] from a parquet file.
 ///
 /// Loads user's saved addresses with matched parking information.
@@ -605,7 +581,6 @@ pub fn read_local_parquet(file: File) -> anyhow::Result<Vec<LocalData>> {
     }
     Ok(result)
 }
-
 /// Read [`LocalData`] from embedded bytes (Android).
 ///
 /// Memory-based version of [`read_local_parquet`] for reading from
@@ -677,7 +652,6 @@ pub fn read_local_parquet_from_bytes(bytes: &[u8]) -> anyhow::Result<Vec<LocalDa
     }
     Ok(result)
 }
-
 /// Read [`AdressClean`] from a parquet file.
 ///
 /// Loads address data with coordinates, typically from the processed
@@ -732,7 +706,6 @@ pub fn read_address_parquet(file: File) -> anyhow::Result<Vec<AdressClean>> {
     }
     Ok(result)
 }
-
 /// Write [`OutputData`] to a parquet file.
 ///
 /// Serializes correlated address and parking information for persistent storage.
@@ -797,7 +770,6 @@ pub fn write_output_parquet(data: Vec<OutputData>, path: &str) -> anyhow::Result
     .map_err(|e| anyhow::anyhow!("Failed to create record batch: {}", e))?;
     write_batch_and_close(writer, batch)
 }
-
 /// Write [`AdressClean`] to a parquet file.
 ///
 /// Serializes address data with coordinates for persistent storage.
@@ -852,7 +824,6 @@ pub fn write_adress_clean_parquet(data: Vec<AdressClean>, path: &str) -> anyhow:
     .map_err(|e| anyhow::anyhow!("Failed to create record batch: {}", e))?;
     write_batch_and_close(writer, batch)
 }
-
 /// Build [`LocalData`] into an in-memory Parquet buffer.
 ///
 /// Serializes user's saved addresses to a byte vector suitable for:
@@ -951,7 +922,6 @@ pub fn build_local_parquet(data: Vec<LocalData>) -> anyhow::Result<Vec<u8>> {
         .map_err(|e| anyhow::anyhow!("Failed to close writer: {}", e))?;
     Ok(buffer)
 }
-
 /// Schema for [`SettingsData`] parquet format.
 ///
 /// Defines 5 non-nullable columns:
@@ -969,7 +939,6 @@ pub fn settings_data_schema() -> Arc<Schema> {
         Field::new("language", DataType::Utf8, false),
     ]))
 }
-
 /// Build [`SettingsData`] into an in-memory Parquet buffer.
 ///
 /// Serializes user preferences to a byte vector for Android storage.
@@ -1032,7 +1001,6 @@ pub fn build_settings_parquet(data: Vec<SettingsData>) -> anyhow::Result<Vec<u8>
         .map_err(|e| anyhow::anyhow!("Failed to close writer: {}", e))?;
     Ok(buffer)
 }
-
 /// Read [`SettingsData`] from a parquet file.
 ///
 /// Loads user preferences from persistent storage.
@@ -1072,7 +1040,6 @@ pub fn read_settings_parquet(file: File) -> anyhow::Result<Vec<SettingsData>> {
     }
     Ok(result)
 }
-
 /// Read [`SettingsData`] from embedded bytes (Android).
 ///
 /// Memory-based version of [`read_settings_parquet`] for reading from

@@ -83,12 +83,10 @@
 //!
 //! [`OverlappingChunksAlgo`]: crate::correlation_algorithms::OverlappingChunksAlgo
 //! [`RTreeSpatialAlgo`]: crate::correlation_algorithms::RTreeSpatialAlgo
-
 use crate::correlation_algorithms::common::*;
 use crate::correlation_algorithms::{CorrelationAlgo, ParkeringCorrelationAlgo};
 use crate::structs::{AdressClean, MiljoeDataClean, ParkeringsDataClean};
 use std::collections::HashMap;
-
 /// Grid-based nearest neighbor algorithm for environmental parking restrictions.
 ///
 /// Uses uniform grid partitioning without coordinate caching. Good balance
@@ -111,7 +109,6 @@ pub struct GridNearestAlgo {
     /// Grid cell size in degrees (default: 0.0005)
     cell_size: f64,
 }
-
 impl GridNearestAlgo {
     /// Create a new grid-based spatial index from parking lines.
     ///
@@ -156,7 +153,6 @@ impl GridNearestAlgo {
         }
     }
 }
-
 impl CorrelationAlgo for GridNearestAlgo {
     /// Correlate address with environmental parking lines using grid index.
     ///
@@ -212,12 +208,10 @@ impl CorrelationAlgo for GridNearestAlgo {
         }
         best
     }
-
     fn name(&self) -> &'static str {
         "Grid Nearest Neighbor"
     }
 }
-
 /// Grid-based nearest neighbor for parking zones (parkeringsdata).
 ///
 /// Identical logic to [`GridNearestAlgo`] but operates on parking zone data.
@@ -225,7 +219,6 @@ pub struct GridNearestParkeringAlgo {
     grid: HashMap<(i32, i32), Vec<usize>>,
     cell_size: f64,
 }
-
 impl GridNearestParkeringAlgo {
     /// Create a new grid-based spatial index from parking zone lines.
     ///
@@ -263,7 +256,6 @@ impl GridNearestParkeringAlgo {
         }
     }
 }
-
 impl ParkeringCorrelationAlgo for GridNearestParkeringAlgo {
     /// Correlate address with parking zone lines using grid index.
     ///
@@ -304,16 +296,13 @@ impl ParkeringCorrelationAlgo for GridNearestParkeringAlgo {
         }
         best
     }
-
     fn name(&self) -> &'static str {
         "Grid Nearest (Parkering)"
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn test_get_cell() {
         let cell = get_cell([13.1, 55.6], CELL_SIZE);

@@ -80,7 +80,7 @@
 //! ```text
 //! [
 //!   [x1, y1],  // First point
-//!   [x2, y2],  // Second point  
+//!   [x2, y2],  // Second point
 //!   [x3, y3],  // Third point (optional)
 //!   ...        // More points (optional)
 //! ]
@@ -103,11 +103,9 @@
 //! ```
 //!
 //! [`MAX_DISTANCE_METERS`]: crate::correlation_algorithms::common::MAX_DISTANCE_METERS
-
 use crate::correlation_algorithms::common::*;
 use crate::correlation_algorithms::{CorrelationAlgo, ParkeringCorrelationAlgo};
 use crate::structs::{AdressClean, MiljoeDataClean, ParkeringsDataClean};
-
 /// Raycasting-style algorithm for environmental parking restrictions.
 ///
 /// Handles multi-segment polylines by calculating distance to the nearest
@@ -125,7 +123,6 @@ use crate::structs::{AdressClean, MiljoeDataClean, ParkeringsDataClean};
 /// let result = algo.correlate(&address, &parking_lines);
 /// ```
 pub struct RaycastingAlgo;
-
 impl CorrelationAlgo for RaycastingAlgo {
     /// Correlate address with multi-segment parking lines.
     ///
@@ -160,7 +157,6 @@ impl CorrelationAlgo for RaycastingAlgo {
             .enumerate()
             .filter_map(|(idx, line)| {
                 let mut min_dist = f64::MAX;
-                // Check all segments in the polyline
                 for segment in line.coordinates.windows(2) {
                     let start = [segment[0][0].to_f64()?, segment[0][1].to_f64()?];
                     let end = [segment[1][0].to_f64()?, segment[1][1].to_f64()?];
@@ -171,17 +167,14 @@ impl CorrelationAlgo for RaycastingAlgo {
             })
             .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
     }
-
     fn name(&self) -> &'static str {
         "Raycasting"
     }
 }
-
 /// Raycasting-style algorithm for parking zones (parkeringsdata).
 ///
 /// Identical logic to [`RaycastingAlgo`] but operates on parking zone data.
 pub struct RaycastingParkeringAlgo;
-
 impl ParkeringCorrelationAlgo for RaycastingParkeringAlgo {
     /// Correlate address with multi-segment parking zone lines.
     ///
@@ -203,7 +196,6 @@ impl ParkeringCorrelationAlgo for RaycastingParkeringAlgo {
             .enumerate()
             .filter_map(|(idx, line)| {
                 let mut min_dist = f64::MAX;
-                // Check all segments in the polyline
                 for segment in line.coordinates.windows(2) {
                     let start = [segment[0][0].to_f64()?, segment[0][1].to_f64()?];
                     let end = [segment[1][0].to_f64()?, segment[1][1].to_f64()?];
@@ -214,7 +206,6 @@ impl ParkeringCorrelationAlgo for RaycastingParkeringAlgo {
             })
             .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
     }
-
     fn name(&self) -> &'static str {
         "Raycasting (Parkering)"
     }
