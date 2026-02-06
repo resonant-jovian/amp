@@ -20,6 +20,16 @@
 //! android_bridge::initialize_notification_channels_jni();
 //! ```
 
+#[cfg(target_os = "android")]
+use jni::{
+    objects::{JClass, JObject, JString, JValue},
+    sys::jint,
+    JNIEnv, JavaVM,
+};
+
+#[cfg(target_os = "android")]
+use ndk_context;
+
 /// Initialize Android notification channels
 ///
 /// Creates three notification channels for Android 8.0+ (API 26+):
@@ -123,86 +133,118 @@ pub fn send_notification_jni(
     }
 }
 
-/// Internal: Create notification channels via JNI
+/// Get JNIEnv for the current thread
 ///
-/// # JNI Implementation Notes
-/// This function should:
-/// 1. Get JNIEnv from the current thread/context
-/// 2. Get Android Context (typically from MainActivity or Application)
-/// 3. Find the NotificationHelper class: "com/amp/NotificationHelper"
-/// 4. Call static method: `createNotificationChannels(Landroid/content/Context;)V`
+/// Uses ndk_context to get the JavaVM and attaches the current thread.
+/// This is the proper way to get JNIEnv in Dioxus Android apps.
 ///
-/// # Example JNI Structure
-/// ```ignore
-/// let env = get_jni_env()?;
-/// let context = get_android_context()?;
-/// let helper_class = env.find_class("com/amp/NotificationHelper")?;
-/// let method_id = env.get_static_method_id(
-///     helper_class,
-///     "createNotificationChannels",
-///     "(Landroid/content/Context;)V"
-/// )?;
-/// env.call_static_method_unchecked(
-///     helper_class,
-///     method_id,
-///     JavaType::Primitive(Primitive::Void),
-///     &[context.into()]
-/// )?;
-/// ```
+/// # Returns
+/// Result containing JNIEnv or error message
+///
+/// # Implementation Notes
+/// - Uses `ndk_context::android_context()` to get native activity context
+/// - Attaches current thread to JavaVM
+/// - Thread-safe and works from any Rust thread
 #[cfg(target_os = "android")]
-fn create_notification_channels() -> Result<(), String> {
-    // TODO: Implement JNI call to NotificationHelper.createNotificationChannels()
-    //
-    // Required steps:
-    // 1. Obtain JNIEnv from Dioxus/Android context
-    // 2. Get Android Context object
-    // 3. Find NotificationHelper class
-    // 4. Call createNotificationChannels static method
-    //
-    // The Kotlin NotificationHelper class should be created at:
-    // android_project/app/src/main/java/com/amp/NotificationHelper.kt
-    //
-    // For now, return error indicating JNI not yet connected
-    Err("JNI bridge not yet connected - requires NotificationHelper Kotlin class and JNIEnv access".to_string())
+fn get_jni_env() -> Result<JNIEnv<'static>, String> {
+    // Get the Android context from ndk_context
+    let ctx = ndk_context::android_context();
+    let vm_ptr = ctx.vm() as *mut jni::sys::JavaVM;
+    
+    // Safety: The VM pointer from ndk_context is valid for the app lifetime
+    let vm = unsafe { JavaVM::from_raw(vm_ptr) }
+        .map_err(|e| format!("Failed to create JavaVM from ndk_context: {:?}", e))?;
+    
+    // Attach current thread to get JNIEnv
+    let env = vm
+        .attach_current_thread()
+        .map_err(|e| format!("Failed to attach thread to JavaVM: {:?}", e))?;
+    
+    // Safety: We're extending the lifetime to 'static because the VM is valid
+    // for the entire application lifetime
+    Ok(unsafe { std::mem::transmute(env) })
 }
 
-/// Internal: Show a notification via JNI
+/// Get Android Context object
 ///
-/// # JNI Implementation Notes
-/// This function should:
-/// 1. Get JNIEnv and Android Context
-/// 2. Convert Rust strings to Java strings
-/// 3. Find NotificationHelper class
-/// 4. Call static method: `showNotification(Context, String, int, String, String)`
+/// Retrieves the Android Context (Activity or Application) for use in JNI calls.
+/// Uses ndk_context to get the native activity context.
 ///
-/// # Example JNI Structure
-/// ```ignore
-/// let env = get_jni_env()?;
-/// let context = get_android_context()?;
-/// let helper_class = env.find_class("com/amp/NotificationHelper")?;
-/// let method_id = env.get_static_method_id(
-///     helper_class,
-///     "showNotification",
-///     "(Landroid/content/Context;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;)V"
-/// )?;
-/// 
-/// let j_channel_id = env.new_string(channel_id)?;
-/// let j_title = env.new_string(title)?;
-/// let j_body = env.new_string(body)?;
-/// 
-/// env.call_static_method_unchecked(
-///     helper_class,
-///     method_id,
-///     JavaType::Primitive(Primitive::Void),
-///     &[
-///         context.into(),
-///         j_channel_id.into(),
-///         JValue::Int(notification_id),
-///         j_title.into(),
-///         j_body.into(),
-///     ]
-/// )?;
-/// ```
+/// # Returns
+/// Result containing JObject Context or error message
+///
+/// # Implementation Notes
+/// - Uses ndk_context to get native activity
+/// - Returns the activity as a Context (Activity extends Context)
+/// - Valid for the lifetime of the activity
+#[cfg(target_os = "android")]
+fn get_android_context<'a>(env: &'a JNIEnv<'a>) -> Result<JObject<'a>, String> {
+    let ctx = ndk_context::android_context();
+    let activity_ptr = ctx.context() as *mut jni::sys::_jobject;
+    
+    // Safety: The activity pointer from ndk_context is valid
+    let activity = unsafe { JObject::from_raw(activity_ptr) };
+    
+    if activity.is_null() {
+        return Err("Android context is null".to_string());
+    }
+    
+    Ok(activity)
+}
+
+/// Create notification channels via JNI
+///
+/// Calls NotificationHelper.createNotificationChannels(Context) using JNI.
+///
+/// # Returns
+/// Result indicating success or error message
+///
+/// # JNI Call Structure
+/// - Class: `com/amp/NotificationHelper`
+/// - Method: `createNotificationChannels`
+/// - Signature: `(Landroid/content/Context;)V`
+/// - Static method call with Context parameter
+#[cfg(target_os = "android")]
+fn create_notification_channels() -> Result<(), String> {
+    let env = get_jni_env()?;
+    let context = get_android_context(&env)?;
+    
+    // Find the NotificationHelper class
+    let helper_class = env
+        .find_class("com/amp/NotificationHelper")
+        .map_err(|e| format!("Failed to find NotificationHelper class: {:?}", e))?;
+    
+    // Call the static createNotificationChannels method
+    env.call_static_method(
+        helper_class,
+        "createNotificationChannels",
+        "(Landroid/content/Context;)V",
+        &[JValue::Object(&context)],
+    )
+    .map_err(|e| format!("Failed to call createNotificationChannels: {:?}", e))?;
+    
+    Ok(())
+}
+
+/// Show a notification via JNI
+///
+/// Calls NotificationHelper.showNotification(...) using JNI with proper
+/// string conversion and parameter handling.
+///
+/// # Arguments
+/// * `channel_id` - Notification channel ID
+/// * `notification_id` - Unique notification ID
+/// * `title` - Notification title
+/// * `body` - Notification body text
+///
+/// # Returns
+/// Result indicating success or error message
+///
+/// # JNI Call Structure
+/// - Class: `com/amp/NotificationHelper`
+/// - Method: `showNotification`
+/// - Signature: `(Landroid/content/Context;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;)V`
+/// - Parameters: Context, channelId, notificationId, title, body
 #[cfg(target_os = "android")]
 fn show_notification(
     channel_id: &str,
@@ -210,18 +252,43 @@ fn show_notification(
     title: &str,
     body: &str,
 ) -> Result<(), String> {
-    // TODO: Implement JNI call to NotificationHelper.showNotification()
-    //
-    // Required steps:
-    // 1. Obtain JNIEnv
-    // 2. Get Android Context
-    // 3. Convert Rust strings to Java strings
-    // 4. Find NotificationHelper class
-    // 5. Call showNotification static method with parameters
-    //
-    // For now, return error indicating JNI not yet connected
-    let _ = (channel_id, notification_id, title, body); // Suppress unused warnings
-    Err("JNI bridge not yet connected - requires NotificationHelper Kotlin class and JNIEnv access".to_string())
+    let env = get_jni_env()?;
+    let context = get_android_context(&env)?;
+    
+    // Convert Rust strings to Java strings
+    let j_channel_id = env
+        .new_string(channel_id)
+        .map_err(|e| format!("Failed to create Java string for channel_id: {:?}", e))?;
+    
+    let j_title = env
+        .new_string(title)
+        .map_err(|e| format!("Failed to create Java string for title: {:?}", e))?;
+    
+    let j_body = env
+        .new_string(body)
+        .map_err(|e| format!("Failed to create Java string for body: {:?}", e))?;
+    
+    // Find the NotificationHelper class
+    let helper_class = env
+        .find_class("com/amp/NotificationHelper")
+        .map_err(|e| format!("Failed to find NotificationHelper class: {:?}", e))?;
+    
+    // Call the static showNotification method
+    env.call_static_method(
+        helper_class,
+        "showNotification",
+        "(Landroid/content/Context;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;)V",
+        &[
+            JValue::Object(&context),
+            JValue::Object(&j_channel_id),
+            JValue::Int(notification_id as jint),
+            JValue::Object(&j_title),
+            JValue::Object(&j_body),
+        ],
+    )
+    .map_err(|e| format!("Failed to call showNotification: {:?}", e))?;
+    
+    Ok(())
 }
 
 /// Read device GPS location
