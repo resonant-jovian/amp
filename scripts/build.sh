@@ -97,21 +97,21 @@ setup_notifications() {
     echo "🔔 Setting up notification system..."
     
     ANDROID_SRC="$ANDROID_DIR/app/src/main"
-    JAVA_DIR="$ANDROID_SRC/java/se/malmo/skaggbyran/amp"
+    KOTLIN_DIR="$ANDROID_SRC/kotlin/se/malmo/skaggbyran/amp"
     MANIFEST="$ANDROID_SRC/AndroidManifest.xml"
     KOTLIN_SOURCE="$REPO_ROOT/android/kotlin/NotificationHelper.kt"
     
-    # Create Java/Kotlin directory matching package structure
-    if [ ! -d "$JAVA_DIR" ]; then
-        echo "  📁 Creating directory: $JAVA_DIR"
-        mkdir -p "$JAVA_DIR"
+    # Create Kotlin directory matching package structure
+    if [ ! -d "$KOTLIN_DIR" ]; then
+        echo "  📁 Creating directory: $KOTLIN_DIR"
+        mkdir -p "$KOTLIN_DIR"
     fi
     
     # Copy NotificationHelper.kt if it exists
     if [ -f "$KOTLIN_SOURCE" ]; then
-        echo "  📄 Copying NotificationHelper.kt..."
-        cp "$KOTLIN_SOURCE" "$JAVA_DIR/NotificationHelper.kt"
-        echo "  ✓ NotificationHelper.kt copied"
+        echo "  📄 Copying NotificationHelper.kt to kotlin/ directory..."
+        cp "$KOTLIN_SOURCE" "$KOTLIN_DIR/NotificationHelper.kt"
+        echo "  ✓ NotificationHelper.kt copied to $KOTLIN_DIR"
     else
         echo "  ⚠️  NotificationHelper.kt not found at $KOTLIN_SOURCE"
     fi
