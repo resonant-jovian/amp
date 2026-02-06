@@ -27,6 +27,12 @@ use jni::{
 };
 #[cfg(target_os = "android")]
 use ndk_context;
+#[cfg(target_os = "android")]
+use once_cell::sync::OnceCell;
+
+#[cfg(target_os = "android")]
+static JAVA_VM: OnceCell<JavaVM> = OnceCell::new();
+
 /// Initialize Android notification channels
 ///
 /// Creates three notification channels for Android 8.0+ (API 26+):
@@ -126,6 +132,22 @@ pub fn send_notification_jni(channel_id: &str, notification_id: i32, title: &str
         );
     }
 }
+/// Get or initialize the JavaVM
+///
+/// Returns a reference to the JavaVM stored in static memory.
+/// Initializes it on first call using ndk_context.
+///
+/// # Returns
+/// Reference to JavaVM with 'static lifetime
+#[cfg(target_os = "android")]
+fn get_java_vm() -> Result<&'static JavaVM, String> {
+    JAVA_VM.get_or_try_init(|| {
+        let ctx = ndk_context::android_context();
+        let vm_ptr = ctx.vm() as *mut jni::sys::JavaVM;
+        unsafe { JavaVM::from_raw(vm_ptr) }
+            .map_err(|e| format!("Failed to create JavaVM from ndk_context: {:?}", e))
+    })
+}
 /// Get JNIEnv for the current thread
 ///
 /// Uses ndk_context to get the JavaVM and attaches the current thread.
@@ -141,10 +163,7 @@ pub fn send_notification_jni(channel_id: &str, notification_id: i32, title: &str
 /// - Returns an AttachGuard which must be kept alive
 #[cfg(target_os = "android")]
 fn get_jni_env() -> Result<jni::AttachGuard<'static>, String> {
-    let ctx = ndk_context::android_context();
-    let vm_ptr = ctx.vm() as *mut jni::sys::JavaVM;
-    let vm = unsafe { JavaVM::from_raw(vm_ptr) }
-        .map_err(|e| format!("Failed to create JavaVM from ndk_context: {:?}", e))?;
+    let vm = get_java_vm()?;
     let env = vm
         .attach_current_thread()
         .map_err(|e| format!("Failed to attach thread to JavaVM: {:?}", e))?;
