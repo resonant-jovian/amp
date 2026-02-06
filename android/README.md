@@ -4,7 +4,7 @@ Android mobile application for parking restriction lookup in Malmö, Sweden.
 
 ## Overview
 
-The Android crate provides a native mobile app built with [Dioxus](https://dioxuslabs.com/) and Rust. It offers a user-friendly interface for managing parking restrictions at saved addresses with real-time countdowns and validity checking.
+The Android crate provides a native mobile app built with [Dioxus](https://dioxuslabs.com/) and Rust. It offers a user-friendly interface for managing parking restrictions at saved addresses with real-time countdowns, validity checking, and smart notifications.
 
 ## Features
 
@@ -30,6 +30,13 @@ The Android crate provides a native mobile app built with [Dioxus](https://dioxu
   - 🔵 **>1 Month**: Active beyond 30 days
   - ⚪ **Invalid**: Validation failed
 
+✅ **Smart Notifications**
+- Three notification channels with distinct priorities
+- Transition-based triggering (no duplicates)
+- Respects user notification preferences
+- Contextual messages with street names
+- Android 8+ notification channel support
+
 ✅ **Validity Checking**
 - Handles date-dependent restrictions (day 1-31)
 - Accounts for month lengths (Feb 28/29, etc.)
@@ -41,7 +48,7 @@ The Android crate provides a native mobile app built with [Dioxus](https://dioxu
 - JNI bridge for system services
 - Lifecycle-aware background tasks
 - Internal storage access
-- Notification support (planned)
+- Local notification system
 
 ✅ **Developer Tools**
 - Debug mode with example addresses
@@ -77,6 +84,8 @@ The Android crate provides a native mobile app built with [Dioxus](https://dioxu
 - **storage.rs**: Persistent Parquet-based storage (33KB)
 - **static_data.rs**: Embedded parking database (13KB)
 - **matching.rs**: Address validation and lookup (12KB)
+- **notifications.rs**: Local notification system (10KB)
+- **transitions.rs**: Panel transition detection (12KB)
 - **lifecycle.rs**: Android lifecycle management (7KB)
 - **settings.rs**: User preferences (7KB)
 - **validity.rs**: Date-dependent validation (6KB)
@@ -84,11 +93,31 @@ The Android crate provides a native mobile app built with [Dioxus](https://dioxu
 - **debug.rs**: Debug utilities (8KB)
 - **address_utils.rs**: String normalization
 - **geo.rs**: GPS location (stub)
-- **notification.rs**: Push notifications (stub)
 
 #### Platform Integration
 - **android_bridge.rs**: JNI bindings (4KB)
 - **android_utils.rs**: File system access (2.5KB)
+
+## Notification System
+
+The app uses Android's local notification system to alert users when parking restrictions approach:
+
+### Notification Channels
+
+| Channel | Priority | Behavior | Trigger |
+|---------|----------|----------|----------|
+| **Active Now** | High | Sound + vibration + heads-up | When restriction becomes active |
+| **6 Hours** | High | Sound + vibration | 6 hours before restriction |
+| **1 Day** | Low | Silent (tray only) | 1 day before restriction |
+
+### How It Works
+
+1. **Transition Detection**: Monitors when addresses move between time panels
+2. **Smart Triggering**: Only notifies when entering a new, more urgent panel
+3. **User Control**: Respects notification preferences in settings
+4. **No Duplicates**: State tracking prevents repeat notifications
+
+See [docs/android-notifications.md](../docs/android-notifications.md) for complete implementation details.
 
 ## Quick Start
 
@@ -150,6 +179,32 @@ if address.valid {
     println!("Valid address with parking data!");
     if let Some(ref entry) = address.matched_entry {
         println!("Restriction: {:?}", entry.info);
+    }
+}
+```
+
+### Setting Up Notifications
+
+```rust
+use amp_android::components::{
+    notifications::initialize_notification_channels,
+    transitions::{initialize_panel_tracker, detect_transitions},
+};
+
+// Initialize once on app startup
+initialize_notification_channels();
+initialize_panel_tracker();
+
+// Check for transitions periodically (e.g., every 60 seconds)
+let addresses = storage::read_addresses_from_device();
+let transitions = detect_transitions(&addresses);
+
+for (addr, _prev, new_bucket) in transitions {
+    match new_bucket {
+        TimeBucket::Within1Day => notify_one_day(&addr),
+        TimeBucket::Within6Hours => notify_six_hours(&addr),
+        TimeBucket::Now => notify_active(&addr),
+        _ => {}
     }
 }
 ```
@@ -242,6 +297,8 @@ android/assets/data/
 | Correlation | 0.01-0.05ms | O(1) HashMap lookup |
 | Validity check | 1-5ms | Daily, checks all addresses |
 | Panel update | <5ms | Reactive, automatic |
+| Transition check | 1-5ms | HashMap lookup per address |
+| Notification send | 5-20ms | JNI + Android NotificationManager |
 
 **Memory Usage:** ~15-30 MB total (including UI)
 
@@ -257,6 +314,8 @@ cargo test
 cargo test --lib storage
 cargo test --lib matching
 cargo test --lib validity
+cargo test --lib notifications
+cargo test --lib transitions
 
 # Run with logging
 RUST_LOG=debug cargo test
@@ -272,7 +331,7 @@ RUST_LOG=debug cargo test
 
 ## Configuration
 
-### Settings (Planned)
+### Settings
 
 ```rust
 pub struct AppSettings {
@@ -286,11 +345,13 @@ pub struct AppSettings {
 
 ```rust
 pub struct NotificationSettings {
-    pub stadning_nu: bool,   // Notify when active
-    pub sex_timmar: bool,    // 6 hours before
-    pub en_dag: bool,        // 1 day before
+    pub stadning_nu: bool,   // Notify when active (default: true)
+    pub sex_timmar: bool,    // 6 hours before (default: true)
+    pub en_dag: bool,        // 1 day before (default: false)
 }
 ```
+
+Users can toggle each notification type independently through the settings menu.
 
 ## Troubleshooting
 
@@ -305,6 +366,23 @@ adb shell run-as com.example.amp ls -la /data/data/com.example.amp/files/
 # Clear storage and restart
 adb shell run-as com.example.amp rm -rf /data/data/com.example.amp/files/*.parquet
 ```
+
+### Notification Issues
+
+If notifications aren't appearing:
+
+```bash
+# Check notification permissions
+adb shell dumpsys notification
+
+# View notification logs
+adb logcat | grep Notifications
+
+# Verify channels created
+adb shell dumpsys notification | grep amp_
+```
+
+See [docs/android-notifications.md](../docs/android-notifications.md) for detailed troubleshooting.
 
 ### Build Issues
 
@@ -364,4 +442,5 @@ GPL-3.0 - See [LICENSE](../LICENSE) for details.
 - [Core Library](../core/README.md) - Parking correlation engine
 - [Server](../server/README.md) - Data processing and API
 - [iOS App](../ios/README.md) - iOS mobile app
+- [Notification System](../docs/android-notifications.md) - Detailed notification documentation
 - [Dioxus Documentation](https://dioxuslabs.com/docs/0.7/guide/en/)
