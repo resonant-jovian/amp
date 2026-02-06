@@ -135,6 +135,6 @@ mod tests {
     #[test]
     fn test_device_info() {
         let info = get_device_info();
-        assert!(!info.is_empty();
+        assert!(!info.is_empty());
     }
 }
