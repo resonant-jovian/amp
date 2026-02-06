@@ -54,7 +54,7 @@ use crate::ui::StoredAddress;
 use amp_core::parquet::{build_local_parquet, read_local_parquet};
 #[allow(unused_imports)]
 use amp_core::structs::{LocalData, DBParams, DB};
-use chrono::Datelike;
+use chrono::{Datelike, Timelike};
 #[allow(unused_imports)]
 use std::fs::File;
 #[allow(unused_imports)]
@@ -306,7 +306,7 @@ fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
 
     // Attempt to reconstruct matched_entry from persisted data
     let matched_entry = if let (
-        Some(ref tid),
+        Some(tid),
         Some(dag),
     ) = (&data.tid, data.dag)
     {
@@ -318,7 +318,7 @@ fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
         // Reconstruct DB entry from persisted fields
         // Use current year and month for timestamp reconstruction
         // (the actual restriction dates are in the parking database)
-        use chrono::{Datelike, Utc};
+        use chrono::Utc;
         let now = Utc::now();
         let current_year = now.year();
         let current_month = now.month();
@@ -506,6 +506,7 @@ pub fn write_addresses_to_device(addresses: &[StoredAddress]) -> Result<(), Stri
 /// # Returns
 /// - `Ok(())` if successful
 /// - `Err(message)` if clear failed
+#[allow(dead_code)]
 pub fn clear_all_addresses() -> Result<(), String> {
     let _lock = STORAGE_LOCK.lock().unwrap();
 
@@ -526,6 +527,7 @@ pub fn clear_all_addresses() -> Result<(), String> {
 /// Get total number of stored addresses without loading them
 ///
 /// Currently loads all data to count. Could be optimized to read only metadata.
+#[allow(dead_code)]
 pub fn count_stored_addresses() -> usize {
     read_addresses_from_device().len()
 }
