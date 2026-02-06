@@ -46,7 +46,7 @@ static JAVA_VM: OnceCell<JavaVM> = OnceCell::new();
 /// - **Other platforms**: Mock implementation logs only
 ///
 /// # JNI Integration
-/// Calls `com.amp.NotificationHelper.createNotificationChannels(Context)`
+/// Calls `se.malmo.skaggbyran.amp.NotificationHelper.createNotificationChannels(Context)`
 ///
 /// # Examples
 /// ```no_run
@@ -91,7 +91,7 @@ pub fn initialize_notification_channels_jni() {
 /// - **Other platforms**: Mock implementation logs parameters
 ///
 /// # JNI Integration
-/// Calls `com.amp.NotificationHelper.showNotification(Context, String, int, String, String)`
+/// Calls `se.malmo.skaggbyran.amp.NotificationHelper.showNotification(Context, String, int, String, String)`
 ///
 /// # Examples
 /// ```no_run
@@ -197,7 +197,7 @@ fn get_android_context() -> Result<JObject<'static>, String> {
 /// Result indicating success or error message
 ///
 /// # JNI Call Structure
-/// - Class: `com/amp/NotificationHelper`
+/// - Class: `se/malmo/skaggbyran/amp/NotificationHelper`
 /// - Method: `createNotificationChannels`
 /// - Signature: `(Landroid/content/Context;)V`
 /// - Static method call with Context parameter
@@ -231,7 +231,7 @@ fn create_notification_channels() -> Result<(), String> {
 /// Result indicating success or error message
 ///
 /// # JNI Call Structure
-/// - Class: `com/amp/NotificationHelper`
+/// - Class: `se/malmo/skaggbyran/amp/NotificationHelper`
 /// - Method: `showNotification`
 /// - Signature: `(Landroid/content/Context;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;)V`
 /// - Parameters: Context, channelId, notificationId, title, body
