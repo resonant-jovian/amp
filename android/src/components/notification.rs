@@ -9,6 +9,3 @@
 //! - PendingIntent creation for notification actions
 //! - Notification channels for Android 8+
 //! - Permission handling
-
-// This module's functions were removed as dead code.
-// Keeping module declaration for future implementation.
