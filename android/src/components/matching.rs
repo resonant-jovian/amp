@@ -19,10 +19,12 @@
 //!     MatchResult::Invalid(err) => println!("Validation failed: {}", err),
 //! }
 //! ```
+
 use crate::components::static_data::{get_address_data, get_static_data};
 use amp_core::structs::DB;
 use std::collections::HashMap;
 use std::fmt;
+
 /// Validation errors for address input
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValidationError {
@@ -38,7 +40,10 @@ pub enum ValidationError {
     StreetTooLong(usize),
     /// Street number exceeds maximum length
     StreetNumberTooLong(usize),
+    /// Address not found in database
+    AddressNotFound,
 }
+
 impl fmt::Display for ValidationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -68,10 +73,13 @@ impl fmt::Display for ValidationError {
                     len
                 )
             }
+            ValidationError::AddressNotFound => write!(f, "Address not found in database"),
         }
     }
 }
+
 impl std::error::Error for ValidationError {}
+
 /// Result of address matching operation
 ///
 /// Represents whether an address was found in the parking restriction database.
@@ -87,6 +95,7 @@ pub enum MatchResult {
     /// Contains the validation error that caused the failure.
     Invalid(ValidationError),
 }
+
 impl MatchResult {
     /// Check if the result is valid
     ///
@@ -105,6 +114,7 @@ impl MatchResult {
     pub fn is_valid(&self) -> bool {
         matches!(self, MatchResult::Valid(_))
     }
+
     /// Check if the result is invalid
     ///
     /// # Returns
@@ -112,6 +122,7 @@ impl MatchResult {
     pub fn is_invalid(&self) -> bool {
         matches!(self, MatchResult::Invalid(_))
     }
+
     /// Get the DB entry if valid
     ///
     /// # Returns
@@ -132,6 +143,7 @@ impl MatchResult {
             MatchResult::Invalid(_) => None,
         }
     }
+
     /// Consume the result and get the DB entry if valid
     ///
     /// # Returns
@@ -142,6 +154,7 @@ impl MatchResult {
             MatchResult::Invalid(_) => None,
         }
     }
+
     /// Get the validation error if invalid
     ///
     /// # Returns
@@ -153,10 +166,13 @@ impl MatchResult {
         }
     }
 }
+
 /// Maximum length for street names (prevents abuse)
 const MAX_STREET_LENGTH: usize = 100;
+
 /// Maximum length for street numbers (prevents abuse)
 const MAX_STREET_NUMBER_LENGTH: usize = 20;
+
 /// Get parking restriction data
 ///
 /// Returns a reference to the parking data HashMap with address keys
@@ -175,6 +191,7 @@ const MAX_STREET_NUMBER_LENGTH: usize = 20;
 pub fn get_parking_data() -> &'static HashMap<String, DB> {
     get_static_data()
 }
+
 /// Validate Swedish postal code format
 ///
 /// Swedish postal codes are 5 digits, optionally formatted as "XXX XX" with a space.
@@ -201,6 +218,7 @@ pub fn get_parking_data() -> &'static HashMap<String, DB> {
 pub fn validate_postal_code(postal_code: &str) -> Result<(), ValidationError> {
     let trimmed = postal_code.trim();
     let normalized = trimmed.replace(' ', "");
+
     if normalized.len() == 5 && normalized.chars().all(|c| c.is_ascii_digit()) {
         Ok(())
     } else {
@@ -209,6 +227,7 @@ pub fn validate_postal_code(postal_code: &str) -> Result<(), ValidationError> {
         ))
     }
 }
+
 /// Validate address input fields with detailed error messages
 ///
 /// Performs comprehensive validation:
@@ -250,23 +269,30 @@ pub fn validate_input(
     if street.trim().is_empty() {
         return Err(ValidationError::EmptyStreet);
     }
+
     if street_number.trim().is_empty() {
         return Err(ValidationError::EmptyStreetNumber);
     }
+
     if postal_code.trim().is_empty() {
         return Err(ValidationError::EmptyPostalCode);
     }
+
     if street.trim().len() > MAX_STREET_LENGTH {
         return Err(ValidationError::StreetTooLong(street.trim().len()));
     }
+
     if street_number.trim().len() > MAX_STREET_NUMBER_LENGTH {
         return Err(ValidationError::StreetNumberTooLong(
             street_number.trim().len(),
         ));
     }
+
     validate_postal_code(postal_code)?;
+
     Ok(())
 }
+
 /// Match user input address against static correlations from server
 ///
 /// This checks if the provided address (street, street_number, postal_code) exists
@@ -313,7 +339,9 @@ pub fn match_address(street: &str, street_number: &str, postal_code: &str) -> Ma
         eprintln!("[Matching] Validation error: {}", e);
         return MatchResult::Invalid(e);
     }
+
     let postal_normalized = postal_code.trim().replace(' ', "");
+
     match get_address_data(street, street_number, &postal_normalized) {
         Some(entry) => {
             eprintln!(
@@ -327,10 +355,11 @@ pub fn match_address(street: &str, street_number: &str, postal_code: &str) -> Ma
                 "[Matching] Address not found: {} {} {}",
                 street, street_number, postal_code,
             );
-            MatchResult::Invalid(ValidationError::EmptyPostalCode)
+            MatchResult::Invalid(ValidationError::AddressNotFound)
         }
     }
 }
+
 /// Match address with fuzzy logic (case-insensitive, trimmed)
 ///
 /// More lenient version of `match_address` that:
@@ -360,10 +389,13 @@ pub fn match_address_fuzzy(street: &str, street_number: &str, postal_code: &str)
     let street_norm = street.trim().to_lowercase();
     let number_norm = street_number.trim();
     let postal_norm = postal_code.trim().replace(' ', "");
+
     if let Err(e) = validate_input(&street_norm, number_norm, &postal_norm) {
         return MatchResult::Invalid(e);
     }
+
     let data = get_static_data();
+
     for (_, entry) in data.iter() {
         let entry_street = entry
             .gata
@@ -372,18 +404,21 @@ pub fn match_address_fuzzy(street: &str, street_number: &str, postal_code: &str)
             .unwrap_or_default();
         let entry_number = entry.gatunummer.as_deref().unwrap_or("");
         let entry_postal = entry.postnummer.as_deref().unwrap_or("");
+
         if entry_street == street_norm && entry_number == number_norm && entry_postal == postal_norm
         {
             eprintln!("[Matching] Fuzzy match found: {}", entry.adress);
             return MatchResult::Valid(Box::from(entry.clone()));
         }
     }
+
     eprintln!(
         "[Matching] No fuzzy match for: {} {} {}",
         street, street_number, postal_code,
     );
-    MatchResult::Invalid(ValidationError::EmptyPostalCode)
+    MatchResult::Invalid(ValidationError::AddressNotFound)
 }
+
 /// Search for addresses matching a partial street name
 ///
 /// Returns all addresses where the street name contains the search term.
@@ -410,6 +445,7 @@ pub fn search_by_street(partial_street: &str) -> Vec<DB> {
     if search_term.is_empty() {
         return Vec::new();
     }
+
     get_static_data()
         .values()
         .filter(|db| {
@@ -421,6 +457,7 @@ pub fn search_by_street(partial_street: &str) -> Vec<DB> {
         .cloned()
         .collect()
 }
+
 /// Get all addresses in a specific postal code
 ///
 /// Convenience wrapper around `static_data::get_addresses_in_postal_code`
@@ -446,43 +483,52 @@ pub fn get_addresses_in_area(postal_code: &str) -> Vec<DB> {
         .cloned()
         .collect()
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn test_validate_postal_code() {
         assert!(validate_postal_code("22100").is_ok());
         assert!(validate_postal_code("221 00").is_ok());
         assert!(validate_postal_code(" 22100 ").is_ok());
         assert!(validate_postal_code(" 221 00 ").is_ok());
+
         assert!(validate_postal_code("1234").is_err());
         assert!(validate_postal_code("123456").is_err());
         assert!(validate_postal_code("12345a").is_err());
         assert!(validate_postal_code("abc12").is_err());
         assert!(validate_postal_code("").is_err());
     }
+
     #[test]
     fn test_validate_input() {
         assert!(validate_input("Storgatan", "10", "22100").is_ok());
         assert!(validate_input("Storgatan", "10A", "221 00").is_ok());
         assert!(validate_input(" Storgatan ", " 10 ", " 22100 ").is_ok());
+
         match validate_input("", "10", "22100") {
             Err(ValidationError::EmptyStreet) => {}
             _ => panic!("Expected EmptyStreet error"),
         }
+
         match validate_input("Storgatan", "", "22100") {
             Err(ValidationError::EmptyStreetNumber) => {}
             _ => panic!("Expected EmptyStreetNumber error"),
         }
+
         match validate_input("Storgatan", "10", "") {
             Err(ValidationError::EmptyPostalCode) => {}
             _ => panic!("Expected EmptyPostalCode error"),
         }
+
         match validate_input("Storgatan", "10", "1234") {
             Err(ValidationError::InvalidPostalCodeFormat(_)) => {}
             _ => panic!("Expected InvalidPostalCodeFormat error"),
         }
     }
+
     #[test]
     fn test_validate_input_max_length() {
         let long_street = "A".repeat(MAX_STREET_LENGTH + 1);
@@ -490,12 +536,14 @@ mod tests {
             Err(ValidationError::StreetTooLong(_)) => {}
             _ => panic!("Expected StreetTooLong error"),
         }
+
         let long_number = "1".repeat(MAX_STREET_NUMBER_LENGTH + 1);
         match validate_input("Storgatan", &long_number, "22100") {
             Err(ValidationError::StreetNumberTooLong(_)) => {}
             _ => panic!("Expected StreetNumberTooLong error"),
         }
     }
+
     #[test]
     fn test_match_result_is_valid() {
         let valid = MatchResult::Valid(Box::from(
@@ -513,14 +561,16 @@ mod tests {
                 2024,
                 1,
             )
-            .unwrap(),
+                .unwrap(),
         ));
         assert!(valid.is_valid());
         assert!(!valid.is_invalid());
+
         let invalid = MatchResult::Invalid(ValidationError::EmptyStreet);
         assert!(invalid.is_invalid());
         assert!(!invalid.is_valid());
     }
+
     #[test]
     fn test_match_result_as_ref() {
         let db = DB::from_dag_tid(
@@ -537,13 +587,16 @@ mod tests {
             2024,
             1,
         )
-        .unwrap();
+            .unwrap();
+
         let valid = MatchResult::Valid(Box::from(db.clone()));
         assert!(valid.as_ref().is_some());
         assert_eq!(valid.as_ref().unwrap().adress, "Test Street 10");
+
         let invalid = MatchResult::Invalid(ValidationError::EmptyStreet);
         assert!(invalid.as_ref().is_none());
     }
+
     #[test]
     fn test_match_result_into_inner() {
         let db = DB::from_dag_tid(
@@ -560,25 +613,34 @@ mod tests {
             2024,
             1,
         )
-        .unwrap();
+            .unwrap();
+
         let valid = MatchResult::Valid(Box::from(db));
         let inner = valid.into_inner();
         assert!(inner.is_some());
+
         let invalid = MatchResult::Invalid(ValidationError::EmptyStreet);
         assert!(invalid.into_inner().is_none());
     }
+
     #[test]
     fn test_search_by_street_empty() {
         let results = search_by_street("");
         assert_eq!(results.len(), 0);
+
         let results = search_by_street("  ");
         assert_eq!(results.len(), 0);
     }
+
     #[test]
     fn test_validation_error_display() {
         let err = ValidationError::EmptyStreet;
         assert_eq!(format!("{}", err), "Street name cannot be empty");
+
         let err = ValidationError::InvalidPostalCodeFormat("1234".to_string());
         assert!(format!("{}", err).contains("1234"));
+
+        let err = ValidationError::AddressNotFound;
+        assert_eq!(format!("{}", err), "Address not found in database");
     }
 }
