@@ -216,18 +216,29 @@ fn to_local_data(addr: &StoredAddress) -> LocalData {
 /// This roundtrips correctly with `to_local_data` for all typical address patterns.
 #[cfg(target_os = "android")]
 fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
+    eprintln!("[Storage::from_local_data] === START CONVERSION ===");
+
     let (street, street_number) = if let Some(gata) = &data.gata {
         let street_number = data.gatunummer.clone().unwrap_or_default();
+        eprintln!("[Storage::from_local_data] Using gata field: '{}' '{}'", gata, street_number);
         (gata.clone(), street_number)
     } else {
         let parts: Vec<&str> = data.adress.rsplitn(2, ' ').collect();
         if parts.len() == 2 {
+            eprintln!("[Storage::from_local_data] Parsed from adress: '{}' '{}'", parts[1], parts[0]);
             (parts[1].to_string(), parts[0].to_string())
         } else {
+            eprintln!("[Storage::from_local_data] Could not parse adress: '{}'", data.adress);
             (data.adress.clone(), String::new())
         }
     };
-    let postal_code = data.postnummer.unwrap_or_default();
+
+    let postal_code = data.postnummer.clone().unwrap_or_default();
+    eprintln!(
+        "[Storage::from_local_data] Extracted: street='{}', number='{}', postal='{}'",
+        street, street_number, postal_code
+    );
+
     let mut stored_address = StoredAddress {
         id,
         street: street.clone(),
@@ -237,22 +248,35 @@ fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
         active: data.active,
         matched_entry: None,
     };
+
+    eprintln!(
+        "[Storage::from_local_data] Attempting to re-match: '{}' '{}' '{}'",
+        street, street_number, postal_code
+    );
+
+    // Attempt to re-match against database to restore matched_entry
     use crate::components::matching::match_address;
-    match match_address(&street, &street_number, &postal_code) {
+
+    let match_result = match_address(&street, &street_number, &postal_code);
+    eprintln!("[Storage::from_local_data] Match result obtained");
+
+    match match_result {
         crate::components::matching::MatchResult::Valid(db_entry) => {
-            stored_address.matched_entry = Some(*db_entry);
             eprintln!(
-                "[Storage::from_local_data] ✅ Re-matched {} {} {} successfully",
-                street, street_number, postal_code,
+                "[Storage::from_local_data] ✅ Re-matched successfully! DB entry: {}",
+                db_entry.adress
             );
+            stored_address.matched_entry = Some(*db_entry);
         }
         crate::components::matching::MatchResult::Invalid(err) => {
             eprintln!(
-                "[Storage::from_local_data] ⚠️  Failed to re-match {} {} {}: {}",
-                street, street_number, postal_code, err,
+                "[Storage::from_local_data] ⚠️  Failed to re-match: {}",
+                err
             );
         }
     }
+
+    eprintln!("[Storage::from_local_data] === END CONVERSION (matched={}) ===", stored_address.matched_entry.is_some());
     stored_address
 }
 /// Load stored addresses from persistent storage (thread-safe)
