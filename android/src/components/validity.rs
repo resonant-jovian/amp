@@ -161,14 +161,6 @@ pub fn check_and_update_validity(addresses: &mut [StoredAddress]) -> bool {
     }
     changed
 }
-/// Get current month number (1-12)
-pub fn current_month() -> u32 {
-    Local::now().month()
-}
-/// Get current year
-pub fn current_year() -> i32 {
-    Local::now().year()
-}
 #[cfg(test)]
 mod tests {
     use super::*;
