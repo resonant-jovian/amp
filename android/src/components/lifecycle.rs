@@ -3,7 +3,6 @@
 //! Manages background operations including:
 //! - Daily storage operations (read once, write once per day)
 //! - Validity checks for date-dependent addresses
-//! - Uptime tracking
 //! - Graceful shutdown with data persistence
 //!
 //! # Background Tasks
@@ -46,8 +45,6 @@ use std::sync::{Arc, Mutex};
 pub struct LifecycleManager {
     /// Last time daily tasks were run
     last_daily_run: Arc<Mutex<Option<DateTime<Local>>>>,
-    /// Application start time
-    start_time: DateTime<Local>,
     /// Whether the manager is currently running
     running: Arc<Mutex<bool>>,
 }
@@ -56,7 +53,6 @@ impl LifecycleManager {
     pub fn new() -> Self {
         Self {
             last_daily_run: Arc::new(Mutex::new(None)),
-            start_time: Local::now(),
             running: Arc::new(Mutex::new(false)),
         }
     }
@@ -146,11 +142,6 @@ impl LifecycleManager {
             eprintln!("[Lifecycle] No validity changes, skipping write");
         }
     }
-    /// Get uptime in seconds since manager was created
-    pub fn uptime_seconds(&self) -> i64 {
-        let now = Local::now();
-        (now - self.start_time).num_seconds()
-    }
     /// Check if manager is running
     pub fn is_running(&self) -> bool {
         *self.running.lock().unwrap()
@@ -193,22 +184,6 @@ pub fn handle_address_change(addresses: &[StoredAddress]) {
         eprintln!("[Lifecycle] Failed to persist address change: {}", e);
     }
 }
-/// Handle validity state change (day 29/30 in February transition)
-///
-/// This should be called when validity changes are detected and will:
-/// - Write updated addresses to storage immediately
-///
-/// # Arguments
-/// * `addresses` - Current address list after validity update
-pub fn handle_validity_change(addresses: &[StoredAddress]) {
-    eprintln!(
-        "[Lifecycle] Validity change detected, persisting {} addresses",
-        addresses.len(),
-    );
-    if let Err(e) = write_addresses_to_device(addresses) {
-        eprintln!("[Lifecycle] Failed to persist validity change: {}", e);
-    }
-}
 /// Handle active state toggle
 ///
 /// This should be called when address active state is toggled and will:
@@ -228,8 +203,6 @@ pub fn handle_active_toggle(addresses: &[StoredAddress]) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::thread;
-    use std::time::Duration;
     #[test]
     fn test_lifecycle_manager_creation() {
         let manager = LifecycleManager::new();
@@ -242,12 +215,5 @@ mod tests {
         assert!(manager.is_running());
         manager.shutdown();
         assert!(!manager.is_running());
-    }
-    #[test]
-    fn test_uptime_tracking() {
-        let manager = LifecycleManager::new();
-        thread::sleep(Duration::from_millis(100));
-        let uptime = manager.uptime_seconds();
-        assert!(uptime >= 0);
     }
 }
