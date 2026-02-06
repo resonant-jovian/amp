@@ -44,13 +44,15 @@ pub enum Theme {
     Light,
     Dark,
 }
-impl Theme {
-    fn to_string(&self) -> String {
+impl std::fmt::Display for Theme {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Theme::Light => "Light".to_string(),
-            Theme::Dark => "Dark".to_string(),
+            Theme::Light => write!(f, "Light"),
+            Theme::Dark => write!(f, "Dark"),
         }
     }
+}
+impl Theme {
     fn from_string(s: &str) -> Self {
         match s {
             "Dark" => Theme::Dark,
@@ -76,9 +78,6 @@ impl Language {
             Language::Francais => "Français",
         }
     }
-    fn to_string(&self) -> String {
-        self.as_str().to_string()
-    }
     fn from_string(s: &str) -> Self {
         match s {
             "English" => Language::English,
@@ -86,6 +85,11 @@ impl Language {
             "Francais" => Language::Francais,
             _ => Language::Svenska,
         }
+    }
+}
+impl std::fmt::Display for Language {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
     }
 }
 /// Complete app settings
@@ -238,6 +242,18 @@ mod tests {
         let settings_data = to_settings_data(&original);
         let restored = from_settings_data(settings_data);
         assert_eq!(original, restored);
+    }
+    #[test]
+    fn test_theme_display() {
+        assert_eq!(Theme::Light.to_string(), "Light");
+        assert_eq!(Theme::Dark.to_string(), "Dark");
+    }
+    #[test]
+    fn test_language_display() {
+        assert_eq!(Language::Svenska.to_string(), "Svenska");
+        assert_eq!(Language::English.to_string(), "English");
+        assert_eq!(Language::Espanol.to_string(), "Español");
+        assert_eq!(Language::Francais.to_string(), "Français");
     }
     #[test]
     fn test_settings_parquet_roundtrip() {
