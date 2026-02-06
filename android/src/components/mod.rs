@@ -20,7 +20,8 @@
 //!
 //! ## Android Integration
 //! - [`lifecycle`]: Activity lifecycle and background tasks
-//! - [`notification`]: Push notification handling
+//! - [`notifications`]: Local notification system with channels
+//! - [`transitions`]: Panel transition detection for notifications
 //! - [`geo`]: GPS location services
 //!
 //! ## Development Tools
@@ -37,12 +38,16 @@
 //!     matching::{match_address, MatchResult},
 //!     validity::check_and_update_validity,
 //!     lifecycle::LifecycleManager,
+//!     notifications::initialize_notification_channels,
+//!     transitions::{initialize_panel_tracker, detect_transitions},
 //! };
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // Initialize lifecycle
+//! // Initialize lifecycle and notifications
 //! let mut lifecycle = LifecycleManager::new();
 //! lifecycle.start();
+//! initialize_notification_channels();
+//! initialize_panel_tracker();
 //!
 //! // Load saved addresses
 //! let mut addresses = storage::read_addresses_from_device();
@@ -56,6 +61,13 @@
 //! // Check validity (e.g., for Feb 30)
 //! if check_and_update_validity(&mut addresses) {
 //!     storage::write_addresses_to_device(&addresses)?;
+//! }
+//!
+//! // Detect transitions and send notifications
+//! let transitions = detect_transitions(&addresses);
+//! for (addr, _prev, new_bucket) in transitions {
+//!     // Notifications are sent automatically based on bucket type
+//!     println!("Transition detected for {} to {:?}", addr.street, new_bucket);
 //! }
 //! # Ok(())
 //! # }
@@ -84,8 +96,9 @@ pub mod file;
 pub mod geo;
 pub mod lifecycle;
 pub mod matching;
-pub mod notification;
+pub mod notifications;
 pub mod settings;
 pub mod static_data;
 pub mod storage;
+pub mod transitions;
 pub mod validity;
