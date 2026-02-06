@@ -95,7 +95,6 @@
 //! [`SettingsData`]: structs::SettingsData
 //! [`DB`]: structs::DB
 //! [`SWEDISH_TZ`]: structs::SWEDISH_TZ
-
 pub mod api;
 pub mod benchmark;
 pub mod checksum;
