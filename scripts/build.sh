@@ -97,11 +97,11 @@ setup_notifications() {
     echo "🔔 Setting up notification system..."
     
     ANDROID_SRC="$ANDROID_DIR/app/src/main"
-    JAVA_DIR="$ANDROID_SRC/java/com/amp"
+    JAVA_DIR="$ANDROID_SRC/java/se/malmo/skaggbyran/amp"
     MANIFEST="$ANDROID_SRC/AndroidManifest.xml"
     KOTLIN_SOURCE="$REPO_ROOT/android/kotlin/NotificationHelper.kt"
     
-    # Create Java/Kotlin directory
+    # Create Java/Kotlin directory matching package structure
     if [ ! -d "$JAVA_DIR" ]; then
         echo "  📁 Creating directory: $JAVA_DIR"
         mkdir -p "$JAVA_DIR"
