@@ -319,79 +319,6 @@ pub fn get_address_data<'a>(
     }
     None
 }
-/// Get all addresses in a specific postal code
-///
-/// Returns all parking restrictions within the given postal code.
-///
-/// # Arguments
-/// * `postal_code` - Postal code to filter by (e.g., "22100")
-///
-/// # Returns
-/// Vector of references to DB entries in the postal code
-///
-/// # Examples
-/// ```no_run
-/// use amp_android::static_data::get_addresses_in_postal_code;
-///
-/// let addresses = get_addresses_in_postal_code("22100");
-/// println!("Found {} addresses in 22100", addresses.len());
-/// for addr in addresses.iter().take(10) {
-///     println!("  {}", addr.adress);
-/// }
-/// ```
-pub fn get_addresses_in_postal_code(postal_code: &str) -> Vec<&DB> {
-    let data = get_static_data();
-    data.values()
-        .filter(|db| {
-            db.postnummer
-                .as_ref()
-                .map(|p| p == postal_code)
-                .unwrap_or(false)
-        })
-        .collect()
-}
-/// Get all unique postal codes in the database
-///
-/// Useful for generating picker lists or filtering UI.
-///
-/// # Returns
-/// Sorted vector of unique postal codes
-///
-/// # Examples
-/// ```no_run
-/// use amp_android::static_data::get_all_postal_codes;
-///
-/// let codes = get_all_postal_codes();
-/// println!("Database covers {} postal codes", codes.len());
-/// for code in codes.iter().take(5) {
-///     println!("  {}", code);
-/// }
-/// ```
-pub fn get_all_postal_codes() -> Vec<String> {
-    let data = get_static_data();
-    let mut codes: Vec<String> = data
-        .values()
-        .filter_map(|db| db.postnummer.clone())
-        .collect();
-    codes.sort();
-    codes.dedup();
-    codes
-}
-/// Count total number of parking restrictions in database
-///
-/// # Returns
-/// Total number of DB entries
-///
-/// # Examples
-/// ```no_run
-/// use amp_android::static_data::count_entries;
-///
-/// let total = count_entries();
-/// println!("Database contains {} parking restrictions", total);
-/// ```
-pub fn count_entries() -> usize {
-    get_static_data().len()
-}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -403,39 +330,6 @@ mod tests {
             "Parking data should not be empty after loading"
         );
         eprintln!("Loaded {} entries for testing", data.len());
-    }
-    #[test]
-    fn test_get_all_postal_codes() {
-        let codes = get_all_postal_codes();
-        assert!(!codes.is_empty(), "Should have at least one postal code");
-        for i in 1..codes.len() {
-            assert!(codes[i - 1] <= codes[i], "Postal codes should be sorted");
-        }
-    }
-    #[test]
-    fn test_count_entries() {
-        let count = count_entries();
-        assert!(count > 0, "Should have at least one entry");
-        let data = get_static_data();
-        assert_eq!(count, data.len(), "Count should match data length");
-    }
-    #[test]
-    fn test_get_addresses_in_postal_code() {
-        let codes = get_all_postal_codes();
-        if let Some(first_code) = codes.first() {
-            let addresses = get_addresses_in_postal_code(first_code);
-            assert!(
-                !addresses.is_empty(),
-                "Should find addresses in first postal code"
-            );
-            for addr in addresses {
-                assert_eq!(
-                    addr.postnummer.as_deref().unwrap(),
-                    first_code,
-                    "All addresses should be in requested postal code",
-                );
-            }
-        }
     }
     #[test]
     fn test_determine_year_month_future_date() {
