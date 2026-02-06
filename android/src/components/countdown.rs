@@ -78,68 +78,6 @@ pub fn remaining_duration(restriction: &DB) -> Option<Duration> {
     let now = Utc::now();
     restriction.time_until_end(now)
 }
-/// Check if a parking restriction is currently active
-///
-/// Wrapper around DB's `is_active` method for convenience.
-///
-/// # Arguments
-/// * `restriction` - DB entry to check
-///
-/// # Returns
-/// true if the current time is between start_time and end_time
-///
-/// # Examples
-/// ```no_run
-/// use amp_android::countdown::is_currently_active;
-/// use amp_core::structs::DB;
-///
-/// # let db = DB::from_dag_tid(
-/// #     Some("22100".to_string()),
-/// #     "Test".to_string(),
-/// #     None, None, None,
-/// #     15, "0800-1200",
-/// #     None, None, None,
-/// #     2024, 1,
-/// # ).unwrap();
-/// if is_currently_active(&db) {
-///     println!("Parking restriction is active right now!");
-/// }
-/// ```
-pub fn is_currently_active(restriction: &DB) -> bool {
-    let now = Utc::now();
-    restriction.is_active(now)
-}
-/// Calculate time until restriction starts
-///
-/// Uses the DB struct's `time_until_start` method.
-///
-/// # Arguments
-/// * `restriction` - DB entry containing restriction information
-///
-/// # Returns
-/// Some(Duration) if restriction hasn't started yet, None if already started or passed
-///
-/// # Examples
-/// ```no_run
-/// use amp_android::countdown::time_until_start;
-/// use amp_core::structs::DB;
-///
-/// # let db = DB::from_dag_tid(
-/// #     Some("22100".to_string()),
-/// #     "Test".to_string(),
-/// #     None, None, None,
-/// #     15, "0800-1200",
-/// #     None, None, None,
-/// #     2024, 1,
-/// # ).unwrap();
-/// if let Some(duration) = time_until_start(&db) {
-///     println!("Restriction starts in {} hours", duration.num_hours());
-/// }
-/// ```
-pub fn time_until_start(restriction: &DB) -> Option<Duration> {
-    let now = Utc::now();
-    restriction.time_until_start(now)
-}
 /// Calculate duration until next occurrence of this restriction
 ///
 /// If the restriction has already passed this month, calculates when it will
@@ -249,44 +187,6 @@ pub fn format_countdown(restriction: &DB) -> Option<String> {
         }
     }
 }
-/// Format countdown in compact form (no days if zero)
-///
-/// Provides a more compact representation, omitting days if zero.
-///
-/// # Arguments
-/// * `restriction` - DB entry with parking restriction timestamps
-///
-/// # Returns
-/// Formatted string like "2h 30m" or "1d 5h 15m", None if calculation fails
-///
-/// # Examples
-/// ```no_run
-/// use amp_android::countdown::format_countdown_compact;
-/// use amp_core::structs::DB;
-///
-/// # let db = DB::from_dag_tid(
-/// #     Some("22100".to_string()),
-/// #     "Test".to_string(),
-/// #     None, None, None,
-/// #     15, "0800-1200",
-/// #     None, None, None,
-/// #     2024, 1,
-/// # ).unwrap();
-/// if let Some(countdown) = format_countdown_compact(&db) {
-///     println!("Time remaining: {}", countdown);
-/// }
-/// ```
-pub fn format_countdown_compact(restriction: &DB) -> Option<String> {
-    let remaining = time_until_next_occurrence(restriction)?;
-    let days = remaining.num_days();
-    let hours = remaining.num_hours() % 24;
-    let minutes = remaining.num_minutes() % 60;
-    if days > 0 {
-        Some(format!("{}d {}h {}m", days, hours, minutes))
-    } else {
-        Some(format!("{}h {}m", hours, minutes))
-    }
-}
 /// Time bucket categories for grouping parking restrictions
 ///
 /// Categorizes restrictions by urgency based on time remaining.
@@ -305,36 +205,6 @@ pub enum TimeBucket {
     MoreThan1Month,
     /// Invalid, expired, or far-future restriction
     Invalid,
-}
-impl TimeBucket {
-    /// Get human-readable label for the time bucket
-    ///
-    /// # Returns
-    /// String describing the time bucket
-    pub fn label(&self) -> &'static str {
-        match self {
-            TimeBucket::Now => "Urgent (< 4h)",
-            TimeBucket::Within6Hours => "Soon (< 6h)",
-            TimeBucket::Within1Day => "Today (< 24h)",
-            TimeBucket::Within1Month => "This Month (< 30d)",
-            TimeBucket::MoreThan1Month => "Later (> 30d)",
-            TimeBucket::Invalid => "Invalid/Expired",
-        }
-    }
-    /// Get emoji/icon for the time bucket
-    ///
-    /// # Returns
-    /// Unicode emoji representing urgency level
-    pub fn icon(&self) -> &'static str {
-        match self {
-            TimeBucket::Now => "🔴",
-            TimeBucket::Within6Hours => "🟡",
-            TimeBucket::Within1Day => "🟢",
-            TimeBucket::Within1Month => "⚪",
-            TimeBucket::MoreThan1Month => "🔵",
-            TimeBucket::Invalid => "⚫",
-        }
-    }
 }
 /// Categorize restriction by time remaining until deadline
 ///
@@ -362,7 +232,7 @@ impl TimeBucket {
 /// #     2024, 1,
 /// # ).unwrap();
 /// let bucket = bucket_for(&db);
-/// println!("Urgency: {} {}", bucket.icon(), bucket.label());
+/// println!("Urgency: {:?}", bucket);
 /// ```
 pub fn bucket_for(restriction: &DB) -> TimeBucket {
     let remaining = match time_until_next_occurrence(restriction) {
@@ -380,40 +250,6 @@ pub fn bucket_for(restriction: &DB) -> TimeBucket {
     } else {
         TimeBucket::MoreThan1Month
     }
-}
-/// Group multiple restrictions by time bucket
-///
-/// Takes a collection of DB entries and groups them by urgency.
-///
-/// # Arguments
-/// * `restrictions` - Iterator of DB entries to categorize
-///
-/// # Returns
-/// HashMap mapping TimeBucket to vector of restriction references
-///
-/// # Examples
-/// ```no_run
-/// use amp_android::countdown::group_by_bucket;
-/// use amp_android::static_data::get_static_data;
-///
-/// let data = get_static_data();
-/// let grouped = group_by_bucket(data.values());
-///
-/// for (bucket, items) in grouped {
-///     println!("{} {}: {} items", bucket.icon(), bucket.label(), items.len());
-/// }
-/// ```
-pub fn group_by_bucket<'a, I>(restrictions: I) -> std::collections::HashMap<TimeBucket, Vec<&'a DB>>
-where
-    I: Iterator<Item = &'a DB>,
-{
-    let mut groups: std::collections::HashMap<TimeBucket, Vec<&DB>> =
-        std::collections::HashMap::new();
-    for restriction in restrictions {
-        let bucket = bucket_for(restriction);
-        groups.entry(bucket).or_default().push(restriction);
-    }
-    groups
 }
 #[cfg(test)]
 mod tests {
@@ -453,15 +289,6 @@ mod tests {
         }
     }
     #[test]
-    fn test_format_countdown_compact() {
-        let db = create_test_db(15, "0800-1200");
-        let result = format_countdown_compact(&db);
-        if let Some(s) = result {
-            assert!(s.contains("h"));
-            assert!(s.contains("m"));
-        }
-    }
-    #[test]
     fn test_bucket_for() {
         let db = create_test_db(15, "0800-1200");
         let bucket = bucket_for(&db);
@@ -474,48 +301,6 @@ mod tests {
                 | TimeBucket::MoreThan1Month
                 | TimeBucket::Invalid
         ),);
-    }
-    #[test]
-    fn test_time_bucket_label() {
-        assert_eq!(TimeBucket::Now.label(), "Urgent (< 4h)");
-        assert_eq!(TimeBucket::Within6Hours.label(), "Soon (< 6h)");
-        assert_eq!(TimeBucket::Within1Day.label(), "Today (< 24h)");
-        assert_eq!(TimeBucket::Within1Month.label(), "This Month (< 30d)");
-        assert_eq!(TimeBucket::MoreThan1Month.label(), "Later (> 30d)");
-        assert_eq!(TimeBucket::Invalid.label(), "Invalid/Expired");
-    }
-    #[test]
-    fn test_time_bucket_icon() {
-        assert_eq!(TimeBucket::Now.icon(), "🔴");
-        assert_eq!(TimeBucket::Within6Hours.icon(), "🟡");
-        assert_eq!(TimeBucket::Within1Day.icon(), "🟢");
-        assert_eq!(TimeBucket::Within1Month.icon(), "⚪");
-        assert_eq!(TimeBucket::MoreThan1Month.icon(), "🔵");
-        assert_eq!(TimeBucket::Invalid.icon(), "⚫");
-    }
-    #[test]
-    fn test_is_currently_active() {
-        let db = create_test_db(15, "0800-1200");
-        let result = is_currently_active(&db);
-        assert!(result);
-    }
-    #[test]
-    fn test_time_until_start() {
-        let db = create_test_db(28, "2300-2359");
-        let result = time_until_start(&db);
-        assert!(result.is_some() || result.is_none());
-    }
-    #[test]
-    fn test_group_by_bucket() {
-        let restrictions = [
-            create_test_db(15, "0800-1200"),
-            create_test_db(20, "1400-1800"),
-            create_test_db(25, "0900-1700"),
-        ];
-        let grouped = group_by_bucket(restrictions.iter());
-        assert!(!grouped.is_empty());
-        let total: usize = grouped.values().map(|v| v.len()).sum();
-        assert_eq!(total, 3);
     }
     #[test]
     fn test_db_struct_integration() {
