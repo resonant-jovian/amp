@@ -11,10 +11,7 @@
 //! ```no_run
 //! use amp_android::android_bridge;
 //!
-//! // Request location permissions first
-//! android_bridge::request_location_permission();
-//!
-//! // Then read GPS location
+//! // Read GPS location
 //! if let Some((lat, lon)) = android_bridge::read_device_gps_location() {
 //!     println!("Location: {}, {}", lat, lon);
 //! }
@@ -50,7 +47,7 @@ pub fn init_jvm(env: &JNIEnv) {
 /// Read device GPS location
 ///
 /// Attempts to get the current device location using Android LocationManager.
-/// Requires location permissions to be granted via [`request_location_permission`].
+/// Requires location permissions to be granted.
 ///
 /// # Returns
 /// - `Some((latitude, longitude))` if location is available
@@ -109,56 +106,6 @@ fn get_android_location() -> Result<(f64, f64), String> {
             .to_string(),
     )
 }
-/// Request location permissions from user
-///
-/// Triggers the Android permission request dialog for location access.
-/// Should be called before attempting to read GPS location.
-///
-/// # Platform Behavior
-/// - **Android**: Requests `ACCESS_FINE_LOCATION` permission
-/// - **Other platforms**: No-op (mock)
-///
-/// # Permissions Requested
-/// - `android.permission.ACCESS_FINE_LOCATION` (GPS location)
-/// - Optionally `android.permission.ACCESS_COARSE_LOCATION` (network-based)
-///
-/// # TODO
-/// Implement permission request using ActivityCompat:
-/// 1. Check if permission already granted
-/// 2. If not, call ActivityCompat.requestPermissions()
-/// 3. Handle permission result in callback
-#[cfg(target_os = "android")]
-pub fn request_location_permission() {
-    eprintln!(
-        "[Android Bridge] Location permission request not implemented - add JNI call to ActivityCompat.requestPermissions",
-    );
-}
-#[cfg(not(target_os = "android"))]
-pub fn request_location_permission() {
-    eprintln!("[Mock Android Bridge] Location permission request (no-op on non-Android)",);
-}
-/// Check if location permissions are granted
-///
-/// Verifies whether the app has been granted location access permissions.
-///
-/// # Returns
-/// - `true` if permissions granted
-/// - `false` if permissions denied or not yet requested
-///
-/// # Platform
-/// Returns `false` on non-Android platforms
-///
-/// # TODO
-/// Implement permission check using ContextCompat.checkSelfPermission
-#[cfg(target_os = "android")]
-pub fn has_location_permission() -> bool {
-    false
-}
-#[cfg(not(target_os = "android"))]
-pub fn has_location_permission() -> bool {
-    eprintln!("[Mock Android Bridge] Permission check (always false on non-Android)");
-    false
-}
 /// Get device model and manufacturer information
 ///
 /// # Returns
@@ -186,13 +133,8 @@ mod tests {
         assert_eq!(result, None);
     }
     #[test]
-    fn test_has_permission_non_android() {
-        let result = has_location_permission();
-        assert!(!result);
-    }
-    #[test]
     fn test_device_info() {
         let info = get_device_info();
-        assert!(!info.is_empty());
+        assert!(!info.is_empty();
     }
 }
