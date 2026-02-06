@@ -53,24 +53,19 @@ use crate::ui::StoredAddress;
 #[allow(unused_imports)]
 use amp_core::parquet::{build_local_parquet, read_local_parquet};
 #[allow(unused_imports)]
-use amp_core::structs::{LocalData, DBParams, DB};
-use chrono::{Datelike, Timelike};
+use amp_core::structs::{DB, DBParams, LocalData};
 #[allow(unused_imports)]
 use std::fs::File;
 #[allow(unused_imports)]
 use std::fs::{self};
 use std::path::PathBuf;
 use std::sync::Mutex;
-
 /// Thread-safe storage mutex to prevent concurrent access issues
 static STORAGE_LOCK: Mutex<()> = Mutex::new(());
-
 #[cfg(target_os = "android")]
 const LOCAL_PARQUET_NAME: &str = "local.parquet";
-
 #[cfg(target_os = "android")]
 const BACKUP_PARQUET_NAME: &str = "local.parquet.backup";
-
 /// Get app-specific storage directory that's writable on Android
 ///
 /// Returns the app's internal data directory on Android.
@@ -82,7 +77,6 @@ fn get_storage_dir() -> Result<PathBuf, String> {
         eprintln!("[Storage] Using APP_FILES_DIR: {:?}", path);
         return Ok(path);
     }
-
     let app_dir = PathBuf::from("/data/local/tmp/amp_storage");
     if !app_dir.exists() {
         std::fs::create_dir_all(&app_dir).map_err(|e| {
@@ -95,13 +89,11 @@ fn get_storage_dir() -> Result<PathBuf, String> {
     }
     Ok(app_dir)
 }
-
 #[allow(unused)]
 #[cfg(not(target_os = "android"))]
 fn get_storage_dir() -> Result<PathBuf, String> {
     std::env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))
 }
-
 /// Get path to main parquet file
 #[cfg(target_os = "android")]
 fn get_local_parquet_path() -> Result<PathBuf, String> {
@@ -109,7 +101,6 @@ fn get_local_parquet_path() -> Result<PathBuf, String> {
     path.push(LOCAL_PARQUET_NAME);
     Ok(path)
 }
-
 /// Get path to backup parquet file
 #[cfg(target_os = "android")]
 fn get_backup_parquet_path() -> Result<PathBuf, String> {
@@ -117,7 +108,6 @@ fn get_backup_parquet_path() -> Result<PathBuf, String> {
     path.push(BACKUP_PARQUET_NAME);
     Ok(path)
 }
-
 /// Create empty parquet file with LocalData schema
 ///
 /// Creates a file with a single dummy row (empty address with valid=false, active=false).
@@ -139,21 +129,17 @@ fn create_empty_parquet(path: &PathBuf) -> Result<(), String> {
         antal_platser: None,
         typ_av_parkering: None,
     };
-
     let buffer = build_local_parquet(vec![dummy])
         .map_err(|e| format!("[Storage] Failed to build empty parquet: {}", e))?;
-
     fs::write(path, buffer).map_err(|e| {
         format!(
             "[Storage] Failed to write empty parquet to {:?}: {}",
             path, e
         )
     })?;
-
     eprintln!("[Storage] Created empty parquet at {:?}", path);
     Ok(())
 }
-
 /// Ensure storage files exist, create if necessary
 ///
 /// Handles three cases:
@@ -164,10 +150,8 @@ fn create_empty_parquet(path: &PathBuf) -> Result<(), String> {
 fn ensure_storage_files() -> Result<(), String> {
     let local_path = get_local_parquet_path()?;
     let backup_path = get_backup_parquet_path()?;
-
     let local_exists = local_path.exists();
     let backup_exists = backup_path.exists();
-
     if !local_exists && !backup_exists {
         eprintln!("[Storage] No storage files found, creating empty files");
         create_empty_parquet(&local_path)?;
@@ -181,10 +165,8 @@ fn ensure_storage_files() -> Result<(), String> {
         fs::copy(&local_path, &backup_path)
             .map_err(|e| format!("[Storage] Failed to create backup: {}", e))?;
     }
-
     Ok(())
 }
-
 /// Convert StoredAddress to LocalData for parquet storage
 ///
 /// Preserves all address fields and matched parking data including:
@@ -200,24 +182,20 @@ fn ensure_storage_files() -> Result<(), String> {
 fn to_local_data(addr: &StoredAddress) -> LocalData {
     let (dag, tid, info, taxa, antal_platser, typ_av_parkering) =
         if let Some(ref entry) = addr.matched_entry {
-            // Extract day and time from the DB entry's timestamps
             let start_swedish = entry.start_time_swedish();
             let end_swedish = entry.end_time_swedish();
-            
             let dag_value = Some(start_swedish.day() as u8);
             let tid_value = Some(format!(
                 "{:02}{:02}-{:02}{:02}",
                 start_swedish.hour(),
                 start_swedish.minute(),
                 end_swedish.hour(),
-                end_swedish.minute()
+                end_swedish.minute(),
             ));
-
             eprintln!(
                 "[Storage::to_local_data] Persisting match data: dag={:?}, tid={:?}, taxa={:?}",
-                dag_value, tid_value, entry.taxa
+                dag_value, tid_value, entry.taxa,
             );
-
             (
                 dag_value,
                 tid_value,
@@ -230,7 +208,6 @@ fn to_local_data(addr: &StoredAddress) -> LocalData {
             eprintln!("[Storage::to_local_data] No matched_entry to persist");
             (None, None, None, None, None, None)
         };
-
     LocalData {
         valid: addr.valid,
         active: addr.active,
@@ -248,7 +225,6 @@ fn to_local_data(addr: &StoredAddress) -> LocalData {
         typ_av_parkering,
     }
 }
-
 /// Convert LocalData from parquet to StoredAddress
 ///
 /// Reconstructs a StoredAddress with its matched parking data by:
@@ -272,13 +248,11 @@ fn to_local_data(addr: &StoredAddress) -> LocalData {
 #[cfg(target_os = "android")]
 fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
     eprintln!("[Storage::from_local_data] === START CONVERSION ===");
-
-    // Extract basic address components
     let (street, street_number) = if let Some(gata) = &data.gata {
         let street_number = data.gatunummer.clone().unwrap_or_default();
         eprintln!(
             "[Storage::from_local_data] Using gata field: '{}' '{}'",
-            gata, street_number
+            gata, street_number,
         );
         (gata.clone(), street_number)
     } else {
@@ -286,43 +260,31 @@ fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
         if parts.len() == 2 {
             eprintln!(
                 "[Storage::from_local_data] Parsed from adress: '{}' '{}'",
-                parts[1], parts[0]
+                parts[1], parts[0],
             );
             (parts[1].to_string(), parts[0].to_string())
         } else {
             eprintln!(
                 "[Storage::from_local_data] Could not parse adress: '{}'",
-                data.adress
+                data.adress,
             );
             (data.adress.clone(), String::new())
         }
     };
-
     let postal_code = data.postnummer.clone().unwrap_or_default();
     eprintln!(
         "[Storage::from_local_data] Extracted: street='{}', number='{}', postal='{}'",
-        street, street_number, postal_code
+        street, street_number, postal_code,
     );
-
-    // Attempt to reconstruct matched_entry from persisted data
-    let matched_entry = if let (
-        Some(tid),
-        Some(dag),
-    ) = (&data.tid, data.dag)
-    {
+    let matched_entry = if let (Some(tid), Some(dag)) = (&data.tid, data.dag) {
         eprintln!(
             "[Storage::from_local_data] Found persisted match data: tid={}, dag={}, taxa={:?}",
-            tid, dag, data.taxa
+            tid, dag, data.taxa,
         );
-
-        // Reconstruct DB entry from persisted fields
-        // Use current year and month for timestamp reconstruction
-        // (the actual restriction dates are in the parking database)
         use chrono::Utc;
         let now = Utc::now();
         let current_year = now.year();
         let current_month = now.month();
-
         match DB::from_params(DBParams {
             postnummer: data.postnummer.clone(),
             adress: format!("{} {}", street, street_number),
@@ -339,46 +301,39 @@ fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
         }) {
             Some(db_entry) => {
                 eprintln!(
-                    "[Storage::from_local_data] ✅ Successfully reconstructed DB entry from persisted data"
+                    "[Storage::from_local_data] ✅ Successfully reconstructed DB entry from persisted data",
                 );
                 Some(db_entry)
             }
             None => {
                 eprintln!(
                     "[Storage::from_local_data] ⚠️ Failed to reconstruct DB entry from tid={}, dag={}",
-                    tid, dag
+                    tid, dag,
                 );
                 None
             }
         }
     } else if data.valid {
         eprintln!(
-            "[Storage::from_local_data] No persisted match data but address is valid, attempting re-match"
+            "[Storage::from_local_data] No persisted match data but address is valid, attempting re-match",
         );
-        
-        // Fallback: try to re-match against database
-        // This handles legacy data that was saved before match persistence was fixed
         use crate::components::matching::match_address;
         match match_address(&street, &street_number, &postal_code) {
             crate::components::matching::MatchResult::Valid(db_entry) => {
                 eprintln!(
-                    "[Storage::from_local_data] ✅ Re-matched successfully via database lookup"
+                    "[Storage::from_local_data] ✅ Re-matched successfully via database lookup",
                 );
                 Some(*db_entry)
             }
             crate::components::matching::MatchResult::Invalid(err) => {
-                eprintln!(
-                    "[Storage::from_local_data] ⚠️ Re-match failed: {}",
-                    err
-                );
+                eprintln!("[Storage::from_local_data] ⚠️ Re-match failed: {}", err);
                 None
             }
         }
     } else {
-        eprintln!("[Storage::from_local_data] Address is invalid, no match data expected");
+        eprintln!("[Storage::from_local_data] Address is invalid, no match data expected",);
         None
     };
-
     let stored_address = StoredAddress {
         id,
         street,
@@ -388,14 +343,12 @@ fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
         active: data.active,
         matched_entry,
     };
-
     eprintln!(
         "[Storage::from_local_data] === END CONVERSION (matched={}) ===",
-        stored_address.matched_entry.is_some()
+        stored_address.matched_entry.is_some(),
     );
     stored_address
 }
-
 /// Load stored addresses from persistent storage (thread-safe)
 ///
 /// Reads from local.parquet file. If missing, attempts to recover from backup.
@@ -418,7 +371,6 @@ fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
 /// ```
 pub fn read_addresses_from_device() -> Vec<StoredAddress> {
     let _lock = STORAGE_LOCK.lock().unwrap();
-
     #[cfg(target_os = "android")]
     {
         match load_from_parquet() {
@@ -435,14 +387,12 @@ pub fn read_addresses_from_device() -> Vec<StoredAddress> {
             }
         }
     }
-
     #[cfg(not(target_os = "android"))]
     {
         eprintln!("[Mock Storage] read_addresses_from_device (empty)");
         Vec::new()
     }
 }
-
 /// Write stored addresses to persistent storage (thread-safe)
 ///
 /// Implements backup rotation:
@@ -482,21 +432,18 @@ pub fn read_addresses_from_device() -> Vec<StoredAddress> {
 /// ```
 pub fn write_addresses_to_device(addresses: &[StoredAddress]) -> Result<(), String> {
     let _lock = STORAGE_LOCK.lock().unwrap();
-
     #[cfg(target_os = "android")]
     {
         save_to_parquet(addresses)?;
         eprintln!("[Storage] Saved {} addresses to parquet", addresses.len());
         Ok(())
     }
-
     #[cfg(not(target_os = "android"))]
     {
         eprintln!("[Mock Storage] Would save {} addresses", addresses.len());
         Ok(())
     }
 }
-
 /// Clear all stored addresses (thread-safe)
 ///
 /// Removes all saved addresses from persistent storage by writing empty files.
@@ -509,21 +456,18 @@ pub fn write_addresses_to_device(addresses: &[StoredAddress]) -> Result<(), Stri
 #[allow(dead_code)]
 pub fn clear_all_addresses() -> Result<(), String> {
     let _lock = STORAGE_LOCK.lock().unwrap();
-
     #[cfg(target_os = "android")]
     {
         write_addresses_to_device(&[])?;
         eprintln!("[Storage] Cleared all addresses");
         Ok(())
     }
-
     #[cfg(not(target_os = "android"))]
     {
         eprintln!("[Mock Storage] Would clear all addresses");
         Ok(())
     }
 }
-
 /// Get total number of stored addresses without loading them
 ///
 /// Currently loads all data to count. Could be optimized to read only metadata.
@@ -531,7 +475,6 @@ pub fn clear_all_addresses() -> Result<(), String> {
 pub fn count_stored_addresses() -> usize {
     read_addresses_from_device().len()
 }
-
 /// Load addresses from parquet file
 ///
 /// Internal function that:
@@ -543,36 +486,29 @@ pub fn count_stored_addresses() -> usize {
 #[cfg(target_os = "android")]
 fn load_from_parquet() -> Result<Vec<StoredAddress>, String> {
     eprintln!("[Storage::load_from_parquet] Starting load operation");
-
     ensure_storage_files()?;
-
     let local_path = get_local_parquet_path()?;
     eprintln!(
         "[Storage::load_from_parquet] Opening file: {:?}",
         local_path
     );
-
     let file = File::open(&local_path).map_err(|e| {
         format!(
             "[Storage] Failed to open parquet file {:?}: {}",
             local_path, e
         )
     })?;
-
     eprintln!("[Storage::load_from_parquet] File opened successfully");
-
     let local_data = read_local_parquet(file).map_err(|e| {
         format!(
             "[Storage] Failed to read parquet data from {:?}: {}",
             local_path, e
         )
     })?;
-
     eprintln!(
         "[Storage::load_from_parquet] Read {} LocalData entries from parquet",
         local_data.len(),
     );
-
     let addresses: Vec<StoredAddress> = local_data
         .into_iter()
         .enumerate()
@@ -599,21 +535,17 @@ fn load_from_parquet() -> Result<Vec<StoredAddress>, String> {
             from_local_data(data, idx)
         })
         .collect();
-
     let matched_count = addresses
         .iter()
         .filter(|a| a.matched_entry.is_some())
         .count();
-
     eprintln!(
         "[Storage::load_from_parquet] Successfully loaded {} addresses ({} with matched_entry)",
         addresses.len(),
         matched_count,
     );
-
     Ok(addresses)
 }
-
 /// Save addresses to parquet file with backup rotation
 ///
 /// Internal function that:
@@ -628,10 +560,8 @@ fn save_to_parquet(addresses: &[StoredAddress]) -> Result<(), String> {
         "[Storage::save_to_parquet] Starting save operation for {} addresses",
         addresses.len(),
     );
-
     let local_path = get_local_parquet_path()?;
     let backup_path = get_backup_parquet_path()?;
-
     eprintln!("[Storage::save_to_parquet] Converting StoredAddress to LocalData");
     let local_data: Vec<LocalData> = addresses
         .iter()
@@ -650,7 +580,6 @@ fn save_to_parquet(addresses: &[StoredAddress]) -> Result<(), String> {
             to_local_data(addr)
         })
         .collect();
-
     let data_to_write = if local_data.is_empty() {
         eprintln!("[Storage::save_to_parquet] No data to write, creating empty placeholder",);
         vec![LocalData {
@@ -670,20 +599,16 @@ fn save_to_parquet(addresses: &[StoredAddress]) -> Result<(), String> {
     } else {
         local_data
     };
-
     eprintln!(
         "[Storage::save_to_parquet] Building parquet buffer for {} entries",
         data_to_write.len(),
     );
     let buffer = build_local_parquet(data_to_write)
         .map_err(|e| format!("[Storage] Failed to build parquet: {}", e))?;
-
     eprintln!(
         "[Storage::save_to_parquet] Built parquet buffer of {} bytes",
         buffer.len(),
     );
-
-    // Backup rotation
     if backup_path.exists() {
         eprintln!(
             "[Storage::save_to_parquet] Deleting old backup: {:?}",
@@ -696,7 +621,6 @@ fn save_to_parquet(addresses: &[StoredAddress]) -> Result<(), String> {
             )
         })?;
     }
-
     if local_path.exists() {
         eprintln!(
             "[Storage::save_to_parquet] Renaming {:?} to {:?}",
@@ -709,7 +633,6 @@ fn save_to_parquet(addresses: &[StoredAddress]) -> Result<(), String> {
             )
         })?;
     }
-
     eprintln!(
         "[Storage::save_to_parquet] Writing new file to {:?}",
         local_path
@@ -720,21 +643,17 @@ fn save_to_parquet(addresses: &[StoredAddress]) -> Result<(), String> {
             local_path, e
         )
     })?;
-
     eprintln!(
         "[Storage::save_to_parquet] ✅ Successfully wrote {} addresses to {:?} (backup created)",
         addresses.len(),
         local_path,
     );
-
     Ok(())
 }
-
 #[cfg(test)]
 mod tests {
     #[allow(unused_imports)]
     use super::*;
-
     /// Test that StoredAddress → LocalData → StoredAddress preserves core fields
     #[test]
     #[cfg(target_os = "android")]
@@ -748,17 +667,14 @@ mod tests {
             active: true,
             matched_entry: None,
         };
-
         let local_data = to_local_data(&original);
         let restored = from_local_data(local_data, 1);
-
         assert_eq!(original.street, restored.street);
         assert_eq!(original.street_number, restored.street_number);
         assert_eq!(original.postal_code, restored.postal_code);
         assert_eq!(original.valid, restored.valid);
         assert_eq!(original.active, restored.active);
     }
-
     /// Test that addresses with complex numbers (letters, suffixes) roundtrip correctly
     #[test]
     #[cfg(target_os = "android")]
@@ -769,7 +685,6 @@ mod tests {
             ("Parkgatan", "12A"),
             ("Vägen", "100B"),
         ];
-
         for (street, number) in test_cases {
             let original = StoredAddress {
                 id: 1,
@@ -780,10 +695,8 @@ mod tests {
                 active: false,
                 matched_entry: None,
             };
-
             let local_data = to_local_data(&original);
             let restored = from_local_data(local_data, 1);
-
             assert_eq!(
                 original.street, restored.street,
                 "Street mismatch for {} {}",
@@ -796,13 +709,11 @@ mod tests {
             );
         }
     }
-
     /// Test complete save → load roundtrip with multiple addresses
     #[test]
     #[cfg(target_os = "android")]
     fn test_storage_parquet_roundtrip() {
         let _ = clear_all_addresses();
-
         let addresses = vec![
             StoredAddress {
                 id: 1,
@@ -823,30 +734,25 @@ mod tests {
                 matched_entry: None,
             },
         ];
-
         let save_result = write_addresses_to_device(&addresses);
         assert!(
             save_result.is_ok(),
             "Save should succeed: {:?}",
             save_result
         );
-
         let loaded = read_addresses_from_device();
         assert_eq!(loaded.len(), 2, "Should load 2 addresses");
-
         assert_eq!(loaded[0].street, "Kornettsgatan");
         assert_eq!(loaded[0].street_number, "18C");
         assert_eq!(loaded[0].postal_code, "21438");
         assert_eq!(loaded[0].valid, true);
         assert_eq!(loaded[0].active, false);
-
         assert_eq!(loaded[1].street, "Storgatan");
         assert_eq!(loaded[1].street_number, "5");
         assert_eq!(loaded[1].postal_code, "22100");
         assert_eq!(loaded[1].valid, true);
         assert_eq!(loaded[1].active, true);
     }
-
     /// Test that empty storage files can be created and read without errors
     #[test]
     #[cfg(target_os = "android")]
@@ -857,13 +763,10 @@ mod tests {
             "Clear should succeed: {:?}",
             clear_result
         );
-
         let addresses = read_addresses_from_device();
         assert_eq!(addresses.len(), 0, "Should return empty vector after clear");
-
         let local_path = get_local_parquet_path().expect("Should get local path");
         let backup_path = get_backup_parquet_path().expect("Should get backup path");
-
         assert!(
             local_path.exists(),
             "Local parquet should exist after clear"
@@ -873,13 +776,11 @@ mod tests {
             "Backup parquet should exist after clear"
         );
     }
-
     /// Test that saving/loading a single address works correctly
     #[test]
     #[cfg(target_os = "android")]
     fn test_single_address() {
         let _ = clear_all_addresses();
-
         let address = vec![StoredAddress {
             id: 42,
             street: "Testgatan".to_string(),
@@ -889,10 +790,8 @@ mod tests {
             active: true,
             matched_entry: None,
         }];
-
         let save_result = write_addresses_to_device(&address);
         assert!(save_result.is_ok(), "Save single address should succeed");
-
         let loaded = read_addresses_from_device();
         assert_eq!(loaded.len(), 1, "Should load 1 address");
         assert_eq!(loaded[0].street, "Testgatan");
@@ -901,16 +800,12 @@ mod tests {
         assert_eq!(loaded[0].valid, false);
         assert_eq!(loaded[0].active, true);
     }
-
     /// Test that matched_entry data is persisted and restored correctly
     #[test]
     #[cfg(target_os = "android")]
     fn test_matched_entry_persistence() {
         use amp_core::structs::DB;
-
         let _ = clear_all_addresses();
-
-        // Create a DB entry with known data
         let db_entry = DB::from_dag_tid(
             Some("21438".to_string()),
             "Kornettsgatan 18C".to_string(),
@@ -926,7 +821,6 @@ mod tests {
             1,
         )
         .expect("Should create DB entry");
-
         let original = StoredAddress {
             id: 1,
             street: "Kornettsgatan".to_string(),
@@ -936,69 +830,52 @@ mod tests {
             active: true,
             matched_entry: Some(db_entry.clone()),
         };
-
-        // Save to storage
         let save_result = write_addresses_to_device(&[original.clone()]);
         assert!(save_result.is_ok(), "Save should succeed");
-
-        // Load from storage
         let loaded = read_addresses_from_device();
         assert_eq!(loaded.len(), 1, "Should load 1 address");
-
         let restored = &loaded[0];
-
-        // Check basic fields
         assert_eq!(original.street, restored.street);
         assert_eq!(original.street_number, restored.street_number);
         assert_eq!(original.postal_code, restored.postal_code);
         assert_eq!(original.valid, restored.valid);
         assert_eq!(original.active, restored.active);
-
-        // Check matched_entry was restored
         assert!(
             restored.matched_entry.is_some(),
             "matched_entry should be restored"
         );
-
         let restored_entry = restored.matched_entry.as_ref().unwrap();
-
-        // Verify key match data fields
         assert_eq!(
             db_entry.taxa, restored_entry.taxa,
             "Taxa should be preserved"
         );
         assert_eq!(
             db_entry.antal_platser, restored_entry.antal_platser,
-            "Antal platser should be preserved"
+            "Antal platser should be preserved",
         );
         assert_eq!(
             db_entry.typ_av_parkering, restored_entry.typ_av_parkering,
-            "Typ av parkering should be preserved"
+            "Typ av parkering should be preserved",
         );
         assert_eq!(
             db_entry.info, restored_entry.info,
             "Info should be preserved"
         );
-
-        // Verify address fields in DB entry
         assert_eq!(
             db_entry.gata, restored_entry.gata,
             "Gata should be preserved"
         );
         assert_eq!(
             db_entry.gatunummer, restored_entry.gatunummer,
-            "Gatunummer should be preserved"
+            "Gatunummer should be preserved",
         );
     }
-
     /// Test that multiple addresses with mixed match states persist correctly
     #[test]
     #[cfg(target_os = "android")]
     fn test_mixed_matched_entries() {
         use amp_core::structs::DB;
-
         let _ = clear_all_addresses();
-
         let db_entry = DB::from_dag_tid(
             Some("22100".to_string()),
             "Storgatan 10".to_string(),
@@ -1014,9 +891,7 @@ mod tests {
             3,
         )
         .expect("Should create DB entry");
-
         let addresses = vec![
-            // Address with match
             StoredAddress {
                 id: 1,
                 street: "Storgatan".to_string(),
@@ -1026,7 +901,6 @@ mod tests {
                 active: true,
                 matched_entry: Some(db_entry),
             },
-            // Address without match
             StoredAddress {
                 id: 2,
                 street: "Okänd Gata".to_string(),
@@ -1037,24 +911,18 @@ mod tests {
                 matched_entry: None,
             },
         ];
-
         let save_result = write_addresses_to_device(&addresses);
         assert!(save_result.is_ok(), "Save should succeed");
-
         let loaded = read_addresses_from_device();
         assert_eq!(loaded.len(), 2, "Should load 2 addresses");
-
-        // First address should have matched_entry
         assert!(
             loaded[0].matched_entry.is_some(),
-            "First address should have match data"
+            "First address should have match data",
         );
         assert_eq!(loaded[0].valid, true);
-
-        // Second address should not have matched_entry
         assert!(
             loaded[1].matched_entry.is_none(),
-            "Second address should not have match data"
+            "Second address should not have match data",
         );
         assert_eq!(loaded[1].valid, false);
     }
