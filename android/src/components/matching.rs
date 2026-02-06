@@ -38,8 +38,6 @@ pub enum ValidationError {
     StreetTooLong(usize),
     /// Street number exceeds maximum length
     StreetNumberTooLong(usize),
-    /// Address not found in database
-    AddressNotFound,
 }
 impl fmt::Display for ValidationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -69,9 +67,6 @@ impl fmt::Display for ValidationError {
                     "Street number too long ({} characters, maximum is 20)",
                     len
                 )
-            }
-            ValidationError::AddressNotFound => {
-                write!(f, "Address not found in database")
             }
         }
     }
@@ -324,7 +319,5 @@ mod tests {
         assert_eq!(format!("{}", err), "Street name cannot be empty");
         let err = ValidationError::InvalidPostalCodeFormat("1234".to_string());
         assert!(format!("{}", err).contains("1234"));
-        let err = ValidationError::AddressNotFound;
-        assert_eq!(format!("{}", err), "Address not found in database");
     }
 }
