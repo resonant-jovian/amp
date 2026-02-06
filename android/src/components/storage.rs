@@ -209,6 +209,10 @@ fn to_local_data(addr: &StoredAddress) -> LocalData {
 /// 1. gata field exists: Use gata + gatunummer directly
 /// 2. gata field missing: Parse address string (split on last space)
 ///
+/// After basic conversion, attempts to re-match the address against the
+/// static database to restore the matched_entry with parking restriction data.
+/// This ensures that addresses loaded from storage have their correlation data.
+///
 /// This roundtrips correctly with `to_local_data` for all typical address patterns.
 #[cfg(target_os = "android")]
 fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
@@ -223,15 +227,33 @@ fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
             (data.adress.clone(), String::new())
         }
     };
-    StoredAddress {
+    let postal_code = data.postnummer.unwrap_or_default();
+    let mut stored_address = StoredAddress {
         id,
-        street,
-        street_number,
-        postal_code: data.postnummer.unwrap_or_default(),
+        street: street.clone(),
+        street_number: street_number.clone(),
+        postal_code: postal_code.clone(),
         valid: data.valid,
         active: data.active,
         matched_entry: None,
+    };
+    use crate::components::matching::match_address;
+    match match_address(&street, &street_number, &postal_code) {
+        crate::components::matching::MatchResult::Valid(db_entry) => {
+            stored_address.matched_entry = Some(*db_entry);
+            eprintln!(
+                "[Storage::from_local_data] ✅ Re-matched {} {} {} successfully",
+                street, street_number, postal_code,
+            );
+        }
+        crate::components::matching::MatchResult::Invalid(err) => {
+            eprintln!(
+                "[Storage::from_local_data] ⚠️  Failed to re-match {} {} {}: {}",
+                street, street_number, postal_code, err,
+            );
+        }
     }
+    stored_address
 }
 /// Load stored addresses from persistent storage (thread-safe)
 ///
@@ -364,6 +386,7 @@ pub fn count_stored_addresses() -> usize {
 /// 2. Opens and reads parquet file
 /// 3. Filters out empty/dummy entries
 /// 4. Converts LocalData to StoredAddress
+/// 5. Re-matches addresses against database to restore parking data
 #[cfg(target_os = "android")]
 fn load_from_parquet() -> Result<Vec<StoredAddress>, String> {
     eprintln!("[Storage::load_from_parquet] Starting load operation");
@@ -414,9 +437,14 @@ fn load_from_parquet() -> Result<Vec<StoredAddress>, String> {
             from_local_data(data, idx)
         })
         .collect();
+    let matched_count = addresses
+        .iter()
+        .filter(|a| a.matched_entry.is_some())
+        .count();
     eprintln!(
-        "[Storage::load_from_parquet] Successfully loaded {} addresses",
+        "[Storage::load_from_parquet] Successfully loaded {} addresses ({} re-matched with DB)",
         addresses.len(),
+        matched_count,
     );
     Ok(addresses)
 }
