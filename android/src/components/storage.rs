@@ -289,7 +289,6 @@ pub fn write_addresses_to_device(addresses: &[StoredAddress]) -> Result<(), Stri
         Ok(())
     }
 }
-
 /// Clear all stored addresses (thread-safe)
 ///
 /// Removes all saved addresses from persistent storage by writing empty files.
