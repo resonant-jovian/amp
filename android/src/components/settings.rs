@@ -80,15 +80,6 @@ impl Language {
             Language::Francais => "Francais",
         }
     }
-    /// Get the display name for this language (with accents for UI)
-    pub fn display_name(&self) -> &str {
-        match self {
-            Language::Svenska => "Svenska",
-            Language::English => "English",
-            Language::Espanol => "Español",
-            Language::Francais => "Français",
-        }
-    }
     fn from_string(s: &str) -> Self {
         match s {
             "English" => Language::English,
@@ -109,16 +100,6 @@ pub struct AppSettings {
     pub notifications: NotificationSettings,
     pub theme: Theme,
     pub language: Language,
-}
-/// Convert AppSettings to SettingsData for Parquet storage
-fn to_settings_data(settings: &AppSettings) -> SettingsData {
-    SettingsData {
-        stadning_nu: settings.notifications.stadning_nu,
-        sex_timmar: settings.notifications.sex_timmar,
-        en_dag: settings.notifications.en_dag,
-        theme: settings.theme.to_string(),
-        language: settings.language.to_string(),
-    }
 }
 /// Convert SettingsData from Parquet to AppSettings
 fn from_settings_data(data: SettingsData) -> AppSettings {
@@ -209,41 +190,6 @@ pub fn load_settings() -> AppSettings {
     }
     AppSettings::default()
 }
-/// Save settings to persistent storage (thread-safe)
-///
-/// # Arguments
-/// * `settings` - The settings to save
-///
-/// # Returns
-/// - `Ok(())` if successful
-/// - `Err(message)` if save failed
-///
-/// # Examples
-/// ```no_run
-/// use amp_android::components::settings::{AppSettings, NotificationSettings};
-///
-/// let mut settings = AppSettings::default();
-/// settings.notifications.en_dag = true;
-///
-/// if let Err(e) = save_settings(&settings) {
-///     eprintln!("Failed to save settings: {}", e);
-/// }
-/// ```
-pub fn save_settings(settings: &AppSettings) -> Result<(), String> {
-    let _lock = SETTINGS_LOCK.lock().unwrap();
-    let path = get_settings_path()?;
-    let settings_data = to_settings_data(settings);
-    let buffer = build_settings_parquet(vec![settings_data])
-        .map_err(|e| format!("[Settings] Failed to build parquet: {}", e))?;
-    fs::write(&path, buffer).map_err(|e| {
-        format!(
-            "[Settings] Failed to write settings file to {:?}: {}",
-            path, e
-        )
-    })?;
-    eprintln!("[Settings] Saved to {:?}", path);
-    Ok(())
-}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -257,21 +203,6 @@ mod tests {
         assert!(!settings.notifications.en_dag);
     }
     #[test]
-    fn test_settings_conversion_roundtrip() {
-        let original = AppSettings {
-            notifications: NotificationSettings {
-                stadning_nu: false,
-                sex_timmar: true,
-                en_dag: true,
-            },
-            theme: Theme::Dark,
-            language: Language::English,
-        };
-        let settings_data = to_settings_data(&original);
-        let restored = from_settings_data(settings_data);
-        assert_eq!(original, restored);
-    }
-    #[test]
     fn test_theme_display() {
         assert_eq!(Theme::Light.to_string(), "Light");
         assert_eq!(Theme::Dark.to_string(), "Dark");
@@ -282,48 +213,5 @@ mod tests {
         assert_eq!(Language::English.to_string(), "English");
         assert_eq!(Language::Espanol.to_string(), "Espanol");
         assert_eq!(Language::Francais.to_string(), "Francais");
-    }
-    #[test]
-    fn test_language_display_names() {
-        assert_eq!(Language::Espanol.display_name(), "Español");
-        assert_eq!(Language::Francais.display_name(), "Français");
-    }
-    #[test]
-    fn test_settings_parquet_roundtrip() {
-        let settings = AppSettings {
-            notifications: NotificationSettings {
-                stadning_nu: true,
-                sex_timmar: false,
-                en_dag: true,
-            },
-            theme: Theme::Dark,
-            language: Language::Espanol,
-        };
-        let result = save_settings(&settings);
-        assert!(result.is_ok(), "Save should succeed: {:?}", result);
-        let loaded = load_settings();
-        assert_eq!(settings, loaded, "Loaded settings should match saved");
-    }
-    #[test]
-    fn test_all_languages_roundtrip() {
-        for lang in [
-            Language::Svenska,
-            Language::English,
-            Language::Espanol,
-            Language::Francais,
-        ] {
-            let settings = AppSettings {
-                notifications: NotificationSettings::default(),
-                theme: Theme::Light,
-                language: lang.clone(),
-            };
-            let settings_data = to_settings_data(&settings);
-            let restored = from_settings_data(settings_data);
-            assert_eq!(
-                settings.language, restored.language,
-                "Language {:?} should roundtrip correctly",
-                lang,
-            );
-        }
     }
 }
