@@ -104,6 +104,14 @@ dx build --platform android --release
 dx serve --platform android
 ```
 
+### Custom Android Path
+
+If your Android project is at a custom location:
+
+```bash
+./scripts/build.sh --android-path /home/albin/Documents/amp/target/dx/amp/release/android/app/app
+```
+
 ### Verify Installation
 
 ```bash
@@ -448,6 +456,7 @@ chmod +x scripts/build.sh
 - [Transition Detection](android/src/components/transitions.rs)
 - [JNI Bridge](android/src/android_bridge.rs)
 - [Kotlin Helper](android/kotlin/NotificationHelper.kt)
+- [Build Script](scripts/build.sh)
 
 ### External Resources
 - [Android Notifications](https://developer.android.com/develop/ui/views/notifications)
