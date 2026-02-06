@@ -21,7 +21,7 @@
 //! ```
 #[cfg(target_os = "android")]
 use jni::{
-    JNIEnv, JavaVM,
+    JavaVM,
     objects::{JObject, JValue},
     sys::jint,
 };
