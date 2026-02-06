@@ -29,10 +29,8 @@ use jni::{
 use ndk_context;
 #[cfg(target_os = "android")]
 use once_cell::sync::OnceCell;
-
 #[cfg(target_os = "android")]
 static JAVA_VM: OnceCell<JavaVM> = OnceCell::new();
-
 /// Initialize Android notification channels
 ///
 /// Creates three notification channels for Android 8.0+ (API 26+):
