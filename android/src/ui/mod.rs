@@ -116,7 +116,7 @@ fn uuid_to_usize(uuid: &Uuid) -> usize {
 fn fuzzy_match_address(street: &str, street_number: &str, postal_code: &str) -> Option<DB> {
     match match_address(street, street_number, postal_code) {
         MatchResult::Valid(entry) => return Some(*entry),
-        MatchResult::Invalid(_) => {}
+        MatchResult::Invalid => {}
     }
     use crate::components::matching::get_parking_data;
     let data = get_parking_data();
