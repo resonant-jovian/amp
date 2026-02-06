@@ -6,9 +6,8 @@
 //! - Language selection
 //!
 //! Settings are stored in a Parquet file (settings.parquet) for efficient binary storage.
-use amp_core::parquet::{build_settings_parquet, read_settings_parquet};
+use amp_core::parquet::read_settings_parquet;
 use amp_core::structs::SettingsData;
-use std::fs;
 use std::fs::File;
 use std::path::PathBuf;
 use std::sync::Mutex;
