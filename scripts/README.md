@@ -1,217 +1,282 @@
-# Scripts
+# Build Scripts
 
-Utility scripts for building, developing, and deploying the amp Android application.
+Automation scripts for building and configuring the Amp Android app.
 
-## Available Scripts
+## build.sh - Android Notification Setup
 
-### `build.sh`
+### Purpose
 
-Builds a signed release APK for Android.
+Automatically configures the Dioxus Android project for notification support by:
+- Copying `NotificationHelper.kt` to the Android project
+- Adding required permissions to `AndroidManifest.xml`
+- Creating necessary package directories
+- Verifying the setup
 
-**Usage:**
+### Usage
+
+#### Basic Usage (Default Path)
+
 ```bash
+cd /path/to/amp
+chmod +x scripts/build.sh
 ./scripts/build.sh
 ```
 
-**What it does:**
-- Loads keystore configuration from `keystore.properties`
-- Backs up and modifies `Dioxus.toml` with signing configuration
-- Cleans previous build artifacts
-- Builds with `dx build --android --release`
-- Applies Java 21 compatibility fixes if needed
-- Rebuilds with gradle if initial build fails
-- Restores original `Dioxus.toml`
-- Outputs signed APK location
-
-**Requirements:**
-- Valid `keystore.properties` file in repository root
-- Keystore file specified in `keystore.properties`
-- `dx` (Dioxus CLI) installed
-- Android SDK and Java 21 configured
-
-**Output:**
-- Signed release APK in `target/dx/amp/release/android/app/app/build/outputs/apk/release/`
-
----
-
-### `serve.sh`
-
-Starts development server with hot-reload for Android.
-
-**Usage:**
-```bash
-./scripts/serve.sh
+This assumes your Android project is at the default Dioxus path:
+```
+target/dx/amp/release/android/app/app/
 ```
 
-**What it does:**
-- Launches `dx serve` with Android hot-reload enabled
-- Connects to device `HQ646M01AF`
-- Watches for code changes and automatically rebuilds
+#### Custom Android Path
 
-**Requirements:**
-- Android device connected via ADB
-- Device ID `HQ646M01AF` (or modify script for your device)
-- `dx` (Dioxus CLI) installed
+If your Android project is in a different location:
 
----
-
-### `adb-install.sh`
-
-Installs APK to connected Android device.
-
-**Usage:**
 ```bash
-./scripts/adb-install.sh
+# Method 1: Command-line argument
+./scripts/build.sh --android-path /home/albin/Documents/amp/target/dx/amp/release/android/app/app
+
+# Method 2: Environment variable
+ANDROID_PROJECT_PATH="/custom/path/to/android" ./scripts/build.sh
 ```
 
-**What it does:**
-- Searches for debug APK first
-- Falls back to release APK if debug not found
-- Installs via `adb install -r`
+#### Get Help
 
-**Requirements:**
-- Android device connected via ADB
-- APK built (via `build.sh` or `dx build`)
-
----
-
-### `fmt_fix_clippy.sh`
-
-Formats, fixes, and lints all Rust code.
-
-**Usage:**
 ```bash
-./scripts/fmt_fix_clippy.sh
+./scripts/build.sh --help
 ```
 
-**What it does:**
-1. Runs `cargo fmt` on all code
-2. Runs `cargo clippy --fix` with auto-fixes
-3. Runs final `cargo clippy` check treating warnings as errors
+### What It Does
 
-**Requirements:**
-- Rust toolchain with `rustfmt` and `clippy`
+1. **Verifies Source Files**
+   - Checks that `android/kotlin/NotificationHelper.kt` exists
 
----
+2. **Checks Android Project**
+   - Verifies the Android project directory exists
+   - If not found, provides instructions to build it
 
-## Common Workflows
+3. **Sets Up Directories**
+   - Creates `src/main/java/com/amp/` if needed
 
-### First-time Setup
+4. **Copies Kotlin Files**
+   - Copies `NotificationHelper.kt` to the Android project
+   - Destination: `app/src/main/java/com/amp/NotificationHelper.kt`
+
+5. **Updates AndroidManifest.xml**
+   - Adds notification permissions (Android 13+)
+   - Adds foreground service permissions
+   - Creates backup before modifying
+   - Skips if permissions already present
+
+### Permissions Added
+
+The script adds these permissions to your `AndroidManifest.xml`:
+
+```xml
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+```
+
+### Example Output
+
+```
+╔════════════════════════════════════════╗
+║  Amp Android Notification Setup       ║
+╚════════════════════════════════════════╝
+
+Configuration:
+  Project root: /home/albin/Documents/amp
+  Android path: /home/albin/Documents/amp/target/dx/amp/release/android/app/app
+  Manifest: /home/albin/Documents/amp/target/dx/amp/release/android/app/app/src/main/AndroidManifest.xml
+
+[1/5] Verifying source files...
+✓ Found: /home/albin/Documents/amp/android/kotlin/NotificationHelper.kt
+
+[2/5] Checking Android project...
+✓ Android project found
+
+[3/5] Setting up directories...
+✓ Directory exists: /home/albin/Documents/amp/target/dx/amp/release/android/app/app/src/main/java/com/amp
+
+[4/5] Copying Kotlin files...
+✓ NotificationHelper.kt copied successfully
+  Destination: /home/albin/Documents/amp/target/dx/amp/release/android/app/app/src/main/java/com/amp/NotificationHelper.kt
+
+[5/5] Updating AndroidManifest.xml...
+Adding POST_NOTIFICATIONS permission...
+  Backup created: AndroidManifest.xml.backup
+✓ POST_NOTIFICATIONS added
+Adding FOREGROUND_SERVICE permissions...
+✓ FOREGROUND_SERVICE permissions added
+
+Verifying manifest...
+✓ All permissions present in manifest
+
+╔════════════════════════════════════════╗
+║  Setup Complete!                       ║
+╚════════════════════════════════════════╝
+
+Files modified:
+  ✓ NotificationHelper.kt
+  ✓ AndroidManifest.xml
+
+Permissions added:
+  ✓ POST_NOTIFICATIONS (Android 13+)
+  ✓ FOREGROUND_SERVICE
+  ✓ FOREGROUND_SERVICE_DATA_SYNC
+
+Next steps:
+  1. Build APK: dx build --platform android --release
+  2. Run on device: dx serve --platform android
+  3. Monitor: adb logcat | grep -E '(Notifications|AmpNotifications)'
+
+Setup successful! 🎉
+```
+
+### Workflow
+
+Typical development workflow:
+
 ```bash
-# 1. Install dependencies (see main README.md)
-# 2. Create keystore.properties (see main README.md)
-# 3. Build release APK
+# 1. Build the Android project initially
+dx build --platform android --release
+
+# 2. Run the setup script
 ./scripts/build.sh
+
+# 3. Rebuild with updated files
+dx build --platform android --release
+
+# 4. Deploy to device
+dx serve --platform android
+
+# 5. Monitor notifications
+adb logcat | grep -E '(Notifications|amp_)'
 ```
 
-### Development
+### Troubleshooting
+
+#### Android Project Not Found
+
+**Error**: `Android project not found at: target/dx/amp/release/android/app/app`
+
+**Solution**: Build the Android project first:
 ```bash
-# Start hot-reload development server
-./scripts/serve.sh
-
-# In another terminal, make code changes
-# Changes will automatically rebuild and deploy
+dx build --platform android --release
 ```
 
-### Pre-commit
+#### Kotlin Source Not Found
+
+**Error**: `File not found: android/kotlin/NotificationHelper.kt`
+
+**Solution**: Run from project root or ensure you're on the `feature/android` branch:
 ```bash
-# Format and lint code
-./scripts/fmt_fix_clippy.sh
-
-# Run tests
-cd android && cargo test
+cd /path/to/amp
+git checkout feature/android
 ```
 
-### Release Build
+#### Permission Denied
+
+**Error**: `Permission denied: ./scripts/build.sh`
+
+**Solution**: Make script executable:
 ```bash
-# Build signed release APK
-./scripts/build.sh
-
-# Install to device
-./scripts/adb-install.sh
+chmod +x scripts/build.sh
 ```
 
----
+#### Manifest Not Updated
 
-## Path Resolution
+**Issue**: Permissions not appearing after script runs
 
-All scripts use dynamic path resolution to find the repository root:
+**Solution**: 
+1. Check if backup was created: `*.backup` files
+2. Manually verify permissions in AndroidManifest.xml
+3. Check script output for errors
+4. Try with sudo if permission issues
 
-```bash
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-```
+### Re-running the Script
 
-This means:
-- Scripts can be run from any directory
-- Scripts work regardless of where the repository is cloned
-- No hardcoded absolute paths
+The script is **idempotent** - safe to run multiple times:
+- Skips adding permissions if already present
+- Overwrites `NotificationHelper.kt` (always uses latest version)
+- Creates backup only on first modification
 
----
+### Manual Setup (Alternative)
 
-## Troubleshooting
+If you prefer to set up manually:
 
-### `build.sh` fails with Java version error
-
-**Problem:** Gradle expects Java 21 but finds different version.
-
-**Solution:** The script applies automatic Java 21 fixes. If it still fails:
-1. Verify Java 21 is installed: `java -version`
-2. Set `JAVA_HOME` to Java 21 installation
-3. Clean and rebuild: `rm -rf target/dx && ./scripts/build.sh`
-
-### `serve.sh` can't find device
-
-**Problem:** Device ID `HQ646M01AF` not found.
-
-**Solution:**
-1. Check connected devices: `adb devices`
-2. Update device ID in `serve.sh`
-3. Or specify at runtime: `dx serve --android --device YOUR_DEVICE_ID`
-
-### `adb-install.sh` says no APK found
-
-**Problem:** APK not built yet.
-
-**Solution:**
-1. Build first: `./scripts/build.sh` or `dx build --android`
-2. Check output location matches script paths
-
-### `fmt_fix_clippy.sh` reports clippy errors
-
-**Problem:** Code has linting issues.
-
-**Solution:**
-1. Review clippy output for specific issues
-2. Fix manually or let script apply auto-fixes where possible
-3. Some warnings require manual fixes
-
----
-
-## Adding New Scripts
-
-When adding new scripts:
-
-1. **Use dynamic path resolution:**
+1. **Copy Kotlin file**:
    ```bash
-   REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-   cd "$REPO_ROOT"
+   cp android/kotlin/NotificationHelper.kt \
+      target/dx/amp/release/android/app/app/src/main/java/com/amp/
    ```
 
-2. **Make executable:**
-   ```bash
-   chmod +x scripts/your_script.sh
+2. **Edit AndroidManifest.xml**:
+   Add permissions after `<manifest>` tag:
+   ```xml
+   <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+   <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
    ```
 
-3. **Add shebang:**
-   ```bash
-   #!/bin/bash
-   set -e  # Exit on error
-   ```
+### Files Modified
 
-4. **Document in this README:**
-   - Add section under "Available Scripts"
-   - Explain what it does, usage, and requirements
+- **Added**: `app/src/main/java/com/amp/NotificationHelper.kt`
+- **Modified**: `app/src/main/AndroidManifest.xml`
+- **Backup**: `app/src/main/AndroidManifest.xml.backup` (on first run)
 
-5. **Follow naming conventions:**
-   - Use lowercase with underscores: `my_script.sh`
-   - Be descriptive: `build.sh` not `b.sh`
+### Related Documentation
+
+- [Android Notification Guide](../docs/android-notifications.md)
+- [JNI Integration Guide](../android/kotlin/README.md)
+- [Implementation Summary](../android/NOTIFICATIONS_IMPLEMENTATION.md)
+
+### Testing Setup
+
+After running the script, verify setup:
+
+```bash
+# 1. Check Kotlin file was copied
+ls -la target/dx/amp/release/android/app/app/src/main/java/com/amp/NotificationHelper.kt
+
+# 2. Verify permissions in manifest
+grep "POST_NOTIFICATIONS" target/dx/amp/release/android/app/app/src/main/AndroidManifest.xml
+
+# 3. Build and test
+dx serve --platform android
+
+# 4. On device, test notification channels
+adb shell dumpsys notification | grep amp_
+```
+
+### Advanced Usage
+
+#### Continuous Integration
+
+Add to CI pipeline:
+
+```yaml
+# .github/workflows/android.yml
+- name: Setup Android notifications
+  run: |
+    chmod +x scripts/build.sh
+    ./scripts/build.sh
+    
+- name: Build APK
+  run: dx build --platform android --release
+```
+
+#### Custom Package Name
+
+If using a different package name (not `com.amp`):
+
+1. Update `NotificationHelper.kt` package declaration
+2. Modify `JAVA_DIR` in script to match your package
+3. Update JNI calls in `android_bridge.rs` to use new package path
+
+### Support
+
+For issues or questions:
+- Check documentation in `docs/` and `android/kotlin/`
+- Review commit history on `feature/android` branch
+- See `android/NOTIFICATIONS_IMPLEMENTATION.md` for implementation details
