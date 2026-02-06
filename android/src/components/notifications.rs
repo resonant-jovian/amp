@@ -32,13 +32,6 @@
 use crate::components::settings::load_settings;
 use crate::ui::StoredAddress;
 
-#[cfg(target_os = "android")]
-use jni::objects::JString;
-#[cfg(target_os = "android")]
-use jni::sys::jint;
-#[cfg(target_os = "android")]
-use jni::JNIEnv;
-
 /// Notification channel IDs
 const CHANNEL_ACTIVE: &str = "amp_active";
 const CHANNEL_SIX_HOURS: &str = "amp_six_hours";
@@ -66,17 +59,8 @@ const CHANNEL_ONE_DAY: &str = "amp_one_day";
 /// // Call during app startup
 /// initialize_notification_channels();
 /// ```
-#[cfg(target_os = "android")]
 pub fn initialize_notification_channels() {
-    // TODO: Implement JNI call to NotificationHelper.createNotificationChannels()
-    // This will create the three channels with proper Android NotificationManager setup
-    // For now, log that initialization is requested
-    eprintln!("[Notifications] Channel initialization requested (JNI pending)");
-}
-
-#[cfg(not(target_os = "android"))]
-pub fn initialize_notification_channels() {
-    eprintln!("[Mock Notifications] Channels initialized (no-op on non-Android)");
+    crate::android_bridge::initialize_notification_channels_jni();
 }
 
 /// Send notification when address enters "1 day" panel
@@ -211,49 +195,27 @@ pub fn notify_active(address: &StoredAddress) {
     send_notification(CHANNEL_ACTIVE, title, &body, address.id);
 }
 
-/// Internal: Send notification via JNI to Android NotificationManager
+/// Internal: Send notification via android_bridge to JNI
 ///
-/// This function bridges Rust code to Android's notification system.
-/// On Android, it calls NotificationHelper.showNotification() via JNI.
-/// On other platforms, it logs a mock notification for testing.
+/// Routes notification requests through the android_bridge module,
+/// which handles JNI calls to Android's NotificationManager.
 ///
 /// # Arguments
 /// * `channel_id` - One of CHANNEL_ACTIVE, CHANNEL_SIX_HOURS, or CHANNEL_ONE_DAY
 /// * `title` - Notification title text
 /// * `body` - Notification body text
 /// * `notification_id` - Unique ID for this notification (typically address.id)
-#[cfg(target_os = "android")]
 fn send_notification(channel_id: &str, title: &str, body: &str, notification_id: usize) {
     eprintln!(
-        "[Notifications] Sending: channel={}, title={}, body={}, id={}",
-        channel_id, title, body, notification_id
+        "[Notifications] Sending: channel={}, title={}, id={}",
+        channel_id, title, notification_id
     );
 
-    // TODO: Implement JNI call to NotificationHelper.showNotification()
-    // Parameters to pass to Java/Kotlin:
-    // - context: Context (obtain from app state)
-    // - channelId: String
-    // - notificationId: int (cast notification_id as jint)
-    // - title: String
-    // - body: String
-    //
-    // Example JNI call structure:
-    // let env = get_jni_env(); // Obtain JNIEnv from app context
-    // let context = get_android_context(); // Obtain Android Context
-    // let helper_class = env.find_class("com/amp/NotificationHelper")?;
-    // let method = env.get_static_method_id(
-    //     helper_class,
-    //     "showNotification",
-    //     "(Landroid/content/Context;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;)V"
-    // )?;
-    // env.call_static_method(...)?;
-}
-
-#[cfg(not(target_os = "android"))]
-fn send_notification(channel_id: &str, title: &str, body: &str, notification_id: usize) {
-    eprintln!(
-        "[Mock Notifications] Would send: channel={}, title='{}', body='{}', id={}",
-        channel_id, title, body, notification_id
+    crate::android_bridge::send_notification_jni(
+        channel_id,
+        notification_id as i32,
+        title,
+        body,
     );
 }
 
@@ -290,5 +252,11 @@ mod tests {
         notify_one_day(&address);
         notify_six_hours(&address);
         notify_active(&address);
+    }
+
+    #[test]
+    fn test_send_notification_internal() {
+        // Test internal function doesn't panic
+        send_notification(CHANNEL_ACTIVE, "Test", "Body", 999);
     }
 }
