@@ -66,13 +66,28 @@ static STORAGE_LOCK: Mutex<()> = Mutex::new(());
 const LOCAL_PARQUET_NAME: &str = "local.parquet";
 #[cfg(target_os = "android")]
 const BACKUP_PARQUET_NAME: &str = "local.parquet.backup";
-/// Get the storage directory path for the Android app
+/// Get app-specific storage directory that's writable on Android
 ///
 /// Returns the app's internal data directory on Android.
 /// On other platforms, uses current directory for testing.
 #[cfg(target_os = "android")]
 fn get_storage_dir() -> Result<PathBuf, String> {
-    std::env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))
+    if let Ok(dir) = std::env::var("APP_FILES_DIR") {
+        let path = PathBuf::from(dir);
+        eprintln!("[Storage] Using APP_FILES_DIR: {:?}", path);
+        return Ok(path);
+    }
+    let app_dir = PathBuf::from("/data/local/tmp/amp_storage");
+    if !app_dir.exists() {
+        std::fs::create_dir_all(&app_dir).map_err(|e| {
+            format!(
+                "[Storage] Failed to create storage dir {:?}: {}",
+                app_dir, e
+            )
+        })?;
+        eprintln!("[Storage] Created storage dir: {:?}", app_dir);
+    }
+    Ok(app_dir)
 }
 #[allow(unused)]
 #[cfg(not(target_os = "android"))]
@@ -540,7 +555,7 @@ mod tests {
         let test_cases = vec![
             ("Kornettsgatan", "18C"),
             ("Storgatan", "5"),
-            ("Parkg atan", "12A"),
+            ("Parkgatan", "12A"),
             ("Vägen", "100B"),
         ];
         for (street, number) in test_cases {
