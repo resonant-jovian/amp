@@ -22,7 +22,7 @@
 #[cfg(target_os = "android")]
 use jni::{
     JNIEnv, JavaVM,
-    objects::{JClass, JObject, JString, JValue},
+    objects::{JObject, JValue},
     sys::jint,
 };
 #[cfg(target_os = "android")]
@@ -138,8 +138,9 @@ pub fn send_notification_jni(channel_id: &str, notification_id: i32, title: &str
 /// - Uses `ndk_context::android_context()` to get native activity context
 /// - Attaches current thread to JavaVM
 /// - Thread-safe and works from any Rust thread
+/// - Returns an AttachGuard which must be kept alive
 #[cfg(target_os = "android")]
-fn get_jni_env() -> Result<JNIEnv<'static>, String> {
+fn get_jni_env() -> Result<jni::AttachGuard<'static>, String> {
     let ctx = ndk_context::android_context();
     let vm_ptr = ctx.vm() as *mut jni::sys::JavaVM;
     let vm = unsafe { JavaVM::from_raw(vm_ptr) }
@@ -147,7 +148,7 @@ fn get_jni_env() -> Result<JNIEnv<'static>, String> {
     let env = vm
         .attach_current_thread()
         .map_err(|e| format!("Failed to attach thread to JavaVM: {:?}", e))?;
-    Ok(unsafe { std::mem::transmute(env) })
+    Ok(env)
 }
 /// Get Android Context object
 ///
@@ -162,7 +163,7 @@ fn get_jni_env() -> Result<JNIEnv<'static>, String> {
 /// - Returns the activity as a Context (Activity extends Context)
 /// - Valid for the lifetime of the activity
 #[cfg(target_os = "android")]
-fn get_android_context<'a>(env: &'a JNIEnv<'a>) -> Result<JObject<'a>, String> {
+fn get_android_context() -> Result<JObject<'static>, String> {
     let ctx = ndk_context::android_context();
     let activity_ptr = ctx.context() as *mut jni::sys::_jobject;
     let activity = unsafe { JObject::from_raw(activity_ptr) };
@@ -185,8 +186,8 @@ fn get_android_context<'a>(env: &'a JNIEnv<'a>) -> Result<JObject<'a>, String> {
 /// - Static method call with Context parameter
 #[cfg(target_os = "android")]
 fn create_notification_channels() -> Result<(), String> {
-    let env = get_jni_env()?;
-    let context = get_android_context(&env)?;
+    let mut env = get_jni_env()?;
+    let context = get_android_context()?;
     let helper_class = env
         .find_class("com/amp/NotificationHelper")
         .map_err(|e| format!("Failed to find NotificationHelper class: {:?}", e))?;
@@ -225,8 +226,8 @@ fn show_notification(
     title: &str,
     body: &str,
 ) -> Result<(), String> {
-    let env = get_jni_env()?;
-    let context = get_android_context(&env)?;
+    let mut env = get_jni_env()?;
+    let context = get_android_context()?;
     let j_channel_id = env
         .new_string(channel_id)
         .map_err(|e| format!("Failed to create Java string for channel_id: {:?}", e))?;
