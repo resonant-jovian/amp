@@ -12,7 +12,6 @@ dioxus-native.workspace = true
 dioxus-free-icons.workspace = true
 chrono.workspace = true
 chrono-tz.workspace = true
-jni.workspace = true
 anyhow.workspace = true
 strsim.workspace = true
 uuid.workspace = true
@@ -24,6 +23,12 @@ bytes.workspace = true
 tokio.workspace = true
 tao.workspace = true
 image.workspace = true
+log = "0.4.29"
+env_logger = "0.11.8"
+
+[target.'cfg(target_os = "android")'.dependencies]
+android_logger = "0.15.1"
+jni.workspace = true
 
 [features]
 default = ["mobile"]
