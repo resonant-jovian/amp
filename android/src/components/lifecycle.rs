@@ -237,6 +237,7 @@ impl LifecycleManager {
         *self.running.lock().unwrap()
     }
     /// Check if notifications are initialized
+    #[allow(unused)]
     pub fn are_notifications_initialized(&self) -> bool {
         *self.notifications_initialized.lock().unwrap()
     }

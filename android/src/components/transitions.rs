@@ -120,21 +120,21 @@ pub fn detect_transitions(
         };
         let new_bucket = bucket_for(matched_entry);
         let previous_bucket = state.get(&addr.id).cloned();
-        let should_notify = match (&previous_bucket, &new_bucket) {
-            (None, TimeBucket::Within1Day) => true,
-            (None, TimeBucket::Within6Hours) => true,
-            (None, TimeBucket::Now) => true,
-            (Some(TimeBucket::MoreThan1Month), TimeBucket::Within1Day) => true,
-            (Some(TimeBucket::MoreThan1Month), TimeBucket::Within6Hours) => true,
-            (Some(TimeBucket::MoreThan1Month), TimeBucket::Now) => true,
-            (Some(TimeBucket::Within1Month), TimeBucket::Within1Day) => true,
-            (Some(TimeBucket::Within1Month), TimeBucket::Within6Hours) => true,
-            (Some(TimeBucket::Within1Month), TimeBucket::Now) => true,
-            (Some(TimeBucket::Within1Day), TimeBucket::Within6Hours) => true,
-            (Some(TimeBucket::Within1Day), TimeBucket::Now) => true,
-            (Some(TimeBucket::Within6Hours), TimeBucket::Now) => true,
-            _ => false,
-        };
+        let should_notify = matches!(
+            (&previous_bucket, &new_bucket),
+            (None, TimeBucket::Within1Day)
+                | (None, TimeBucket::Within6Hours)
+                | (None, TimeBucket::Now)
+                | (Some(TimeBucket::MoreThan1Month), TimeBucket::Within1Day)
+                | (Some(TimeBucket::MoreThan1Month), TimeBucket::Within6Hours)
+                | (Some(TimeBucket::MoreThan1Month), TimeBucket::Now)
+                | (Some(TimeBucket::Within1Month), TimeBucket::Within1Day)
+                | (Some(TimeBucket::Within1Month), TimeBucket::Within6Hours)
+                | (Some(TimeBucket::Within1Month), TimeBucket::Now)
+                | (Some(TimeBucket::Within1Day), TimeBucket::Within6Hours)
+                | (Some(TimeBucket::Within1Day), TimeBucket::Now)
+                | (Some(TimeBucket::Within6Hours), TimeBucket::Now)
+        );
         if should_notify {
             eprintln!(
                 "[PanelTracker] Transition detected: {} {} (id={}) {:?} → {:?}",
@@ -234,7 +234,7 @@ mod tests {
         clear_panel_state();
         initialize_panel_tracker();
         let addr = create_test_address(1, 1, "0800-1200");
-        let first = detect_transitions(&[addr.clone()]);
+        let first = detect_transitions(std::slice::from_ref(&addr));
         assert!(!first.is_empty(), "First detection should trigger");
         let second = detect_transitions(&[addr]);
         assert_eq!(

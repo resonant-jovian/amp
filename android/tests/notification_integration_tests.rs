@@ -73,7 +73,7 @@ fn test_no_duplicate_notifications() {
     clear_panel_state();
     initialize_panel_tracker();
     let addr = create_test_address(1, 1, "0800-1200");
-    let first_transitions = detect_transitions(&[addr.clone()]);
+    let first_transitions = detect_transitions(std::slice::from_ref(&addr));
     assert!(
         !first_transitions.is_empty(),
         "First detection should trigger"
@@ -91,7 +91,7 @@ fn test_multiple_addresses_independent_tracking() {
     initialize_panel_tracker();
     let addr1 = create_test_address(1, 1, "0800-1200");
     let addr2 = create_test_address(2, 2, "0800-1200");
-    let transitions1 = detect_transitions(&[addr1.clone()]);
+    let transitions1 = detect_transitions(std::slice::from_ref(&addr1));
     assert_eq!(transitions1.len(), 1, "First address should trigger");
     let transitions2 = detect_transitions(&[addr1.clone(), addr2.clone()]);
     assert_eq!(transitions2.len(), 1, "Only new address should trigger");
@@ -127,7 +127,7 @@ fn test_transition_to_more_urgent_bucket() {
     clear_panel_state();
     initialize_panel_tracker();
     let mut addr = create_test_address(1, 15, "0800-1200");
-    detect_transitions(&[addr.clone()]);
+    detect_transitions(std::slice::from_ref(&addr));
     let db_1day = DB::from_dag_tid(
         Some("22100".to_string()),
         "Test Street 1".to_string(),
@@ -167,16 +167,16 @@ fn test_bucket_categorization() {
 fn test_settings_integration() {
     let settings = load_settings();
     assert!(
-        settings.notifications.stadning_nu || !settings.notifications.stadning_nu,
+        settings.notifications.stadning_nu,
         "Settings should have stadning_nu field",
     );
     assert!(
-        settings.notifications.sex_timmar || !settings.notifications.sex_timmar,
-        "Settings should have sex_timmar field",
+        settings.notifications.sex_timmar,
+        "Settings should have sex_timmar field"
     );
     assert!(
-        settings.notifications.en_dag || !settings.notifications.en_dag,
-        "Settings should have en_dag field",
+        settings.notifications.en_dag,
+        "Settings should have en_dag field"
     );
 }
 #[test]
@@ -220,7 +220,7 @@ fn test_removed_address_cleaned_from_state() {
     clear_panel_state();
     initialize_panel_tracker();
     let addr = create_test_address(1, 1, "0800-1200");
-    detect_transitions(&[addr.clone()]);
+    detect_transitions(std::slice::from_ref(&addr));
     detect_transitions(&[]);
     let transitions = detect_transitions(&[addr]);
     assert!(
@@ -247,9 +247,9 @@ fn test_state_persistence_across_checks() {
     clear_panel_state();
     initialize_panel_tracker();
     let addr = create_test_address(1, 1, "0800-1200");
-    let transitions1 = detect_transitions(&[addr.clone()]);
+    let transitions1 = detect_transitions(std::slice::from_ref(&addr));
     assert_eq!(transitions1.len(), 1, "First check should find transition");
-    let transitions2 = detect_transitions(&[addr.clone()]);
+    let transitions2 = detect_transitions(std::slice::from_ref(&addr));
     assert_eq!(
         transitions2.len(),
         0,
@@ -267,7 +267,7 @@ fn test_address_modification_detected() {
     clear_panel_state();
     initialize_panel_tracker();
     let mut addr = create_test_address(1, 10, "0800-1200");
-    detect_transitions(&[addr.clone()]);
+    detect_transitions(std::slice::from_ref(&addr));
     let db_closer = DB::from_dag_tid(
         Some("22100".to_string()),
         "Test Street 1".to_string(),

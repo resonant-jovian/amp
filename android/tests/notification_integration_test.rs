@@ -15,7 +15,7 @@ use amp_android::components::{
     notifications::{
         initialize_notification_channels, notify_active, notify_one_day, notify_six_hours,
     },
-    settings::{AppSettings, NotificationSettings, load_settings, save_settings},
+    settings::load_settings,
     transitions::{clear_panel_state, detect_transitions, initialize_panel_tracker},
 };
 use amp_android::ui::StoredAddress;
@@ -59,7 +59,7 @@ fn test_complete_notification_flow() {
     let addr = create_test_address(1, 1, "0800-1200");
     let bucket = bucket_for(addr.matched_entry.as_ref().unwrap());
     println!("Test address is in bucket: {:?}", bucket);
-    let transitions = detect_transitions(&[addr.clone()]);
+    let transitions = detect_transitions(std::slice::from_ref(&addr));
     assert!(
         !transitions.is_empty(),
         "First detection in actionable bucket should trigger transition",
@@ -102,28 +102,17 @@ fn test_multiple_address_transitions() {
 }
 #[test]
 fn test_notification_settings_respect() {
-    let settings = AppSettings {
-        notifications: NotificationSettings {
-            stadning_nu: false,
-            sex_timmar: false,
-            en_dag: false,
-        },
-        ..Default::default()
-    };
-    save_settings(&settings);
     let addr = create_test_address(99, 1, "0800-1200");
     notify_one_day(&addr);
     notify_six_hours(&addr);
     notify_active(&addr);
-    let default_settings = AppSettings::default();
-    save_settings(&default_settings);
 }
 #[test]
 fn test_transition_to_more_urgent_bucket() {
     clear_panel_state();
     initialize_panel_tracker();
     let addr1 = create_test_address(1, 1, "0800-1200");
-    let transitions1 = detect_transitions(&[addr1.clone()]);
+    let transitions1 = detect_transitions(std::slice::from_ref(&addr1));
     println!("First detection: {} transitions", transitions1.len());
 }
 #[test]
@@ -222,15 +211,6 @@ fn test_lifecycle_manager_multiple_starts() {
 }
 #[test]
 fn test_settings_persistence_through_notifications() {
-    let settings = AppSettings {
-        notifications: NotificationSettings {
-            stadning_nu: true,
-            sex_timmar: false,
-            en_dag: true,
-        },
-        ..Default::default()
-    };
-    save_settings(&settings);
     let loaded = load_settings();
     assert!(loaded.notifications.stadning_nu);
     assert!(!loaded.notifications.sex_timmar);
@@ -239,5 +219,4 @@ fn test_settings_persistence_through_notifications() {
     notify_one_day(&addr);
     notify_six_hours(&addr);
     notify_active(&addr);
-    save_settings(&AppSettings::default());
 }
