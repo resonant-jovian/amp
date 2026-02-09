@@ -102,6 +102,7 @@ setup_notifications() {
     KOTLIN_DIR="$ANDROID_SRC/kotlin/se/malmo/skaggbyran/amp"
     MANIFEST="$ANDROID_SRC/AndroidManifest.xml"
     BUILD_GRADLE="$ANDROID_DIR/build.gradle.kts"
+    PROGUARD_RULES="$ANDROID_DIR/proguard-rules.pro"
     KOTLIN_SOURCE="$REPO_ROOT/android/kotlin/NotificationHelper.kt"
     
     # Create Kotlin directory matching package structure
@@ -196,6 +197,44 @@ setup_notifications() {
     fi
     # ========== END CRITICAL FIX ==========
     
+    # ========== CRITICAL FIX: Prevent R8 from stripping NotificationHelper ==========
+    echo ""
+    echo "  🔒 CRITICAL FIX: Adding ProGuard rule to prevent R8 stripping..."
+    echo "     R8 was removing NotificationHelper during minification"
+    
+    if [ -f "$PROGUARD_RULES" ]; then
+        # Check if rule already exists
+        if ! grep -q "NotificationHelper" "$PROGUARD_RULES"; then
+            echo "    📝 Injecting keep rule for NotificationHelper..."
+            cat >> "$PROGUARD_RULES" << 'PROGUARD_EOF'
+
+# Keep NotificationHelper for JNI access from Rust
+-keep class se.malmo.skaggbyran.amp.NotificationHelper {
+    public *;
+}
+-keepclassmembers class se.malmo.skaggbyran.amp.NotificationHelper {
+    public *;
+}
+PROGUARD_EOF
+            echo "    ✓ ProGuard rule added"
+        else
+            echo "    ✓ ProGuard rule already present"
+        fi
+    else
+        echo "    ⚠️  proguard-rules.pro not found, creating..."
+        cat > "$PROGUARD_RULES" << 'PROGUARD_EOF'
+# Keep NotificationHelper for JNI access from Rust
+-keep class se.malmo.skaggbyran.amp.NotificationHelper {
+    public *;
+}
+-keepclassmembers class se.malmo.skaggbyran.amp.NotificationHelper {
+    public *;
+}
+PROGUARD_EOF
+        echo "    ✓ Created proguard-rules.pro with keep rule"
+    fi
+    # ========== END R8 FIX ==========
+    
     # Add notification permissions to manifest if not already present
     if [ -f "$MANIFEST" ]; then
         HAS_POST_NOTIF=$(grep -c "android.permission.POST_NOTIFICATIONS" "$MANIFEST" || true)
@@ -216,6 +255,23 @@ setup_notifications() {
         else
             echo "  ✓ FOREGROUND_SERVICE permissions already present"
         fi
+        
+        # ========== CRITICAL: REMOVE INTERNET PERMISSION ==========
+        echo ""
+        echo "  🔒 SECURITY: Removing INTERNET permission (added by WRY/Dioxus)..."
+        if grep -q "android.permission.INTERNET" "$MANIFEST"; then
+            sed -i '/android.permission.INTERNET/d' "$MANIFEST"
+            echo "  ✓ INTERNET permission removed (security requirement)"
+        else
+            echo "  ✓ INTERNET permission not present (good)"
+        fi
+        
+        # Also remove network_security_config if present
+        if grep -q "networkSecurityConfig" "$MANIFEST"; then
+            sed -i 's/android:networkSecurityConfig="@xml\/network_security_config"//g' "$MANIFEST"
+            echo "  ✓ networkSecurityConfig reference removed"
+        fi
+        # ========== END INTERNET REMOVAL ==========
         
         echo "  ✅ Notification system configured"
     else
@@ -291,6 +347,11 @@ if ! dx build --android --release --device HQ646M01AF --verbose; then
                 echo "  Removing deprecated extractNativeLibs attribute..."
                 sed -i 's/ android:extractNativeLibs="false"//g' "$MANIFEST_FILE"
                 echo "✓ Fixed manifest extractNativeLibs"
+            fi
+            if grep -q 'android:extractNativeLibs="true"' "$MANIFEST_FILE"; then
+                echo "  Removing extractNativeLibs=true attribute..."
+                sed -i 's/ android:extractNativeLibs="true"//g' "$MANIFEST_FILE"
+                echo "✓ Removed extractNativeLibs attribute"
             fi
         fi
 
@@ -491,6 +552,7 @@ if [ -n "$APK_PATH" ]; then
             echo "  1. Check if src/main/kotlin is registered in build.gradle.kts"
             echo "  2. Verify kotlin-android plugin is applied"
             echo "  3. Check build logs for Kotlin compilation errors"
+            echo "  4. Check ProGuard rules - R8 may be stripping the class"
             exit 1
         fi
     else
@@ -522,7 +584,7 @@ if [ -n "$APK_PATH" ]; then
                 rm -f "$TEMP_MANIFEST"
                 exit 1
             else
-                echo "  ✅ No internet permissions detected (REQUIRED)"
+                echo "  ✅ No internet permissions (REQUIRED)"
             fi
         else
             # Fallback: just check string presence (less reliable)
