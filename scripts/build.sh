@@ -84,7 +84,9 @@ echo "✓ Dioxus.toml updated with signing config"
 
 # CRITICAL: Clean previous build to avoid cached gradle files
 echo "🧹 Cleaning previous build artifacts..."
-ANDROID_DIR="$REPO_ROOT/target/dx/amp/release/android/app"
+# NOTE: Dioxus creates nested structure at .../android/app/app/
+# The build.gradle.kts is at .../android/app/app/build.gradle.kts
+ANDROID_DIR="$REPO_ROOT/target/dx/amp/release/android/app/app"
 rm -rf -- "$ANDROID_DIR" 2>/dev/null || true
 rm -rf -- "$REPO_ROOT/android/app/.gradle" 2>/dev/null || true
 rm -rf -- "$REPO_ROOT/android/app/build" 2>/dev/null || true
@@ -96,10 +98,10 @@ setup_notifications() {
     echo ""
     echo "🔔 Setting up notification system..."
     
-    ANDROID_SRC="$ANDROID_DIR/app/src/main"
+    ANDROID_SRC="$ANDROID_DIR/src/main"
     KOTLIN_DIR="$ANDROID_SRC/kotlin/se/malmo/skaggbyran/amp"
     MANIFEST="$ANDROID_SRC/AndroidManifest.xml"
-    BUILD_GRADLE="$ANDROID_DIR/app/build.gradle.kts"
+    BUILD_GRADLE="$ANDROID_DIR/build.gradle.kts"
     KOTLIN_SOURCE="$REPO_ROOT/android/kotlin/NotificationHelper.kt"
     
     # Create Kotlin directory matching package structure
@@ -189,6 +191,7 @@ setup_notifications() {
         }
     else
         echo "    ❌ build.gradle.kts not found at $BUILD_GRADLE"
+        echo "    Checked at: $BUILD_GRADLE"
         exit 1
     fi
     # ========== END CRITICAL FIX ==========
@@ -232,35 +235,36 @@ if ! dx build --android --release --device HQ646M01AF --verbose; then
     echo "🔧 Fixing generated gradle files for Java 21..."
 
     if [ -d "$ANDROID_DIR" ]; then
-        # Fix root build.gradle.kts
-        if [ -f "$ANDROID_DIR/build.gradle.kts" ]; then
+        # Fix root build.gradle.kts (parent level)
+        ROOT_BUILD_GRADLE="$(dirname "$ANDROID_DIR")/build.gradle.kts"
+        if [ -f "$ROOT_BUILD_GRADLE" ]; then
             echo "  Patching: build.gradle.kts (root)"
-            sed -i 's/VERSION_1_8/VERSION_21/g' "$ANDROID_DIR/build.gradle.kts" 2>/dev/null || true
-            sed -i 's/jvmTarget = "1.8"/jvmTarget = "21"/g' "$ANDROID_DIR/build.gradle.kts" 2>/dev/null || true
+            sed -i 's/VERSION_1_8/VERSION_21/g' "$ROOT_BUILD_GRADLE" 2>/dev/null || true
+            sed -i 's/jvmTarget = "1.8"/jvmTarget = "21"/g' "$ROOT_BUILD_GRADLE" 2>/dev/null || true
             echo "✓ Fixed root build.gradle.kts"
         fi
 
         # Fix app/build.gradle.kts (CRITICAL - comprehensive fix)
-        if [ -f "$ANDROID_DIR/app/build.gradle.kts" ]; then
-            echo "  Patching: app/build.gradle.kts (app module)"
+        if [ -f "$ANDROID_DIR/build.gradle.kts" ]; then
+            echo "  Patching: build.gradle.kts (app module)"
 
             # Fix ALL Java version references
-            sed -i 's/VERSION_1_8/VERSION_21/g' "$ANDROID_DIR/app/build.gradle.kts" 2>/dev/null || true
-            sed -i 's/JavaVersion\.VERSION_1_8/JavaVersion.VERSION_21/g' "$ANDROID_DIR/app/build.gradle.kts" 2>/dev/null || true
+            sed -i 's/VERSION_1_8/VERSION_21/g' "$ANDROID_DIR/build.gradle.kts" 2>/dev/null || true
+            sed -i 's/JavaVersion\.VERSION_1_8/JavaVersion.VERSION_21/g' "$ANDROID_DIR/build.gradle.kts" 2>/dev/null || true
 
             # Fix Kotlin JVM target
-            sed -i 's/jvmTarget = "1.8"/jvmTarget = "21"/g' "$ANDROID_DIR/app/build.gradle.kts" 2>/dev/null || true
+            sed -i 's/jvmTarget = "1.8"/jvmTarget = "21"/g' "$ANDROID_DIR/build.gradle.kts" 2>/dev/null || true
 
             # CRITICAL: Fix compileOptions block (AGP's Java compiler settings)
-            if grep -q "compileOptions {" "$ANDROID_DIR/app/build.gradle.kts"; then
+            if grep -q "compileOptions {" "$ANDROID_DIR/build.gradle.kts"; then
                 sed -i '/compileOptions {/,/}/ {
                     s/sourceCompatibility = JavaVersion\.VERSION_1_8/sourceCompatibility = JavaVersion.VERSION_21/g
                     s/targetCompatibility = JavaVersion\.VERSION_1_8/targetCompatibility = JavaVersion.VERSION_21/g
-                }' "$ANDROID_DIR/app/build.gradle.kts" 2>/dev/null || true
+                }' "$ANDROID_DIR/build.gradle.kts" 2>/dev/null || true
             fi
-            if ! grep -q "compileOptions {" "$ANDROID_DIR/app/build.gradle.kts"; then
+            if ! grep -q "compileOptions {" "$ANDROID_DIR/build.gradle.kts"; then
                 echo "    📝 Injecting compileOptions block..."
-                sed -i '/^android {/a\    compileOptions {\n        sourceCompatibility = JavaVersion.VERSION_21\n        targetCompatibility = JavaVersion.VERSION_21\n    }' "$ANDROID_DIR/app/build.gradle.kts"
+                sed -i '/^android {/a\    compileOptions {\n        sourceCompatibility = JavaVersion.VERSION_21\n        targetCompatibility = JavaVersion.VERSION_21\n    }' "$ANDROID_DIR/build.gradle.kts"
                 echo "    ✓ Injected compileOptions with Java 21"
             fi
             echo "✓ Fixed app/build.gradle.kts (Java + Kotlin)"
@@ -272,39 +276,16 @@ if ! dx build --android --release --device HQ646M01AF --verbose; then
 
         if [ -f "$ANDROID_DIR/build.gradle.kts" ]; then
             if grep -q "VERSION_21\|jvmTarget = \"21\"" "$ANDROID_DIR/build.gradle.kts"; then
-                echo "✓ Root build.gradle.kts uses Java 21"
+                echo "✓ App build.gradle.kts uses Java 21"
             else
-                echo "⚠️  Root build.gradle.kts may not be fixed"
-            fi
-        fi
-
-        if [ -f "$ANDROID_DIR/app/build.gradle.kts" ]; then
-            echo "  Checking app/build.gradle.kts:"
-
-            if grep -q "VERSION_21" "$ANDROID_DIR/app/build.gradle.kts"; then
-                echo "    ✓ JavaVersion.VERSION_21 present"
-            else
-                echo "    ⚠️  JavaVersion still using 1.8"
-            fi
-
-            if grep -q 'jvmTarget = "21"' "$ANDROID_DIR/app/build.gradle.kts"; then
-                echo "    ✓ Kotlin jvmTarget = 21"
-            else
-                echo "    ⚠️  Kotlin jvmTarget still 1.8"
-            fi
-
-            if grep -q "compileOptions" "$ANDROID_DIR/app/build.gradle.kts"; then
-                echo "    ✓ compileOptions block present"
-                grep -A 3 "compileOptions {" "$ANDROID_DIR/app/build.gradle.kts" | head -n 4
-            else
-                echo "    ⚠️  No compileOptions block found"
+                echo "⚠️  App build.gradle.kts may not be fixed"
             fi
         fi
 
         # Fix Android manifest extractNativeLibs issue
         echo ""
         echo "🔧 Fixing Android manifest issues..."
-        MANIFEST_FILE="$ANDROID_DIR/app/src/main/AndroidManifest.xml"
+        MANIFEST_FILE="$ANDROID_DIR/src/main/AndroidManifest.xml"
         if [ -f "$MANIFEST_FILE" ]; then
             if grep -q 'android:extractNativeLibs="false"' "$MANIFEST_FILE"; then
                 echo "  Removing deprecated extractNativeLibs attribute..."
@@ -321,7 +302,7 @@ if ! dx build --android --release --device HQ646M01AF --verbose; then
         echo ""
         echo "🎨 Injecting custom app icons..."
 
-        RES_DIR="$ANDROID_DIR/app/src/main/res"
+        RES_DIR="$ANDROID_DIR/src/main/res"
         ICON_SOURCE="$REPO_ROOT/android/assets/icon"
 
         # 1. CRITICAL: Remove ALL existing ic_launcher* files
@@ -427,7 +408,9 @@ GRADLE_EOF
         # Rebuild with gradle
         echo ""
         echo "📦 Rebuilding with fixed configuration..."
-        if ! "$ANDROID_DIR/gradlew" -p "$ANDROID_DIR" clean assembleRelease -x lintVitalAnalyzeRelease -x lintVitalRelease -x lintVitalReportRelease 2>&1 | tee /tmp/gradle_build.log; then
+        # Navigate to the PARENT directory (where Gradle multi-build expects to be)
+        GRADLE_ROOT="$(dirname "$ANDROID_DIR")"
+        if ! "$GRADLE_ROOT/gradlew" -p "$GRADLE_ROOT" clean assembleRelease -x lintVitalAnalyzeRelease -x lintVitalRelease -x lintVitalReportRelease 2>&1 | tee /tmp/gradle_build.log; then
             echo ""
             echo "❌ Gradle build failed after fixes"
             echo "⚠️  Build log saved to /tmp/gradle_build.log"
@@ -460,7 +443,7 @@ fi
 # Show APK location
 echo ""
 echo "📍 APK location:"
-APK_DIR="$ANDROID_DIR/app/build/outputs/apk/release"
+APK_DIR="$ANDROID_DIR/build/outputs/apk/release"
 
 APK_PATH="$(
   find "$APK_DIR" -maxdepth 1 -type f -name '*.apk' -printf '%T@ %p\n' 2>/dev/null \
@@ -471,6 +454,16 @@ APK_PATH="$(
 
 if [ -n "$APK_PATH" ]; then
     ls -lh -- "$APK_PATH"
+
+    # Verify icons
+    echo ""
+    echo "🔍 Verifying icons in APK..."
+    if unzip -l "$APK_PATH" | grep -i "ic_launcher.png" > /dev/null; then
+        echo "✅ Custom icons found in APK:"
+        unzip -l "$APK_PATH" | grep -i "ic_launcher.png"
+    else
+        echo "⚠️  No ic_launcher.png files found"
+    fi
 
     # ========== VERIFY NotificationHelper IN DEX ==========
     echo ""
