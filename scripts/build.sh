@@ -104,6 +104,7 @@ setup_notifications() {
     BUILD_GRADLE="$ANDROID_DIR/build.gradle.kts"
     PROGUARD_RULES="$ANDROID_DIR/proguard-rules.pro"
     KOTLIN_SOURCE="$REPO_ROOT/android/kotlin/NotificationHelper.kt"
+    WEBVIEW_SOURCE="$REPO_ROOT/android/kotlin/WebViewConfigurator.kt"
     
     # Create Kotlin directory matching package structure
     if [ ! -d "$KOTLIN_DIR" ]; then
@@ -121,10 +122,21 @@ setup_notifications() {
         exit 1
     fi
     
+    # ========== NEW: Copy WebViewConfigurator.kt ==========
+    if [ -f "$WEBVIEW_SOURCE" ]; then
+        echo "  📄 Copying WebViewConfigurator.kt to kotlin/ directory..."
+        cp "$WEBVIEW_SOURCE" "$KOTLIN_DIR/WebViewConfigurator.kt"
+        echo "  ✓ WebViewConfigurator.kt copied (fixes blank screen)"
+    else
+        echo "  ⚠️  WebViewConfigurator.kt not found at $WEBVIEW_SOURCE"
+        echo "     App may show blank screen without DOM storage enabled"
+    fi
+    # ========== END WEBVIEW COPY ==========
+    
     # ========== CRITICAL FIX: Register Kotlin source directory ==========
     echo ""
     echo "  🔧 CRITICAL FIX: Registering Kotlin source directory in build.gradle.kts..."
-    echo "     This fixes ClassNotFoundException for NotificationHelper"
+    echo "     This fixes ClassNotFoundException for NotificationHelper + WebViewConfigurator"
     
     if [ -f "$BUILD_GRADLE" ]; then
         # Check if sourceSets already exists
@@ -168,7 +180,7 @@ setup_notifications() {
         echo "    🔍 Verifying Kotlin source directory registration..."
         if grep -q "src/main/kotlin" "$BUILD_GRADLE"; then
             echo "    ✅ SUCCESS: Kotlin source directory registered in build.gradle.kts"
-            echo "       NotificationHelper.kt will now be compiled into classes.dex"
+            echo "       NotificationHelper.kt + WebViewConfigurator.kt will be compiled"
         else
             echo "    ❌ CRITICAL FAILURE: Could not register Kotlin source directory"
             echo "    ❌ Build will fail with ClassNotFoundException at runtime"
@@ -197,13 +209,13 @@ setup_notifications() {
     fi
     # ========== END CRITICAL FIX ==========
     
-    # ========== CRITICAL FIX: Prevent R8 from stripping NotificationHelper ==========
+    # ========== CRITICAL FIX: Prevent R8 from stripping classes ==========
     echo ""
-    echo "  🔒 CRITICAL FIX: Adding ProGuard rule to prevent R8 stripping..."
-    echo "     R8 was removing NotificationHelper during minification"
+    echo "  🔒 CRITICAL FIX: Adding ProGuard rules to prevent R8 stripping..."
+    echo "     R8 was removing NotificationHelper + WebViewConfigurator during minification"
     
     if [ -f "$PROGUARD_RULES" ]; then
-        # Check if rule already exists
+        # Check if NotificationHelper rule already exists
         if ! grep -q "NotificationHelper" "$PROGUARD_RULES"; then
             echo "    📝 Injecting keep rule for NotificationHelper..."
             cat >> "$PROGUARD_RULES" << 'PROGUARD_EOF'
@@ -216,10 +228,30 @@ setup_notifications() {
     public *;
 }
 PROGUARD_EOF
-            echo "    ✓ ProGuard rule added"
+            echo "    ✓ NotificationHelper ProGuard rule added"
         else
-            echo "    ✓ ProGuard rule already present"
+            echo "    ✓ NotificationHelper ProGuard rule already present"
         fi
+        
+        # ========== NEW: Add WebViewConfigurator ProGuard rule ==========
+        if ! grep -q "WebViewConfigurator" "$PROGUARD_RULES"; then
+            echo "    📝 Injecting keep rule for WebViewConfigurator..."
+            cat >> "$PROGUARD_RULES" << 'PROGUARD_EOF'
+
+# Keep WebViewConfigurator for MainActivity onCreate call
+# Fixes blank screen by enabling DOM storage
+-keep class se.malmo.skaggbyran.amp.WebViewConfigurator {
+    public *;
+}
+-keepclassmembers class se.malmo.skaggbyran.amp.WebViewConfigurator {
+    public static void configure(android.webkit.WebView);
+}
+PROGUARD_EOF
+            echo "    ✓ WebViewConfigurator ProGuard rule added"
+        else
+            echo "    ✓ WebViewConfigurator ProGuard rule already present"
+        fi
+        # ========== END WEBVIEW PROGUARD ==========
     else
         echo "    ⚠️  proguard-rules.pro not found, creating..."
         cat > "$PROGUARD_RULES" << 'PROGUARD_EOF'
@@ -230,8 +262,17 @@ PROGUARD_EOF
 -keepclassmembers class se.malmo.skaggbyran.amp.NotificationHelper {
     public *;
 }
+
+# Keep WebViewConfigurator for MainActivity onCreate call
+# Fixes blank screen by enabling DOM storage
+-keep class se.malmo.skaggbyran.amp.WebViewConfigurator {
+    public *;
+}
+-keepclassmembers class se.malmo.skaggbyran.amp.WebViewConfigurator {
+    public static void configure(android.webkit.WebView);
+}
 PROGUARD_EOF
-        echo "    ✓ Created proguard-rules.pro with keep rule"
+        echo "    ✓ Created proguard-rules.pro with all keep rules"
     fi
     # ========== END R8 FIX ==========
     
@@ -273,7 +314,9 @@ PROGUARD_EOF
         fi
         # ========== END INTERNET REMOVAL ==========
         
+        echo ""
         echo "  ✅ Notification system configured"
+        echo "  ✅ WebView blank screen fix applied"
     else
         echo "  ⚠️  Manifest not found at $MANIFEST"
     fi
@@ -516,33 +559,51 @@ APK_PATH="$(
 if [ -n "$APK_PATH" ]; then
     ls -lh -- "$APK_PATH"
 
-    # ========== VERIFY NotificationHelper IN DEX ==========
+    # ========== VERIFY Kotlin CLASSES IN DEX ==========
     echo ""
-    echo "🔍 CRITICAL: Verifying NotificationHelper compiled into classes.dex..."
+    echo "🔍 CRITICAL: Verifying Kotlin classes compiled into classes.dex..."
     
     # Check if dexdump is available
     if command -v dexdump &>/dev/null; then
         echo "  Using dexdump to verify class compilation..."
         
-        # Extract and check DEX file
+        CLASSES_FOUND=0
+        
+        # Check NotificationHelper
         if dexdump -l plain "$APK_PATH" 2>/dev/null | grep -q "NotificationHelper"; then
-            echo "  ✅ SUCCESS: NotificationHelper found in classes.dex"
-            echo "     The Kotlin source was successfully compiled!"
+            echo "  ✅ NotificationHelper found in classes.dex"
+            CLASSES_FOUND=$((CLASSES_FOUND + 1))
+        else
+            echo "  ❌ NotificationHelper NOT found in classes.dex"
+        fi
+        
+        # Check WebViewConfigurator
+        if dexdump -l plain "$APK_PATH" 2>/dev/null | grep -q "WebViewConfigurator"; then
+            echo "  ✅ WebViewConfigurator found in classes.dex"
+            CLASSES_FOUND=$((CLASSES_FOUND + 1))
+        else
+            echo "  ❌ WebViewConfigurator NOT found in classes.dex"
+            echo "  ⚠️  App will show BLANK SCREEN without DOM storage"
+        fi
+        
+        if [ "$CLASSES_FOUND" -eq 2 ]; then
+            echo ""
+            echo "  ✅ SUCCESS: All Kotlin classes compiled successfully!"
             
             # Show class details for confirmation
             echo ""
             echo "  📋 Class details:"
-            dexdump -l plain "$APK_PATH" 2>/dev/null | grep -A 3 "NotificationHelper" | head -n 8
+            dexdump -l plain "$APK_PATH" 2>/dev/null | grep -E "(NotificationHelper|WebViewConfigurator)" | head -n 4
         else
-            echo "  ❌ FATAL ERROR: NotificationHelper NOT found in classes.dex"
-            echo "  ❌ The Kotlin source directory was not compiled by Gradle"
-            echo "  ❌ App will crash with ClassNotFoundException at runtime"
+            echo ""
+            echo "  ❌ FATAL ERROR: Missing Kotlin classes in classes.dex"
+            echo "  ❌ App will crash or show blank screen at runtime"
             echo ""
             echo "  Troubleshooting:"
             echo "  1. Check if src/main/kotlin is registered in build.gradle.kts"
             echo "  2. Verify kotlin-android plugin is applied"
             echo "  3. Check build logs for Kotlin compilation errors"
-            echo "  4. Check ProGuard rules - R8 may be stripping the class"
+            echo "  4. Check ProGuard rules - R8 may be stripping the classes"
             exit 1
         fi
     else
@@ -554,7 +615,7 @@ if [ -n "$APK_PATH" ]; then
             echo "     Install Android SDK build-tools for detailed DEX verification"
         else
             echo "  ⚠️  No Kotlin runtime detected - build may be incomplete"
-            echo "     Cannot verify NotificationHelper without dexdump"
+            echo "     Cannot verify classes without dexdump"
         fi
     fi
     # ========== END DEX VERIFICATION ==========
@@ -614,9 +675,15 @@ echo ""
 echo "📝 Next steps:"
 echo "   1. Uninstall old: adb uninstall se.malmo.skaggbyran.amp"
 echo "   2. Install new: adb install \"$APK_PATH\""
-echo "   3. Test notifications: adb logcat | grep -E '(Notifications|amp_)'"
+echo "   3. Monitor with: adb logcat | grep -E '(amp_WebViewConfig|Notifications)'"
+echo ""
+echo "🔍 If blank screen persists:"
+echo "   - Check logcat for 'amp_WebViewConfig' logs"
+echo "   - Verify DOM storage enabled in WebView settings"
+echo "   - Use Chrome DevTools: chrome://inspect"
+echo "   - Test localStorage in Console: localStorage.setItem('test', 'works')"
 echo ""
 echo "🔍 If app crashes, check:"
-echo "   - ClassNotFoundException → NotificationHelper not in DEX (run dexdump verification)"
+echo "   - ClassNotFoundException → Classes not in DEX (run dexdump verification)"
 echo "   - JNI errors → Check android_bridge.rs calls correct package"
 echo "   - Build errors → Check gradle logs in /tmp/gradle_build.log"
