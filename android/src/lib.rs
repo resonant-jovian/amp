@@ -43,6 +43,7 @@
 //!
 //! - [`android_bridge`]: JNI functions for Kotlin/Java interop
 //! - [`android_utils`]: Android-specific file system access
+//! - [`webview_config`]: WebView configuration for offline operation
 //!
 //! # Quick Start
 //!
@@ -65,6 +66,20 @@
 //! // Initialize storage system
 //! let storage = StorageManager::new("/path/to/app/files").await?;
 //! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Configuring WebView (Android)
+//!
+//! ```no_run
+//! use amp_android::webview_config;
+//!
+//! # #[cfg(target_os = "android")]
+//! # {
+//! // Enable DOM storage for offline Dioxus operation
+//! if let Err(e) = webview_config::configure_webview_dom_storage() {
+//!     log::error!("WebView config failed: {}", e);
+//! }
 //! # }
 //! ```
 //!
@@ -140,6 +155,22 @@
 //! # }
 //! ```
 //!
+//! ## WebView Configuration
+//!
+//! For offline operation without INTERNET permission, explicitly enable DOM storage:
+//!
+//! ```no_run
+//! # #[cfg(target_os = "android")]
+//! # {
+//! use amp_android::webview_config;
+//!
+//! // Called after Dioxus initializes WebView
+//! if let Err(e) = webview_config::configure_webview_dom_storage() {
+//!     log::error!("Failed to enable DOM storage: {}", e);
+//! }
+//! # }
+//! ```
+//!
 //! # Data Storage
 //!
 //! The app stores data in Apache Parquet format for efficiency:
@@ -165,6 +196,7 @@
 //! - Notification support for parking expiry warnings
 //! - Offline-first design (all data embedded)
 //! - Fast startup (<1s on modern devices)
+//! - WebView DOM storage for Dioxus state management
 //!
 //! # Performance
 //!
@@ -186,11 +218,14 @@
 //! - [`storage`]: Data persistence and Parquet handling
 //! - [`LifecycleManager`]: Android lifecycle management
 //! - [`AppSettings`]: Configuration management
+//! - [`webview_config`]: WebView configuration for offline apps
 pub mod android_bridge;
 #[cfg(target_os = "android")]
 pub mod android_utils;
 pub mod components;
 pub mod ui;
+#[cfg(target_os = "android")]
+pub mod webview_config;
 #[cfg(target_os = "android")]
 pub use android_utils::{get_android_files_dir, init_android_storage};
 pub use components::{
