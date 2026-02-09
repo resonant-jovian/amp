@@ -22,7 +22,7 @@
 #[cfg(target_os = "android")]
 use jni::{
     JavaVM,
-    objects::{JObject, JValue},
+    objects::{JObject, JValue, JClass},
     sys::jint,
 };
 #[cfg(target_os = "android")]
@@ -189,6 +189,56 @@ fn get_android_context() -> Result<JObject<'static>, String> {
     }
     Ok(activity)
 }
+
+/// Load a class using the app's ClassLoader instead of system ClassLoader
+/// 
+/// **Critical Fix**: JNI's find_class() uses the system ClassLoader which cannot
+/// see app-specific classes. We must use Activity.getClassLoader().loadClass()
+/// to access classes compiled into the APK.
+/// 
+/// # Arguments
+/// * `env` - JNI environment
+/// * `class_name` - Fully qualified class name with dots (e.g. "se.malmo.skaggbyran.amp.NotificationHelper")
+/// 
+/// # Returns
+/// JClass for the loaded class
+#[cfg(target_os = "android")]
+fn load_app_class(env: &mut jni::AttachGuard, class_name: &str) -> Result<JClass, String> {
+    let context = get_android_context()?;
+    
+    // Get the Activity's ClassLoader
+    let class_loader = env
+        .call_method(
+            context,
+            "getClassLoader",
+            "()Ljava/lang/ClassLoader;",
+            &[],
+        )
+        .map_err(|e| format!("Failed to get ClassLoader: {:?}", e))?
+        .l()
+        .map_err(|e| format!("ClassLoader not an object: {:?}", e))?;
+    
+    // Create Java string with class name
+    let j_class_name = env
+        .new_string(class_name)
+        .map_err(|e| format!("Failed to create class name string: {:?}", e))?;
+    
+    // Load the class: ClassLoader.loadClass(String)
+    let class_obj = env
+        .call_method(
+            class_loader,
+            "loadClass",
+            "(Ljava/lang/String;)Ljava/lang/Class;",
+            &[JValue::Object(&j_class_name.into())],
+        )
+        .map_err(|e| format!("Failed to load class '{}': {:?}", class_name, e))?
+        .l()
+        .map_err(|e| format!("Loaded class not an object: {:?}", e))?;
+    
+    // Convert JObject to JClass
+    Ok(JClass::from(class_obj))
+}
+
 /// Create notification channels via JNI
 ///
 /// Calls NotificationHelper.createNotificationChannels(Context) using JNI.
@@ -205,9 +255,10 @@ fn get_android_context() -> Result<JObject<'static>, String> {
 fn create_notification_channels() -> Result<(), String> {
     let mut env = get_jni_env()?;
     let context = get_android_context()?;
-    let helper_class = env
-        .find_class("se/malmo/skaggbyran/amp/NotificationHelper")
-        .map_err(|e| format!("Failed to find NotificationHelper class: {:?}", e))?;
+    
+    // Use app ClassLoader instead of system ClassLoader
+    let helper_class = load_app_class(&mut env, "se.malmo.skaggbyran.amp.NotificationHelper")?;
+    
     env.call_static_method(
         helper_class,
         "createNotificationChannels",
@@ -254,9 +305,10 @@ fn show_notification(
     let j_body = env
         .new_string(body)
         .map_err(|e| format!("Failed to create Java string for body: {:?}", e))?;
-    let helper_class = env
-        .find_class("se/malmo/skaggbyran/amp/NotificationHelper")
-        .map_err(|e| format!("Failed to find NotificationHelper class: {:?}", e))?;
+    
+    // Use app ClassLoader instead of system ClassLoader
+    let helper_class = load_app_class(&mut env, "se.malmo.skaggbyran.amp.NotificationHelper")?;
+    
     env.call_static_method(
         helper_class,
         "showNotification",
