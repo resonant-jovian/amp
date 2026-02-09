@@ -210,7 +210,7 @@ fn create_notification_channels() -> Result<(), String> {
     // Load NotificationHelper using app ClassLoader (inline to avoid lifetime issues)
     let class_loader = env
         .call_method(
-            context,
+            &context,
             "getClassLoader",
             "()Ljava/lang/ClassLoader;",
             &[],
@@ -286,7 +286,7 @@ fn show_notification(
     // Load NotificationHelper using app ClassLoader (inline to avoid lifetime issues)
     let class_loader = env
         .call_method(
-            context,
+            &context,
             "getClassLoader",
             "()Ljava/lang/ClassLoader;",
             &[],

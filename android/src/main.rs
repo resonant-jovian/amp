@@ -15,6 +15,7 @@ fn main() {
             eprintln!("[Main] App will use fallback storage paths");
         }
     }
+
     #[cfg(target_os = "android")]
     {
         android_logger::init_once(
@@ -23,42 +24,16 @@ fn main() {
                 .with_tag("amp"),
         );
     }
+
     #[cfg(not(target_os = "android"))]
     {
         env_logger::init();
     }
+
     log::info!("Starting Amp Android app");
-    #[cfg(target_os = "android")]
-    {
-        log::info!("[Main] Spawning WebView configuration thread...");
-        std::thread::spawn(|| {
-            log::debug!("[Main] Waiting 10000ms for WebView creation...");
-            std::thread::sleep(std::time::Duration::from_millis(10000));
-            log::info!("[Main] Configuring WebView DOM storage...");
-            match webview_config::configure_webview_dom_storage() {
-                Ok(()) => {
-                    log::info!("[Main] ✅ WebView configuration successful!");
-                    log::info!("[Main] DOM storage enabled - Dioxus should render");
-                    match webview_config::verify_dom_storage_enabled() {
-                        Ok(true) => {
-                            log::info!("[Main] ✅ Verification: DOM storage is enabled")
-                        }
-                        Ok(false) => {
-                            log::warn!("[Main] ⚠️  Verification: DOM storage still disabled")
-                        }
-                        Err(e) => log::warn!("[Main] ⚠️  Verification failed: {}", e),
-                    }
-                }
-                Err(e) => {
-                    log::error!("[Main] ❌ WebView configuration FAILED: {}", e);
-                    log::error!("[Main] App will show blank screen without DOM storage");
-                    log::error!("[Main] Workaround: Add INTERNET permission temporarily");
-                }
-            }
-        });
-        log::info!("[Main] WebView configuration thread spawned");
-    }
-    log::info!("[Main] Launching Dioxus...");
+
+    // Remove the background thread - MainActivity.onWebViewCreate() handles it!
+
     #[cfg(target_os = "android")]
     {
         use dioxus::mobile::Config;
@@ -72,5 +47,5 @@ fn main() {
     {
         dioxus::launch(ui::App);
     }
-
 }
+
