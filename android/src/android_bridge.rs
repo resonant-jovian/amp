@@ -203,7 +203,7 @@ fn get_android_context() -> Result<JObject<'static>, String> {
 /// # Returns
 /// JClass for the loaded class
 #[cfg(target_os = "android")]
-fn load_app_class(env: &mut jni::AttachGuard, class_name: &str) -> Result<JClass, String> {
+fn load_app_class<'a>(env: &'a mut jni::AttachGuard<'a>, class_name: &'a str) -> Result<JClass<'a>, String> {
     let context = get_android_context()?;
     
     // Get the Activity's ClassLoader
