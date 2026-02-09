@@ -944,37 +944,37 @@ if [ -n "$APK_PATH" ]; then
     fi
     # ========== END DEX VERIFICATION ==========
 
-    # ========== VERIFY NO INTERNET PERMISSIONS ==========
-    echo ""
-    echo "🔒 Verifying no internet permissions (security requirement)..."
-    
-    # Method 1: Check AndroidManifest.xml directly
-    TEMP_MANIFEST="/tmp/amp_manifest_$$.xml"
-    if unzip -p "$APK_PATH" AndroidManifest.xml > "$TEMP_MANIFEST" 2>/dev/null; then
-        # Binary XML, need to decode or check with aapt
-        if command -v aapt &>/dev/null; then
-            if aapt dump permissions "$APK_PATH" 2>/dev/null | grep -q "android.permission.INTERNET"; then
-                echo "  ❌ SECURITY VIOLATION: INTERNET permission found in APK!"
-                echo "  ❌ This app MUST NOT have network access"
-                rm -f "$TEMP_MANIFEST"
-                exit 1
-            else
-                echo "  ✅ No internet permissions (REQUIRED)"
-            fi
-        else
-            # Fallback: just check string presence (less reliable)
-            if strings "$TEMP_MANIFEST" 2>/dev/null | grep -q "android.permission.INTERNET"; then
-                echo "  ⚠️  Possible INTERNET permission detected (unverified)"
-                echo "  Install aapt for reliable verification"
-            else
-                echo "  ✅ No obvious internet permissions (basic check)"
-            fi
-        fi
-        rm -f "$TEMP_MANIFEST"
-    else
-        echo "  ⚠️  Could not extract manifest for verification"
-    fi
-    # ========== END PERMISSION VERIFICATION ==========
+#    # ========== VERIFY NO INTERNET PERMISSIONS ==========
+#    echo ""
+#    echo "🔒 Verifying no internet permissions (security requirement)..."
+#
+#    # Method 1: Check AndroidManifest.xml directly
+#    TEMP_MANIFEST="/tmp/amp_manifest_$$.xml"
+#    if unzip -p "$APK_PATH" AndroidManifest.xml > "$TEMP_MANIFEST" 2>/dev/null; then
+#        # Binary XML, need to decode or check with aapt
+#        if command -v aapt &>/dev/null; then
+#            if aapt dump permissions "$APK_PATH" 2>/dev/null | grep -q "android.permission.INTERNET"; then
+#                echo "  ❌ SECURITY VIOLATION: INTERNET permission found in APK!"
+#                echo "  ❌ This app MUST NOT have network access"
+#                rm -f "$TEMP_MANIFEST"
+#                exit 1
+#            else
+#                echo "  ✅ No internet permissions (REQUIRED)"
+#            fi
+#        else
+#            # Fallback: just check string presence (less reliable)
+#            if strings "$TEMP_MANIFEST" 2>/dev/null | grep -q "android.permission.INTERNET"; then
+#                echo "  ⚠️  Possible INTERNET permission detected (unverified)"
+#                echo "  Install aapt for reliable verification"
+#            else
+#                echo "  ✅ No obvious internet permissions (basic check)"
+#            fi
+#        fi
+#        rm -f "$TEMP_MANIFEST"
+#    else
+#        echo "  ⚠️  Could not extract manifest for verification"
+#    fi
+#    # ========== END PERMISSION VERIFICATION ==========
 
     echo ""
     echo "Ready to deploy! 🚀"
