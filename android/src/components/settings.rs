@@ -37,7 +37,7 @@ impl Default for NotificationSettings {
         Self {
             stadning_nu: true,
             sex_timmar: true,
-            en_dag: false,
+            en_dag: true,
         }
     }
 }
