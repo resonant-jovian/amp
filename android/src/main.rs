@@ -1,6 +1,5 @@
 //! Main entry point for Android app
 #![allow(non_snake_case)]
-use dioxus::prelude::*;
 mod android_bridge;
 #[cfg(target_os = "android")]
 mod android_utils;
@@ -33,8 +32,8 @@ fn main() {
     {
         log::info!("[Main] Spawning WebView configuration thread...");
         std::thread::spawn(|| {
-            log::debug!("[Main] Waiting 300ms for WebView creation...");
-            std::thread::sleep(std::time::Duration::from_millis(300));
+            log::debug!("[Main] Waiting 10000ms for WebView creation...");
+            std::thread::sleep(std::time::Duration::from_millis(10000));
             log::info!("[Main] Configuring WebView DOM storage...");
             match webview_config::configure_webview_dom_storage() {
                 Ok(()) => {
@@ -60,5 +59,18 @@ fn main() {
         log::info!("[Main] WebView configuration thread spawned");
     }
     log::info!("[Main] Launching Dioxus...");
-    launch(ui::App);
+    #[cfg(target_os = "android")]
+    {
+        use dioxus::mobile::Config;
+
+        dioxus::LaunchBuilder::new()
+            .with_cfg(Config::new().with_custom_head(r#"<style>body { margin: 0; }</style>"#.to_string()))
+            .launch(ui::App);
+    }
+
+    #[cfg(not(target_os = "android"))]
+    {
+        dioxus::launch(ui::App);
+    }
+
 }

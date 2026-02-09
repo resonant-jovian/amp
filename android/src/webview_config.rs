@@ -197,7 +197,7 @@ fn configure_webview_internal(env: &mut JNIEnv) -> Result<(), String> {
     debug!("[{}] Getting Activity's ClassLoader...", TAG);
     let class_loader = env
         .call_method(
-            activity,
+            &activity,
             "getClassLoader",
             "()Ljava/lang/ClassLoader;",
             &[],

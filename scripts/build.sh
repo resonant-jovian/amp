@@ -492,22 +492,22 @@ GRADLE_TASK
             echo "  ✓ FOREGROUND_SERVICE permissions already present"
         fi
         
-        # ========== CRITICAL: REMOVE INTERNET PERMISSION ==========
-        echo ""
-        echo "  🔒 SECURITY: Removing INTERNET permission (added by WRY/Dioxus)..."
-        if grep -q "android.permission.INTERNET" "$MANIFEST"; then
-            sed -i '/android.permission.INTERNET/d' "$MANIFEST"
-            echo "  ✓ INTERNET permission removed (security requirement)"
-        else
-            echo "  ✓ INTERNET permission not present (good)"
-        fi
-        
-        # Also remove network_security_config if present
-        if grep -q "networkSecurityConfig" "$MANIFEST"; then
-            sed -i 's/android:networkSecurityConfig="@xml\/network_security_config"//g' "$MANIFEST"
-            echo "  ✓ networkSecurityConfig reference removed"
-        fi
-        # ========== END INTERNET REMOVAL ==========
+#        # ========== CRITICAL: REMOVE INTERNET PERMISSION ==========
+#        echo ""
+#        echo "  🔒 SECURITY: Removing INTERNET permission (added by WRY/Dioxus)..."
+#        if grep -q "android.permission.INTERNET" "$MANIFEST"; then
+#            sed -i '/android.permission.INTERNET/d' "$MANIFEST"
+#            echo "  ✓ INTERNET permission removed (security requirement)"
+#        else
+#            echo "  ✓ INTERNET permission not present (good)"
+#        fi
+#
+#        # Also remove network_security_config if present
+#        if grep -q "networkSecurityConfig" "$MANIFEST"; then
+#            sed -i 's/android:networkSecurityConfig="@xml\/network_security_config"//g' "$MANIFEST"
+#            echo "  ✓ networkSecurityConfig reference removed"
+#        fi
+#        # ========== END INTERNET REMOVAL ==========
         
         echo ""
         echo "  ✅ Notification system configured"
