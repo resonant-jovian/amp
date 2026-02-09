@@ -176,13 +176,21 @@ asset_dir = "assets"
 publisher = "Skäggbyrån Malmö"
 identifier = "se.malmo.skaggbyran.amp"
 icon = ["assets/icon/icon-512.png"]
-resources = ["assets/data/adress_info.parquet"]
+resources = [
+    "assets/data/adress_info.parquet",
+    "assets/style.css",
+    "assets/fonts/**/*"
+]
 
 [bundle.android]
 publisher = "Skäggbyrån Malmö"
 identifier = "se.malmo.skaggbyran.amp"
 icon = ["assets/icon/icon-512.png"]
-resources = ["assets/data/adress_info.parquet"]
+resources = [
+    "assets/data/adress_info.parquet",
+    "assets/style.css",
+    "assets/fonts/**/*"
+]
 min_sdk_version = 21
 target_sdk_version = 36
 orientation = "portrait"
