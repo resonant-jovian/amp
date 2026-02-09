@@ -34,49 +34,7 @@
 //!
 //! # Usage
 //!
-//! ## Option 1: Hook WRY WebViewBuilder (Preferred)
-//!
-//! If using custom WRY configuration:
-//!
-//! ```no_run
-//! use wry::WebViewBuilder;
-//! use amp_android::webview_config;
-//!
-//! # fn example() {
-//! let builder = WebViewBuilder::new()
-//!     .with_initialization_script(include_str!("init.js"))
-//!     .with_on_page_load_handler(|webview| {
-//!         // Configure WebView after page load
-//!         if let Err(e) = webview_config::configure_webview_dom_storage() {
-//!             log::error!("Failed to configure WebView: {}", e);
-//!         }
-//!     });
-//! # }
-//! ```
-//!
-//! ## Option 2: Post-Launch Configuration (Current)
-//!
-//! Since Dioxus's `launch()` doesn't expose WebView hooks, we call configuration
-//! from main.rs after a short delay:
-//!
-//! ```no_run
-//! use amp_android::webview_config;
-//!
-//! fn main() {
-//!     // Launch Dioxus app
-//!     dioxus::launch(ui::App);
-//!
-//!     // Give WebView time to initialize (100ms)
-//!     std::thread::sleep(std::time::Duration::from_millis(100));
-//!
-//!     // Configure DOM storage
-//!     if let Err(e) = webview_config::configure_webview_dom_storage() {
-//!         log::error!("Failed to configure WebView: {}", e);
-//!     }
-//! }
-//! ```
-//!
-//! ## Option 3: Background Thread (Safest)
+//! ## Background Thread Configuration (Current)
 //!
 //! Spawn background thread to configure WebView without blocking UI:
 //!
@@ -86,12 +44,12 @@
 //! fn main() {
 //!     // Spawn configuration thread
 //!     std::thread::spawn(|| {
-//!         std::thread::sleep(std::time::Duration::from_millis(200));
+//!         std::thread::sleep(std::time::Duration::from_millis(300));
 //!         if let Err(e) = webview_config::configure_webview_dom_storage() {
 //!             log::error!("WebView config failed: {}", e);
 //!         }
 //!     });
-//!
+//!     
 //!     // Launch Dioxus (blocking)
 //!     dioxus::launch(ui::App);
 //! }
@@ -102,11 +60,12 @@
 //! ## JNI Call Chain
 //!
 //! 1. Get Android Context from `ndk_context`
-//! 2. Attach to JVM thread
-//! 3. Find `WebViewConfigurator` class
-//! 4. Get `Activity` from context
-//! 5. Find `WebView` in activity's view hierarchy
-//! 6. Call `WebViewConfigurator.configure(webView)`
+//! 2. Convert raw VM pointer to JavaVM
+//! 3. Attach to JVM thread
+//! 4. Find `WebViewConfigurator` class
+//! 5. Get `Activity` from context
+//! 6. Find `WebView` in activity's view hierarchy
+//! 7. Call `WebViewConfigurator.configure(webView)`
 //!
 //! ## Error Handling
 //!
@@ -160,14 +119,18 @@
 //! - [Dioxus Issue #1875](https://github.com/DioxusLabs/dioxus/issues/1875)
 //! - [Android WebSettings](https://developer.android.com/reference/android/webkit/WebSettings)
 //! - [JNI Spec](https://docs.oracle.com/javase/8/docs/technotes/guides/jni/)
+
 #[cfg(target_os = "android")]
 use jni::{
-    JNIEnv,
     objects::{JObject, JValue},
+    JavaVM, JNIEnv,
 };
+
 #[cfg(target_os = "android")]
 use log::{debug, error, info, warn};
+
 const TAG: &str = "amp_webview";
+
 /// Configure Android WebView to enable DOM storage for offline Dioxus operation.
 ///
 /// This function uses JNI to call the Kotlin `WebViewConfigurator.configure()`
@@ -198,38 +161,49 @@ const TAG: &str = "amp_webview";
 #[cfg(target_os = "android")]
 pub fn configure_webview_dom_storage() -> Result<(), String> {
     info!("[{}] Attempting WebView configuration...", TAG);
+
+    // Get Android context from ndk-context
     let ctx = ndk_context::android_context();
-    let vm = ctx.vm();
+    
+    // CRITICAL: ndk_context returns raw pointers, not JavaVM objects
+    // We need to convert *mut c_void -> JavaVM using from_raw()
+    let vm_ptr = ctx.vm() as *mut jni::sys::JavaVM;
+    let vm = unsafe { JavaVM::from_raw(vm_ptr) }
+        .map_err(|e| format!("Failed to create JavaVM from raw pointer: {:?}", e))?;
+
+    // Attach to current thread's JVM
     let mut env = vm
         .attach_current_thread()
         .map_err(|e| format!("Failed to attach to JVM: {:?}", e))?;
+
+    // Call the configuration helper
     configure_webview_internal(&mut env)
 }
+
 /// Internal JNI implementation of WebView configuration.
 ///
 /// Separated from public API to allow easier testing and mocking.
 #[cfg(target_os = "android")]
 fn configure_webview_internal(env: &mut JNIEnv) -> Result<(), String> {
+    // Step 1: Find WebViewConfigurator class
     debug!("[{}] Looking up WebViewConfigurator class...", TAG);
     let configurator_class = env
         .find_class("se/malmo/skaggbyran/amp/WebViewConfigurator")
         .map_err(|e| {
             error!("[{}] ❌ WebViewConfigurator class not found: {:?}", TAG, e);
-            error!(
-                "[{}] Check if WebViewConfigurator.kt was compiled into DEX",
-                TAG
-            );
-            error!(
-                "[{}] Run: dexdump -l plain app.apk | grep WebViewConfigurator",
-                TAG
-            );
+            error!("[{}] Check if WebViewConfigurator.kt was compiled into DEX", TAG);
+            error!("[{}] Run: dexdump -l plain app.apk | grep WebViewConfigurator", TAG);
             format!("WebViewConfigurator class not found: {:?}", e)
         })?;
     debug!("[{}] ✓ WebViewConfigurator class found", TAG);
+
+    // Step 2: Get current Activity from ndk_context
     debug!("[{}] Getting Activity from context...", TAG);
     let ctx = ndk_context::android_context();
     let activity = unsafe { JObject::from_raw(ctx.context() as *mut _) };
     debug!("[{}] ✓ Activity context obtained", TAG);
+
+    // Step 3: Get Window from Activity
     debug!("[{}] Getting Window from Activity...", TAG);
     let window = env
         .call_method(activity, "getWindow", "()Landroid/view/Window;", &[])
@@ -237,6 +211,8 @@ fn configure_webview_internal(env: &mut JNIEnv) -> Result<(), String> {
         .l()
         .map_err(|e| format!("Window not an object: {:?}", e))?;
     debug!("[{}] ✓ Window obtained", TAG);
+
+    // Step 4: Get DecorView from Window
     debug!("[{}] Getting DecorView from Window...", TAG);
     let decor_view = env
         .call_method(window, "getDecorView", "()Landroid/view/View;", &[])
@@ -244,9 +220,14 @@ fn configure_webview_internal(env: &mut JNIEnv) -> Result<(), String> {
         .l()
         .map_err(|e| format!("DecorView not an object: {:?}", e))?;
     debug!("[{}] ✓ DecorView obtained", TAG);
+
+    // Step 5: Find WebView by traversing view hierarchy
+    // Note: This is a heuristic approach since WRY doesn't expose WebView directly
     debug!("[{}] Searching for WebView in view hierarchy...", TAG);
     let webview = find_webview_in_hierarchy(env, decor_view)?;
     info!("[{}] ✓ WebView instance found", TAG);
+
+    // Step 6: Call WebViewConfigurator.configure(webView)
     debug!("[{}] Calling WebViewConfigurator.configure()...", TAG);
     env.call_static_method(
         configurator_class,
@@ -259,10 +240,13 @@ fn configure_webview_internal(env: &mut JNIEnv) -> Result<(), String> {
         error!("[{}] Check ProGuard rules - class may be stripped", TAG);
         format!("Failed to call configure(): {:?}", e)
     })?;
+
     info!("[{}] ✅ WebView configured successfully", TAG);
     info!("[{}] DOM storage should now be enabled", TAG);
+
     Ok(())
 }
+
 /// Find WebView in Android view hierarchy.
 ///
 /// Recursively searches through ViewGroup children to find WebView instance.
@@ -282,28 +266,38 @@ fn find_webview_in_hierarchy<'a>(
     env: &mut JNIEnv<'a>,
     view: JObject<'a>,
 ) -> Result<JObject<'a>, String> {
+    // Check if this view is a WebView
     let is_webview = env
         .is_instance_of(&view, "android/webkit/WebView")
         .map_err(|e| format!("Failed to check WebView instance: {:?}", e))?;
+
     if is_webview {
         debug!("[{}] Found WebView!", TAG);
         return Ok(view);
     }
+
+    // Check if this is a ViewGroup (has children)
     let is_viewgroup = env
         .is_instance_of(&view, "android/view/ViewGroup")
         .map_err(|e| format!("Failed to check ViewGroup instance: {:?}", e))?;
+
     if !is_viewgroup {
         return Err("Not a ViewGroup, cannot traverse".to_string());
     }
+
+    // Get child count
     let child_count = env
         .call_method(&view, "getChildCount", "()I", &[])
         .map_err(|e| format!("Failed to get child count: {:?}", e))?
         .i()
         .map_err(|e| format!("Child count not an int: {:?}", e))?;
+
     debug!(
         "[{}] ViewGroup has {} children, searching...",
         TAG, child_count
     );
+
+    // Iterate through children
     for i in 0..child_count {
         let child = env
             .call_method(
@@ -315,15 +309,19 @@ fn find_webview_in_hierarchy<'a>(
             .map_err(|e| format!("Failed to get child {}: {:?}", i, e))?
             .l()
             .map_err(|e| format!("Child {} not an object: {:?}", i, e))?;
+
+        // Recursively search child
         if let Ok(webview) = find_webview_in_hierarchy(env, child) {
             return Ok(webview);
         }
     }
+
     Err(format!(
         "WebView not found in ViewGroup with {} children",
         child_count
     ))
 }
+
 /// Verify if WebView has DOM storage enabled (for debugging).
 ///
 /// This function checks the WebView's current settings to confirm DOM storage
@@ -337,22 +335,32 @@ fn find_webview_in_hierarchy<'a>(
 #[cfg(target_os = "android")]
 pub fn verify_dom_storage_enabled() -> Result<bool, String> {
     let ctx = ndk_context::android_context();
-    let vm = ctx.vm();
+    
+    // Convert raw VM pointer to JavaVM
+    let vm_ptr = ctx.vm() as *mut jni::sys::JavaVM;
+    let vm = unsafe { JavaVM::from_raw(vm_ptr) }
+        .map_err(|e| format!("Failed to create JavaVM from raw pointer: {:?}", e))?;
+    
     let mut env = vm
         .attach_current_thread()
         .map_err(|e| format!("Failed to attach to JVM: {:?}", e))?;
+
     let ctx_obj = unsafe { JObject::from_raw(ctx.context() as *mut _) };
     let window = env
         .call_method(ctx_obj, "getWindow", "()Landroid/view/Window;", &[])
         .map_err(|e| format!("Failed to get Window: {:?}", e))?
         .l()
         .map_err(|e| format!("Window not an object: {:?}", e))?;
+
     let decor_view = env
         .call_method(window, "getDecorView", "()Landroid/view/View;", &[])
         .map_err(|e| format!("Failed to get DecorView: {:?}", e))?
         .l()
         .map_err(|e| format!("DecorView not an object: {:?}", e))?;
+
     let webview = find_webview_in_hierarchy(&mut env, decor_view)?;
+
+    // Get WebSettings
     let settings = env
         .call_method(
             &webview,
@@ -363,31 +371,41 @@ pub fn verify_dom_storage_enabled() -> Result<bool, String> {
         .map_err(|e| format!("Failed to get WebSettings: {:?}", e))?
         .l()
         .map_err(|e| format!("WebSettings not an object: {:?}", e))?;
+
+    // Check domStorageEnabled
     let enabled = env
         .call_method(&settings, "getDomStorageEnabled", "()Z", &[])
         .map_err(|e| format!("Failed to get domStorageEnabled: {:?}", e))?
         .z()
         .map_err(|e| format!("domStorageEnabled not a boolean: {:?}", e))?;
+
     if enabled {
         info!("[{}] ✅ DOM storage is ENABLED", TAG);
     } else {
         warn!("[{}] ⚠️  DOM storage is DISABLED", TAG);
     }
+
     Ok(enabled)
 }
+
+// Stub implementation for non-Android platforms
 #[cfg(not(target_os = "android"))]
 pub fn configure_webview_dom_storage() -> Result<(), String> {
-    Ok(())
+    Ok(()) // No-op on desktop
 }
+
 #[cfg(not(target_os = "android"))]
 pub fn verify_dom_storage_enabled() -> Result<bool, String> {
-    Ok(true)
+    Ok(true) // Always enabled on desktop
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn test_non_android_stubs() {
+        // Ensure stubs compile and don't panic
         assert!(configure_webview_dom_storage().is_ok());
         assert!(verify_dom_storage_enabled().is_ok());
     }
