@@ -1,11 +1,5 @@
-/* Workbench font */
-@font-face {
-    font-family: 'Workbench';
-    font-style: normal;
-    font-weight: 400;
-    src: local('Workbench'),
-    url('./fonts/Workbench-Regular-VariableFont_BLED,SCAN.ttf') format('truetype');
-}
+@import url('https://fonts.googleapis.com/css2?family=Sixtyfour&family=Workbench&display=swap');
+
 :root {
     --shadow-sm: 2px 2px 4px #a3b1c6, -2px -2px 4px #ffffff;
     --shadow-md: 4px 4px 8px #a3b1c6, -4px -4px 8px #ffffff;
