@@ -190,55 +190,6 @@ fn get_android_context() -> Result<JObject<'static>, String> {
     Ok(activity)
 }
 
-/// Load a class using the app's ClassLoader instead of system ClassLoader
-/// 
-/// **Critical Fix**: JNI's find_class() uses the system ClassLoader which cannot
-/// see app-specific classes. We must use Activity.getClassLoader().loadClass()
-/// to access classes compiled into the APK.
-/// 
-/// # Arguments
-/// * `env` - JNI environment
-/// * `class_name` - Fully qualified class name with dots (e.g. "se.malmo.skaggbyran.amp.NotificationHelper")
-/// 
-/// # Returns
-/// JClass for the loaded class
-#[cfg(target_os = "android")]
-fn load_app_class<'a>(env: &'a mut jni::AttachGuard<'a>, class_name: &'a str) -> Result<JClass<'a>, String> {
-    let context = get_android_context()?;
-    
-    // Get the Activity's ClassLoader
-    let class_loader = env
-        .call_method(
-            context,
-            "getClassLoader",
-            "()Ljava/lang/ClassLoader;",
-            &[],
-        )
-        .map_err(|e| format!("Failed to get ClassLoader: {:?}", e))?
-        .l()
-        .map_err(|e| format!("ClassLoader not an object: {:?}", e))?;
-    
-    // Create Java string with class name
-    let j_class_name = env
-        .new_string(class_name)
-        .map_err(|e| format!("Failed to create class name string: {:?}", e))?;
-    
-    // Load the class: ClassLoader.loadClass(String)
-    let class_obj = env
-        .call_method(
-            class_loader,
-            "loadClass",
-            "(Ljava/lang/String;)Ljava/lang/Class;",
-            &[JValue::Object(&j_class_name.into())],
-        )
-        .map_err(|e| format!("Failed to load class '{}': {:?}", class_name, e))?
-        .l()
-        .map_err(|e| format!("Loaded class not an object: {:?}", e))?;
-    
-    // Convert JObject to JClass
-    Ok(JClass::from(class_obj))
-}
-
 /// Create notification channels via JNI
 ///
 /// Calls NotificationHelper.createNotificationChannels(Context) using JNI.
@@ -256,8 +207,34 @@ fn create_notification_channels() -> Result<(), String> {
     let mut env = get_jni_env()?;
     let context = get_android_context()?;
     
-    // Use app ClassLoader instead of system ClassLoader
-    let helper_class = load_app_class(&mut env, "se.malmo.skaggbyran.amp.NotificationHelper")?;
+    // Load NotificationHelper using app ClassLoader (inline to avoid lifetime issues)
+    let class_loader = env
+        .call_method(
+            context,
+            "getClassLoader",
+            "()Ljava/lang/ClassLoader;",
+            &[],
+        )
+        .map_err(|e| format!("Failed to get ClassLoader: {:?}", e))?
+        .l()
+        .map_err(|e| format!("ClassLoader not an object: {:?}", e))?;
+    
+    let j_class_name = env
+        .new_string("se.malmo.skaggbyran.amp.NotificationHelper")
+        .map_err(|e| format!("Failed to create class name string: {:?}", e))?;
+    
+    let class_obj = env
+        .call_method(
+            class_loader,
+            "loadClass",
+            "(Ljava/lang/String;)Ljava/lang/Class;",
+            &[JValue::Object(&j_class_name.into())],
+        )
+        .map_err(|e| format!("Failed to load NotificationHelper: {:?}", e))?
+        .l()
+        .map_err(|e| format!("Loaded class not an object: {:?}", e))?;
+    
+    let helper_class = JClass::from(class_obj);
     
     env.call_static_method(
         helper_class,
@@ -306,8 +283,34 @@ fn show_notification(
         .new_string(body)
         .map_err(|e| format!("Failed to create Java string for body: {:?}", e))?;
     
-    // Use app ClassLoader instead of system ClassLoader
-    let helper_class = load_app_class(&mut env, "se.malmo.skaggbyran.amp.NotificationHelper")?;
+    // Load NotificationHelper using app ClassLoader (inline to avoid lifetime issues)
+    let class_loader = env
+        .call_method(
+            context,
+            "getClassLoader",
+            "()Ljava/lang/ClassLoader;",
+            &[],
+        )
+        .map_err(|e| format!("Failed to get ClassLoader: {:?}", e))?
+        .l()
+        .map_err(|e| format!("ClassLoader not an object: {:?}", e))?;
+    
+    let j_class_name = env
+        .new_string("se.malmo.skaggbyran.amp.NotificationHelper")
+        .map_err(|e| format!("Failed to create class name string: {:?}", e))?;
+    
+    let class_obj = env
+        .call_method(
+            class_loader,
+            "loadClass",
+            "(Ljava/lang/String;)Ljava/lang/Class;",
+            &[JValue::Object(&j_class_name.into())],
+        )
+        .map_err(|e| format!("Failed to load NotificationHelper: {:?}", e))?
+        .l()
+        .map_err(|e| format!("Loaded class not an object: {:?}", e))?;
+    
+    let helper_class = JClass::from(class_obj);
     
     env.call_static_method(
         helper_class,
