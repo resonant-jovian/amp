@@ -13,7 +13,111 @@ cd "$REPO_ROOT/android" || {
     exit 1
 }
 
+# ========== PRE-BUILD VERIFICATION ==========
+verify_package_structure() {
+    echo ""
+    echo "🔍 PRE-BUILD: Verifying package structure consistency..."
+    
+    local KOTLIN_SRC="$REPO_ROOT/android/kotlin"
+    local ISSUES=0
+    
+    # Check NotificationHelper
+    if [ -f "$KOTLIN_SRC/NotificationHelper.kt" ]; then
+        local PACKAGE=$(grep "^package " "$KOTLIN_SRC/NotificationHelper.kt" | awk '{print $2}' | tr -d ';')
+        if [ "$PACKAGE" = "se.malmo.skaggbyran.amp" ]; then
+            echo "  ✅ NotificationHelper.kt: package=$PACKAGE"
+        else
+            echo "  ❌ NotificationHelper.kt: WRONG PACKAGE ($PACKAGE != se.malmo.skaggbyran.amp)"
+            ISSUES=$((ISSUES + 1))
+        fi
+    else
+        echo "  ❌ NotificationHelper.kt not found"
+        ISSUES=$((ISSUES + 1))
+    fi
+    
+    # Check WebViewConfigurator
+    if [ -f "$KOTLIN_SRC/WebViewConfigurator.kt" ]; then
+        local PACKAGE=$(grep "^package " "$KOTLIN_SRC/WebViewConfigurator.kt" | awk '{print $2}' | tr -d ';')
+        if [ "$PACKAGE" = "se.malmo.skaggbyran.amp" ]; then
+            echo "  ✅ WebViewConfigurator.kt: package=$PACKAGE"
+        else
+            echo "  ❌ WebViewConfigurator.kt: WRONG PACKAGE ($PACKAGE != se.malmo.skaggbyran.amp)"
+            ISSUES=$((ISSUES + 1))
+        fi
+        
+        # Verify it has the configure method
+        if grep -q "fun configure(webView: WebView)" "$KOTLIN_SRC/WebViewConfigurator.kt"; then
+            echo "  ✅ WebViewConfigurator.configure() method present"
+        else
+            echo "  ❌ WebViewConfigurator.configure() method missing!"
+            ISSUES=$((ISSUES + 1))
+        fi
+    else
+        echo "  ❌ WebViewConfigurator.kt not found"
+        ISSUES=$((ISSUES + 1))
+    fi
+    
+    # Check MainActivity
+    if [ -f "$KOTLIN_SRC/MainActivity.kt" ]; then
+        local PACKAGE=$(grep "^package " "$KOTLIN_SRC/MainActivity.kt" | awk '{print $2}' | tr -d ';')
+        if [ "$PACKAGE" = "dev.dioxus.main" ]; then
+            echo "  ✅ MainActivity.kt: package=$PACKAGE"
+        else
+            echo "  ❌ MainActivity.kt: WRONG PACKAGE ($PACKAGE != dev.dioxus.main)"
+            ISSUES=$((ISSUES + 1))
+        fi
+        
+        # Verify it extends WryActivity
+        if grep -q "class MainActivity : WryActivity" "$KOTLIN_SRC/MainActivity.kt"; then
+            echo "  ✅ MainActivity extends WryActivity"
+        else
+            echo "  ❌ MainActivity does not extend WryActivity!"
+            ISSUES=$((ISSUES + 1))
+        fi
+        
+        # Verify it calls WebViewConfigurator
+        if grep -q "WebViewConfigurator.configure" "$KOTLIN_SRC/MainActivity.kt"; then
+            echo "  ✅ MainActivity calls WebViewConfigurator.configure()"
+        else
+            echo "  ❌ MainActivity does not call WebViewConfigurator!"
+            ISSUES=$((ISSUES + 1))
+        fi
+        
+        # Verify it has onWebViewCreate override
+        if grep -q "override fun onWebViewCreate" "$KOTLIN_SRC/MainActivity.kt"; then
+            echo "  ✅ MainActivity overrides onWebViewCreate()"
+        else
+            echo "  ❌ MainActivity missing onWebViewCreate() override!"
+            ISSUES=$((ISSUES + 1))
+        fi
+    else
+        echo "  ❌ MainActivity.kt not found"
+        ISSUES=$((ISSUES + 1))
+    fi
+    
+    echo ""
+    if [ "$ISSUES" -eq 0 ]; then
+        echo "  ✅ Package structure verification PASSED"
+        return 0
+    else
+        echo "  ❌ Package structure verification FAILED ($ISSUES issues)"
+        echo ""
+        echo "  Fix these issues before building:"
+        echo "  1. Ensure all .kt files have correct package declarations"
+        echo "  2. Ensure MainActivity extends WryActivity and overrides onWebViewCreate()"
+        echo "  3. Ensure MainActivity calls WebViewConfigurator.configure()"
+        return 1
+    fi
+}
+
+# Run pre-build verification
+if ! verify_package_structure; then
+    exit 1
+fi
+# ========== END PRE-BUILD VERIFICATION ==========
+
 # Load keystore settings
+echo ""
 echo "📖 Loading keystore configuration..."
 KEYSTORE_DIR="$REPO_ROOT"
 storePassword=$(grep "^storePassword=" "$KEYSTORE_DIR/keystore.properties" | cut -d= -f2 | tr -d ' "')
@@ -170,7 +274,7 @@ setup_notifications() {
     fi
     # ========== END MAINACTIVITY REPLACEMENT ==========
     
-    # ========== CRITICAL FIX: Register Kotlin source directory ==========
+    # ========== ENHANCED: Validate source sets configuration ==========
     echo ""
     echo "  🔧 CRITICAL FIX: Registering Kotlin source directory in build.gradle.kts..."
     echo "     This fixes ClassNotFoundException for NotificationHelper + WebViewConfigurator + MainActivity"
@@ -179,29 +283,31 @@ setup_notifications() {
         # Check if sourceSets already exists
         if grep -q "sourceSets {" "$BUILD_GRADLE"; then
             echo "    ⚠️  sourceSets block already exists"
-            echo "    Attempting to append kotlin directory to existing configuration..."
+            echo "    Verifying kotlin directory is included..."
             
-            # Try to modify existing java.srcDirs line to include kotlin
-            if grep -q 'java\.srcDirs' "$BUILD_GRADLE"; then
+            if ! grep -q "src/main/kotlin" "$BUILD_GRADLE"; then
+                echo "    ❌ kotlin directory NOT registered!"
+                echo "    Attempting to add kotlin directory..."
+                
                 # Backup before modification
                 cp "$BUILD_GRADLE" "$BUILD_GRADLE.backup"
                 
-                # Replace java.srcDirs line to include kotlin directory
-                sed -i '/java\.srcDirs/ s/)$/, "src\/main\/kotlin")/' "$BUILD_GRADLE" 2>/dev/null || {
-                    echo "    ⚠️  sed replacement failed, trying alternative approach..."
-                    mv "$BUILD_GRADLE.backup" "$BUILD_GRADLE"
-                    
-                    # Alternative: add after the sourceSets line
-                    sed -i '/sourceSets {/a\        getByName("main") {\n            java.srcDirs("src/main/java", "src/main/kotlin")\n        }' "$BUILD_GRADLE"
-                }
+                # Try to modify existing java.srcDirs line to include kotlin
+                if grep -q 'java\.srcDirs' "$BUILD_GRADLE"; then
+                    sed -i '/java\.srcDirs/ s/)$/, "src\/main\/kotlin")/' "$BUILD_GRADLE" 2>/dev/null || {
+                        echo "    ⚠️  sed replacement failed, restoring backup"
+                        mv "$BUILD_GRADLE.backup" "$BUILD_GRADLE"
+                    }
+                fi
                 
                 rm -f "$BUILD_GRADLE.backup"
+            else
+                echo "    ✓ kotlin directory already registered"
             fi
         else
             echo "    📝 Injecting sourceSets block into android {} block..."
             
             # Insert sourceSets block after 'android {' line
-            # Use a more robust sed pattern that works across different android block formats
             if grep -q '^android {' "$BUILD_GRADLE"; then
                 sed -i '/^android {$/a\    sourceSets {\n        getByName("main") {\n            java.srcDirs("src/main/java", "src/main/kotlin")\n        }\n    }\n' "$BUILD_GRADLE"
             else
@@ -218,35 +324,34 @@ setup_notifications() {
         if grep -q "src/main/kotlin" "$BUILD_GRADLE"; then
             echo "    ✅ SUCCESS: Kotlin source directory registered in build.gradle.kts"
             echo "       All Kotlin classes (NotificationHelper, WebViewConfigurator, MainActivity) will be compiled"
+            
+            # Show the actual configuration
+            echo ""
+            echo "    📋 Current source directory configuration:"
+            grep -B 2 -A 5 "src/main/kotlin" "$BUILD_GRADLE" | head -n 10 || echo "    (Could not extract for display)"
         else
             echo "    ❌ CRITICAL FAILURE: Could not register Kotlin source directory"
             echo "    ❌ Build will fail with ClassNotFoundException at runtime"
-            echo ""
-            echo "    Please manually add to $BUILD_GRADLE:"
-            echo "    android {"
-            echo "        sourceSets {"
-            echo "            getByName(\"main\") {"
-            echo "                java.srcDirs(\"src/main/java\", \"src/main/kotlin\")"
-            echo "            }"
-            echo "        }"
-            echo "    }"
             exit 1
         fi
         
-        # Display relevant section for debugging
+        # Additional check: Verify both packages will be included
         echo ""
-        echo "    📋 Current source directory configuration:"
-        grep -B 2 -A 5 "src/main/kotlin" "$BUILD_GRADLE" | head -n 10 || {
-            echo "    (Could not extract sourceSets block for display)"
-        }
+        echo "    📦 Verifying package inclusion..."
+        if [ -d "$ANDROID_SRC/kotlin/se/malmo/skaggbyran/amp" ] && [ -d "$ANDROID_SRC/kotlin/dev/dioxus/main" ]; then
+            echo "    ✅ Both packages present:"
+            echo "       - se.malmo.skaggbyran.amp (NotificationHelper, WebViewConfigurator)"
+            echo "       - dev.dioxus.main (MainActivity)"
+        else
+            echo "    ⚠️  Package directories not fully created yet"
+        fi
     else
         echo "    ❌ build.gradle.kts not found at $BUILD_GRADLE"
-        echo "    Checked at: $BUILD_GRADLE"
         exit 1
     fi
-    # ========== END CRITICAL FIX ==========
+    # ========== END SOURCE SETS VALIDATION ==========
     
-    # ========== CRITICAL FIX: Prevent R8 from stripping classes ==========
+    # ========== ENHANCED: ProGuard rules with R8 diagnostics ==========
     echo ""
     echo "  🔒 CRITICAL FIX: Adding ProGuard rules to prevent R8 stripping..."
     echo "     R8 was removing NotificationHelper + WebViewConfigurator + MainActivity during minification"
@@ -270,7 +375,7 @@ PROGUARD_EOF
             echo "    ✓ NotificationHelper ProGuard rule already present"
         fi
         
-        # ========== NEW: Add WebViewConfigurator ProGuard rule ==========
+        # Add WebViewConfigurator ProGuard rule
         if ! grep -q "WebViewConfigurator" "$PROGUARD_RULES"; then
             echo "    📝 Injecting keep rule for WebViewConfigurator..."
             cat >> "$PROGUARD_RULES" << 'PROGUARD_EOF'
@@ -288,9 +393,8 @@ PROGUARD_EOF
         else
             echo "    ✓ WebViewConfigurator ProGuard rule already present"
         fi
-        # ========== END WEBVIEW PROGUARD ==========
         
-        # ========== NEW: Add MainActivity ProGuard rule ==========
+        # Add MainActivity ProGuard rule
         if ! grep -q "dev.dioxus.main.MainActivity" "$PROGUARD_RULES"; then
             echo "    📝 Injecting keep rule for custom MainActivity..."
             cat >> "$PROGUARD_RULES" << 'PROGUARD_EOF'
@@ -303,12 +407,22 @@ PROGUARD_EOF
 -keepclassmembers class dev.dioxus.main.MainActivity {
     public void onWebViewCreate(android.webkit.WebView);
 }
+
+# Keep the package name references (prevents ClassNotFoundException)
+-keeppackagenames se.malmo.skaggbyran.amp
+-keeppackagenames dev.dioxus.main
+
+# Enable R8 diagnostics
+-printmapping mapping.txt
+-printseeds seeds.txt
+-printusage usage.txt
+-verbose
 PROGUARD_EOF
             echo "    ✓ MainActivity ProGuard rule added"
+            echo "    ✓ R8 diagnostics enabled (mapping.txt, seeds.txt, usage.txt)"
         else
             echo "    ✓ MainActivity ProGuard rule already present"
         fi
-        # ========== END MAINACTIVITY PROGUARD ==========
     else
         echo "    ⚠️  proguard-rules.pro not found, creating..."
         cat > "$PROGUARD_RULES" << 'PROGUARD_EOF'
@@ -337,10 +451,20 @@ PROGUARD_EOF
 -keepclassmembers class dev.dioxus.main.MainActivity {
     public void onWebViewCreate(android.webkit.WebView);
 }
+
+# Keep the package name references (prevents ClassNotFoundException)
+-keeppackagenames se.malmo.skaggbyran.amp
+-keeppackagenames dev.dioxus.main
+
+# Enable R8 diagnostics
+-printmapping mapping.txt
+-printseeds seeds.txt
+-printusage usage.txt
+-verbose
 PROGUARD_EOF
-        echo "    ✓ Created proguard-rules.pro with all keep rules"
+        echo "    ✓ Created proguard-rules.pro with all keep rules and R8 diagnostics"
     fi
-    # ========== END R8 FIX ==========
+    # ========== END PROGUARD ==========
     
     # Add notification permissions to manifest if not already present
     if [ -f "$MANIFEST" ]; then
@@ -610,6 +734,103 @@ else
     fi
 fi
 
+# ========== POST-BUILD R8 DIAGNOSTICS ==========
+analyze_r8_output() {
+    echo ""
+    echo "🔍 POST-BUILD: Analyzing R8 output..."
+    
+    local MAPPING_FILE="$ANDROID_DIR/build/outputs/mapping/release/mapping.txt"
+    local SEEDS_FILE="$ANDROID_DIR/build/outputs/mapping/release/seeds.txt"
+    local USAGE_FILE="$ANDROID_DIR/build/outputs/mapping/release/usage.txt"
+    
+    if [ -f "$MAPPING_FILE" ]; then
+        echo "  📄 R8 mapping.txt found - analyzing..."
+        
+        # Check if our classes were obfuscated (they shouldn't be with -keep rules)
+        local OBFUSCATED=0
+        
+        if grep -q "se.malmo.skaggbyran.amp.NotificationHelper" "$MAPPING_FILE"; then
+            echo "  ⚠️  NotificationHelper appears in mapping.txt (may be obfuscated)"
+            OBFUSCATED=$((OBFUSCATED + 1))
+        fi
+        
+        if grep -q "se.malmo.skaggbyran.amp.WebViewConfigurator" "$MAPPING_FILE"; then
+            echo "  ⚠️  WebViewConfigurator appears in mapping.txt (may be obfuscated)"
+            OBFUSCATED=$((OBFUSCATED + 1))
+        fi
+        
+        if grep -q "dev.dioxus.main.MainActivity" "$MAPPING_FILE"; then
+            echo "  ⚠️  MainActivity appears in mapping.txt (may be obfuscated)"
+            OBFUSCATED=$((OBFUSCATED + 1))
+        fi
+        
+        if [ "$OBFUSCATED" -gt 0 ]; then
+            echo "  ⚠️  WARNING: $OBFUSCATED critical classes were obfuscated!"
+            echo "     This may cause ClassNotFoundException at runtime"
+        else
+            echo "  ✅ No critical class obfuscation detected"
+        fi
+    else
+        echo "  ℹ️  mapping.txt not found (R8 may not have run or diagnostics not enabled)"
+    fi
+    
+    if [ -f "$SEEDS_FILE" ]; then
+        echo ""
+        echo "  📄 R8 seeds.txt found - verifying ProGuard rules..."
+        
+        local KEPT=0
+        
+        if grep -q "se.malmo.skaggbyran.amp.NotificationHelper" "$SEEDS_FILE"; then
+            echo "  ✅ NotificationHelper kept by ProGuard rules"
+            KEPT=$((KEPT + 1))
+        else
+            echo "  ❌ NotificationHelper NOT in seeds.txt (ProGuard rule failed!)"
+        fi
+        
+        if grep -q "se.malmo.skaggbyran.amp.WebViewConfigurator" "$SEEDS_FILE"; then
+            echo "  ✅ WebViewConfigurator kept by ProGuard rules"
+            KEPT=$((KEPT + 1))
+        else
+            echo "  ❌ WebViewConfigurator NOT in seeds.txt (ProGuard rule failed!)"
+        fi
+        
+        if grep -q "dev.dioxus.main.MainActivity" "$SEEDS_FILE"; then
+            echo "  ✅ MainActivity kept by ProGuard rules"
+            KEPT=$((KEPT + 1))
+        else
+            echo "  ❌ MainActivity NOT in seeds.txt (ProGuard rule failed!)"
+        fi
+        
+        if [ "$KEPT" -lt 3 ]; then
+            echo ""
+            echo "  ❌ CRITICAL: Only $KEPT/3 classes kept by ProGuard!"
+            echo "     App will crash with ClassNotFoundException"
+            return 1
+        fi
+    else
+        echo "  ℹ️  seeds.txt not found"
+    fi
+    
+    if [ -f "$USAGE_FILE" ]; then
+        echo ""
+        echo "  📄 R8 usage.txt available for manual inspection"
+    fi
+    
+    echo ""
+    echo "  ✅ R8 diagnostics complete"
+    return 0
+}
+
+# Run R8 diagnostics
+if [ -d "$ANDROID_DIR" ]; then
+    analyze_r8_output || {
+        echo ""
+        echo "  ⚠️  R8 diagnostics detected issues"
+        echo "     Check ProGuard rules in: $ANDROID_DIR/proguard-rules.pro"
+    }
+fi
+# ========== END R8 DIAGNOSTICS ==========
+
 # Show APK location
 echo ""
 echo "📍 APK location:"
@@ -668,7 +889,22 @@ if [ -n "$APK_PATH" ]; then
             # Show class details for confirmation
             echo ""
             echo "  📋 Class details:"
-            dexdump -l plain "$APK_PATH" 2>/dev/null | grep -E "(NotificationHelper|WebViewConfigurator|MainActivity)" | head -n 6
+            dexdump -l plain "$APK_PATH" 2>/dev/null | grep -E "(NotificationHelper|WebViewConfigurator|dev/dioxus/main/MainActivity)" | head -n 10
+            
+            # Verify methods exist
+            echo ""
+            echo "  🔍 Verifying critical methods..."
+            if dexdump -l plain "$APK_PATH" 2>/dev/null | grep -q "configure.*Landroid/webkit/WebView"; then
+                echo "  ✅ WebViewConfigurator.configure(WebView) method present"
+            else
+                echo "  ⚠️  WebViewConfigurator.configure() method signature unclear"
+            fi
+            
+            if dexdump -l plain "$APK_PATH" 2>/dev/null | grep -q "onWebViewCreate"; then
+                echo "  ✅ MainActivity.onWebViewCreate() method present"
+            else
+                echo "  ⚠️  MainActivity.onWebViewCreate() method not clearly visible"
+            fi
         else
             echo ""
             echo "  ❌ FATAL ERROR: Missing Kotlin classes in classes.dex"
@@ -678,7 +914,7 @@ if [ -n "$APK_PATH" ]; then
             echo "  1. Check if src/main/kotlin is registered in build.gradle.kts"
             echo "  2. Verify kotlin-android plugin is applied"
             echo "  3. Check build logs for Kotlin compilation errors"
-            echo "  4. Check ProGuard rules - R8 may be stripping the classes"
+            echo "  4. Review R8 diagnostics above - classes may have been stripped"
             exit 1
         fi
     else
@@ -750,7 +986,7 @@ echo ""
 echo "📝 Next steps:"
 echo "   1. Uninstall old: adb uninstall se.malmo.skaggbyran.amp"
 echo "   2. Install new: adb install \"$APK_PATH\""
-echo "   3. Monitor with: adb logcat | grep -E '(amp_MainActivity|amp_WebViewConfig|Notifications)'"
+echo "   3. Monitor with: adb logcat | grep -E '(amp_MainActivity|amp_WebViewConfig|Notifications|AndroidRuntime)'"
 echo ""
 echo "🔍 If blank screen persists:"
 echo "   - Check logcat for 'amp_MainActivity' logs"
@@ -759,6 +995,7 @@ echo "   - Use Chrome DevTools: chrome://inspect"
 echo "   - Test localStorage in Console: localStorage.setItem('test', 'works')"
 echo ""
 echo "🔍 If app crashes, check:"
-echo "   - ClassNotFoundException → Classes not in DEX (run dexdump verification)"
+echo "   - ClassNotFoundException → Review R8 diagnostics above"
+echo "   - Check R8 mapping files: $ANDROID_DIR/build/outputs/mapping/release/"
 echo "   - JNI errors → Check android_bridge.rs calls correct package"
 echo "   - Build errors → Check gradle logs in /tmp/gradle_build.log"
