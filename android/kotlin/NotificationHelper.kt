@@ -1,17 +1,23 @@
 package se.malmo.skaggbyran.amp
 
+import android.Manifest
+import android.app.Activity
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
+import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import android.util.Log
 
 /**
  * Helper class for managing Android notifications from Rust/JNI.
  *
  * Provides static methods to:
+ * - Request notification permission (Android 13+)
  * - Create notification channels (Android 8.0+ / API 26+)
  * - Display notifications with proper priority and behavior
  *
@@ -24,11 +30,59 @@ import android.util.Log
  */
 object NotificationHelper {
     private const val TAG = "AmpNotifications"
+    private const val PERMISSION_REQUEST_CODE = 1001
     
     // Channel IDs matching Rust constants
     private const val CHANNEL_ACTIVE = "amp_active"
     private const val CHANNEL_SIX_HOURS = "amp_six_hours"
     private const val CHANNEL_ONE_DAY = "amp_one_day"
+
+    /**
+     * Request notification permission from user.
+     *
+     * For Android 13+: Shows system permission dialog for POST_NOTIFICATIONS
+     * For Android <13: No-op (permission not required)
+     *
+     * @param activity The activity to request permission from (must be Activity, not Context)
+     *
+     * @JvmStatic annotation makes this callable from JNI
+     */
+    @JvmStatic
+    fun requestNotificationPermission(activity: Activity) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            when {
+                ContextCompat.checkSelfPermission(
+                    activity,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED -> {
+                    Log.d(TAG, "Notification permission already granted")
+                }
+                ActivityCompat.shouldShowRequestPermissionRationale(
+                    activity,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) -> {
+                    // User previously denied, show explanation if needed
+                    Log.d(TAG, "User previously denied notification permission")
+                    ActivityCompat.requestPermissions(
+                        activity,
+                        arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                        PERMISSION_REQUEST_CODE
+                    )
+                }
+                else -> {
+                    // First time requesting
+                    Log.d(TAG, "Requesting notification permission")
+                    ActivityCompat.requestPermissions(
+                        activity,
+                        arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                        PERMISSION_REQUEST_CODE
+                    )
+                }
+            }
+        } else {
+            Log.d(TAG, "Android < 13, notification permission not required")
+        }
+    }
 
     /**
      * Create notification channels for Android 8.0+ (API 26+).
@@ -220,8 +274,8 @@ object NotificationHelper {
     fun hasNotificationPermission(context: Context): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             // Android 13+ requires runtime permission
-            context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == 
-                android.content.pm.PackageManager.PERMISSION_GRANTED
+            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == 
+                PackageManager.PERMISSION_GRANTED
         } else {
             // Older Android versions don't require runtime permission
             true
