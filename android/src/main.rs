@@ -15,7 +15,6 @@ fn main() {
             eprintln!("[Main] App will use fallback storage paths");
         }
     }
-
     #[cfg(target_os = "android")]
     {
         android_logger::init_once(
@@ -24,30 +23,24 @@ fn main() {
                 .with_tag("amp"),
         );
     }
-
     #[cfg(not(target_os = "android"))]
     {
         env_logger::init();
     }
-
     log::info!("Starting Amp Android app");
-
-    // Request notification permission on Android 13+
     #[cfg(target_os = "android")]
     android_bridge::request_notification_permission_jni();
-
     #[cfg(target_os = "android")]
     {
         use dioxus::mobile::Config;
-
         dioxus::LaunchBuilder::new()
-            .with_cfg(Config::new().with_custom_head(r#"<style>body { margin: 0; }</style>"#.to_string()))
+            .with_cfg(
+                Config::new().with_custom_head(r#"<style>body { margin: 0; }</style>"#.to_string()),
+            )
             .launch(ui::App);
     }
-
     #[cfg(not(target_os = "android"))]
     {
         dioxus::launch(ui::App);
     }
 }
-

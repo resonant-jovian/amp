@@ -11,16 +11,12 @@ use amp_core::structs::SettingsData;
 use std::fs::File;
 use std::path::PathBuf;
 use std::sync::Mutex;
-
 /// Thread-safe settings mutex
 static SETTINGS_LOCK: Mutex<()> = Mutex::new(());
-
 #[cfg(target_os = "android")]
 const SETTINGS_FILE_NAME: &str = "settings.parquet";
-
 #[cfg(not(target_os = "android"))]
 const SETTINGS_FILE_NAME: &str = "settings.parquet";
-
 /// Notification timing preferences
 #[derive(Clone, Debug, PartialEq)]
 pub struct NotificationSettings {
@@ -31,7 +27,6 @@ pub struct NotificationSettings {
     /// Notify 1 day before cleaning
     pub en_dag: bool,
 }
-
 impl Default for NotificationSettings {
     fn default() -> Self {
         Self {
@@ -41,7 +36,6 @@ impl Default for NotificationSettings {
         }
     }
 }
-
 /// Theme preference
 #[derive(Clone, Debug, PartialEq, Default)]
 pub enum Theme {
@@ -49,7 +43,6 @@ pub enum Theme {
     Light,
     Dark,
 }
-
 impl std::fmt::Display for Theme {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -58,7 +51,6 @@ impl std::fmt::Display for Theme {
         }
     }
 }
-
 impl Theme {
     fn from_string(s: &str) -> Self {
         match s {
@@ -67,7 +59,6 @@ impl Theme {
         }
     }
 }
-
 /// Supported languages
 #[derive(Clone, Debug, PartialEq, Default)]
 pub enum Language {
@@ -77,7 +68,6 @@ pub enum Language {
     Espanol,
     Francais,
 }
-
 impl Language {
     /// Get the storage key for this language (without accents)
     /// This is used for serialization to ensure consistent roundtrips
@@ -89,7 +79,6 @@ impl Language {
             Language::Francais => "Francais",
         }
     }
-
     fn from_string(s: &str) -> Self {
         match s {
             "English" => Language::English,
@@ -99,13 +88,11 @@ impl Language {
         }
     }
 }
-
 impl std::fmt::Display for Language {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.as_str())
     }
 }
-
 /// Complete app settings
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct AppSettings {
@@ -113,7 +100,6 @@ pub struct AppSettings {
     pub theme: Theme,
     pub language: Language,
 }
-
 /// Convert SettingsData from Parquet to AppSettings
 fn from_settings_data(data: SettingsData) -> AppSettings {
     AppSettings {
@@ -126,7 +112,6 @@ fn from_settings_data(data: SettingsData) -> AppSettings {
         language: Language::from_string(&data.language),
     }
 }
-
 /// Convert AppSettings to SettingsData for Parquet serialization
 fn to_settings_data(settings: &AppSettings) -> SettingsData {
     SettingsData {
@@ -137,7 +122,6 @@ fn to_settings_data(settings: &AppSettings) -> SettingsData {
         language: settings.language.to_string(),
     }
 }
-
 /// Get app-specific storage directory that's writable on Android
 #[cfg(target_os = "android")]
 fn get_storage_dir() -> Result<PathBuf, String> {
@@ -146,7 +130,6 @@ fn get_storage_dir() -> Result<PathBuf, String> {
         eprintln!("[Settings] Using APP_FILES_DIR: {:?}", path);
         return Ok(path);
     }
-
     let app_dir = PathBuf::from("/data/local/tmp/amp_storage");
     if !app_dir.exists() {
         std::fs::create_dir_all(&app_dir).map_err(|e| {
@@ -159,19 +142,16 @@ fn get_storage_dir() -> Result<PathBuf, String> {
     }
     Ok(app_dir)
 }
-
 #[cfg(not(target_os = "android"))]
 fn get_storage_dir() -> Result<PathBuf, String> {
     std::env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))
 }
-
 /// Get the settings file path
 fn get_settings_path() -> Result<PathBuf, String> {
     let mut path = get_storage_dir()?;
     path.push(SETTINGS_FILE_NAME);
     Ok(path)
 }
-
 /// Load settings from persistent storage (thread-safe)
 ///
 /// Returns default settings if file doesn't exist or can't be parsed.
@@ -185,7 +165,6 @@ fn get_settings_path() -> Result<PathBuf, String> {
 /// ```
 pub fn load_settings() -> AppSettings {
     let _lock = SETTINGS_LOCK.lock().unwrap();
-
     match get_settings_path() {
         Ok(path) => {
             if path.exists() {
@@ -218,10 +197,8 @@ pub fn load_settings() -> AppSettings {
             eprintln!("[Settings] Failed to get settings path: {}", e);
         }
     }
-
     AppSettings::default()
 }
-
 /// Save settings to persistent storage (thread-safe)
 ///
 /// Converts AppSettings to SettingsData and writes to Parquet file.
@@ -241,33 +218,24 @@ pub fn load_settings() -> AppSettings {
 /// ```
 pub fn save_settings(settings: &AppSettings) {
     let _lock = SETTINGS_LOCK.lock().unwrap();
-
     match get_settings_path() {
         Ok(path) => {
-            // Ensure parent directory exists
-            if let Some(parent) = path.parent() {
-                if !parent.exists() {
-                    if let Err(e) = std::fs::create_dir_all(parent) {
-                        eprintln!("[Settings] Failed to create directory {:?}: {}", parent, e);
+            if let Some(parent) = path.parent()
+                && !parent.exists()
+                    && let Err(e) = std::fs::create_dir_all(parent) {
+                        eprintln!("[Settings] Failed to create directory {:?}: {}", parent, e,);
                         return;
                     }
-                }
-            }
-
-            // Convert to SettingsData and build parquet bytes
             let settings_data = to_settings_data(settings);
             match build_settings_parquet(vec![settings_data]) {
-                Ok(parquet_bytes) => {
-                    // Write bytes to file
-                    match std::fs::write(&path, parquet_bytes) {
-                        Ok(_) => {
-                            eprintln!("[Settings] Saved to {:?}", path);
-                        }
-                        Err(e) => {
-                            eprintln!("[Settings] Failed to write file {:?}: {}", path, e);
-                        }
+                Ok(parquet_bytes) => match std::fs::write(&path, parquet_bytes) {
+                    Ok(_) => {
+                        eprintln!("[Settings] Saved to {:?}", path);
                     }
-                }
+                    Err(e) => {
+                        eprintln!("[Settings] Failed to write file {:?}: {}", path, e,);
+                    }
+                },
                 Err(e) => {
                     eprintln!("[Settings] Failed to build parquet: {}", e);
                 }
@@ -278,11 +246,9 @@ pub fn save_settings(settings: &AppSettings) {
         }
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn test_default_settings() {
         let settings = AppSettings::default();
@@ -292,13 +258,11 @@ mod tests {
         assert!(settings.notifications.sex_timmar);
         assert!(!settings.notifications.en_dag);
     }
-
     #[test]
     fn test_theme_display() {
         assert_eq!(Theme::Light.to_string(), "Light");
         assert_eq!(Theme::Dark.to_string(), "Dark");
     }
-
     #[test]
     fn test_language_serialization() {
         assert_eq!(Language::Svenska.to_string(), "Svenska");
@@ -306,7 +270,6 @@ mod tests {
         assert_eq!(Language::Espanol.to_string(), "Espanol");
         assert_eq!(Language::Francais.to_string(), "Francais");
     }
-
     #[test]
     fn test_settings_roundtrip() {
         let original = AppSettings {
@@ -318,10 +281,8 @@ mod tests {
             theme: Theme::Dark,
             language: Language::English,
         };
-
         let settings_data = to_settings_data(&original);
         let restored = from_settings_data(settings_data);
-
         assert_eq!(original, restored);
     }
 }

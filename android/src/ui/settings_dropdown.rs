@@ -1,6 +1,6 @@
+use crate::components::notifications::{notify_active, notify_one_day, notify_six_hours};
 use crate::components::settings::{load_settings, save_settings};
 use crate::ui::StoredAddress;
-use crate::components::notifications::{notify_active, notify_six_hours, notify_one_day};
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::fa_brands_icons::FaDev;
@@ -8,7 +8,6 @@ use dioxus_free_icons::icons::md_action_icons::{MdInfo, MdSettings};
 use dioxus_free_icons::icons::md_navigation_icons::{MdExpandLess, MdExpandMore};
 use dioxus_free_icons::icons::md_social_icons::MdNotificationsActive;
 use std::time::Duration;
-
 /// Represents which settings section is currently open
 #[derive(Clone, Copy, PartialEq)]
 enum OpenSection {
@@ -18,7 +17,6 @@ enum OpenSection {
     Info,
     Debug,
 }
-
 /// Settings dropdown panel component
 ///
 /// Displays a slide-in panel from the top-right with expandable settings sections.
@@ -57,7 +55,6 @@ pub fn SettingsDropdown(
 ) -> Element {
     let mut settings = use_signal(load_settings);
     let mut open_section = use_signal(|| OpenSection::None);
-
     let toggle_section = move |target_section: OpenSection| {
         spawn(async move {
             let current = open_section();
@@ -72,30 +69,24 @@ pub fn SettingsDropdown(
             }
         });
     };
-
-    // Notification toggle handlers
     let on_toggle_stadning_nu = move |_| {
         let mut current = settings();
         current.notifications.stadning_nu = !current.notifications.stadning_nu;
         save_settings(&current);
         settings.set(current);
     };
-
     let on_toggle_sex_timmar = move |_| {
         let mut current = settings();
         current.notifications.sex_timmar = !current.notifications.sex_timmar;
         save_settings(&current);
         settings.set(current);
     };
-
     let on_toggle_en_dag = move |_| {
         let mut current = settings();
         current.notifications.en_dag = !current.notifications.en_dag;
         save_settings(&current);
         settings.set(current);
     };
-
-    // Debug notification trigger handlers
     let trigger_active_notification = move || {
         let debug_address = StoredAddress {
             id: 99999,
@@ -109,7 +100,6 @@ pub fn SettingsDropdown(
         eprintln!("[Debug] Triggering active notification");
         notify_active(&debug_address);
     };
-
     let trigger_six_hour_notification = move || {
         let debug_address = StoredAddress {
             id: 99998,
@@ -123,7 +113,6 @@ pub fn SettingsDropdown(
         eprintln!("[Debug] Triggering 6-hour notification");
         notify_six_hours(&debug_address);
     };
-
     let trigger_one_day_notification = move || {
         let debug_address = StoredAddress {
             id: 99997,
@@ -137,17 +126,14 @@ pub fn SettingsDropdown(
         eprintln!("[Debug] Triggering 1-day notification");
         notify_one_day(&debug_address);
     };
-
     if !is_open {
         return rsx!();
     }
-
     rsx! {
         div { class: "settings-overlay", onclick: move |_| on_close.call(()),
             div {
                 class: "settings-dropdown",
                 onclick: move |e| e.stop_propagation(),
-
                 div { class: "settings-header",
                     h3 { "Inställningar" }
                     button {
@@ -156,15 +142,12 @@ pub fn SettingsDropdown(
                         "×"
                     }
                 }
-
                 div { class: "settings-content",
-                    // Aviseringar section
                     div { class: "settings-section",
                         button {
                             class: "settings-section-header",
                             onclick: move |_| toggle_section(OpenSection::Aviseringar),
                             "aria-expanded": if open_section() == OpenSection::Aviseringar { "true" } else { "false" },
-
                             div { class: "settings-section-header-left",
                                 Icon {
                                     icon: MdNotificationsActive,
@@ -192,9 +175,7 @@ pub fn SettingsDropdown(
                         div {
                             class: "settings-section-content",
                             "aria-hidden": if open_section() == OpenSection::Aviseringar { "false" } else { "true" },
-
                             div { class: "settings-section-body",
-                                // Toggle 1: Städas nu
                                 div { class: "settings-toggle-item",
                                     div { class: "settings-item-text",
                                         div { class: "settings-item-label", "Städas nu" }
@@ -217,8 +198,6 @@ pub fn SettingsDropdown(
                                         }
                                     }
                                 }
-
-                                // Toggle 2: 6 timmar
                                 div { class: "settings-toggle-item",
                                     div { class: "settings-item-text",
                                         div { class: "settings-item-label", "6 timmar" }
@@ -241,8 +220,6 @@ pub fn SettingsDropdown(
                                         }
                                     }
                                 }
-
-                                // Toggle 3: 1 dag
                                 div { class: "settings-toggle-item",
                                     div { class: "settings-item-text",
                                         div { class: "settings-item-label", "1 dag" }
@@ -268,14 +245,11 @@ pub fn SettingsDropdown(
                             }
                         }
                     }
-
-                    // Inställningar section
                     div { class: "settings-section",
                         button {
                             class: "settings-section-header",
                             onclick: move |_| toggle_section(OpenSection::Installningar),
                             "aria-expanded": if open_section() == OpenSection::Installningar { "true" } else { "false" },
-
                             div { class: "settings-section-header-left",
                                 Icon { icon: MdSettings, width: 16, height: 16 }
                                 span { "Inställningar" }
@@ -299,7 +273,6 @@ pub fn SettingsDropdown(
                         div {
                             class: "settings-section-content",
                             "aria-hidden": if open_section() == OpenSection::Installningar { "false" } else { "true" },
-
                             div { class: "settings-section-body",
                                 div { class: "settings-toggle-item",
                                     div { class: "settings-item-text" }
@@ -307,14 +280,11 @@ pub fn SettingsDropdown(
                             }
                         }
                     }
-
-                    // Info section
                     div { class: "settings-section",
                         button {
                             class: "settings-section-header",
                             onclick: move |_| toggle_section(OpenSection::Info),
                             "aria-expanded": if open_section() == OpenSection::Info { "true" } else { "false" },
-
                             div { class: "settings-section-header-left",
                                 Icon { icon: MdInfo, width: 16, height: 16 }
                                 span { "Info" }
@@ -338,7 +308,6 @@ pub fn SettingsDropdown(
                         div {
                             class: "settings-section-content",
                             "aria-hidden": if open_section() == OpenSection::Info { "false" } else { "true" },
-
                             div { class: "settings-section-body",
                                 h4 { class: "info-heading", "Om appen" }
                                 p { class: "info-text",
@@ -350,14 +319,11 @@ pub fn SettingsDropdown(
                             }
                         }
                     }
-
-                    // Debug section
                     div { class: "settings-section",
                         button {
                             class: "settings-section-header",
                             onclick: move |_| toggle_section(OpenSection::Debug),
                             "aria-expanded": if open_section() == OpenSection::Debug { "true" } else { "false" },
-
                             div { class: "settings-section-header-left",
                                 Icon { icon: FaDev, width: 16, height: 16 }
                                 span { "Debug" }
@@ -381,9 +347,7 @@ pub fn SettingsDropdown(
                         div {
                             class: "settings-section-content",
                             "aria-hidden": if open_section() == OpenSection::Debug { "false" } else { "true" },
-
                             div { class: "settings-section-body",
-                                // Debug mode toggle
                                 div { class: "settings-toggle-item",
                                     div { class: "settings-item-text",
                                         div { class: "settings-item-label", "Debug adresser" }
@@ -406,8 +370,6 @@ pub fn SettingsDropdown(
                                         }
                                     }
                                 }
-
-                                // Test notification: Active
                                 div { class: "settings-toggle-item",
                                     div { class: "settings-item-text",
                                         div { class: "settings-item-label", "Test Städas nu" }
@@ -421,8 +383,6 @@ pub fn SettingsDropdown(
                                         "🚫"
                                     }
                                 }
-
-                                // Test notification: 6 hours
                                 div { class: "settings-toggle-item",
                                     div { class: "settings-item-text",
                                         div { class: "settings-item-label", "Test 6 timmar" }
@@ -436,8 +396,6 @@ pub fn SettingsDropdown(
                                         "⏰"
                                     }
                                 }
-
-                                // Test notification: 1 day
                                 div { class: "settings-toggle-item",
                                     div { class: "settings-item-text",
                                         div { class: "settings-item-label", "Test 1 dag" }

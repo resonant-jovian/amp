@@ -22,7 +22,7 @@
 #[cfg(target_os = "android")]
 use jni::{
     JavaVM,
-    objects::{JObject, JValue, JClass},
+    objects::{JClass, JObject, JValue},
     sys::jint,
 };
 #[cfg(target_os = "android")]
@@ -31,7 +31,6 @@ use ndk_context;
 use once_cell::sync::OnceCell;
 #[cfg(target_os = "android")]
 static JAVA_VM: OnceCell<JavaVM> = OnceCell::new();
-
 /// Request notification permission from user
 ///
 /// For Android 13+: Shows system permission dialog
@@ -49,32 +48,38 @@ pub fn request_notification_permission_jni() {
         eprintln!("[Mock Android Bridge] Notification permission request (no-op)");
     }
 }
-
 #[cfg(target_os = "android")]
 fn request_notification_permission() -> Result<(), String> {
     let mut env = get_jni_env()?;
     let context = get_android_context()?;
-    
-    let class_loader = env.call_method(&context, "getClassLoader", "()Ljava/lang/ClassLoader;", &[])
-        .map_err(|e| format!("ClassLoader error: {:?}", e))?.l()
+    let class_loader = env
+        .call_method(&context, "getClassLoader", "()Ljava/lang/ClassLoader;", &[])
+        .map_err(|e| format!("ClassLoader error: {:?}", e))?
+        .l()
         .map_err(|e| format!("Not object: {:?}", e))?;
-    
-    let j_class_name = env.new_string("se.malmo.skaggbyran.amp.NotificationPermissionHelper")
+    let j_class_name = env
+        .new_string("se.malmo.skaggbyran.amp.NotificationPermissionHelper")
         .map_err(|e| format!("String error: {:?}", e))?;
-    
-    let class_obj = env.call_method(class_loader, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;", 
-        &[JValue::Object(&j_class_name.into())])
-        .map_err(|e| format!("Load class error: {:?}", e))?.l()
+    let class_obj = env
+        .call_method(
+            class_loader,
+            "loadClass",
+            "(Ljava/lang/String;)Ljava/lang/Class;",
+            &[JValue::Object(&j_class_name.into())],
+        )
+        .map_err(|e| format!("Load class error: {:?}", e))?
+        .l()
         .map_err(|e| format!("Not object: {:?}", e))?;
-    
     let helper_class = JClass::from(class_obj);
-    
-    env.call_static_method(helper_class, "requestNotificationPermission", "(Landroid/app/Activity;)V",
-        &[JValue::Object(&context)])
-        .map_err(|e| format!("Call failed: {:?}", e))?;
+    env.call_static_method(
+        helper_class,
+        "requestNotificationPermission",
+        "(Landroid/app/Activity;)V",
+        &[JValue::Object(&context)],
+    )
+    .map_err(|e| format!("Call failed: {:?}", e))?;
     Ok(())
 }
-
 /// Initialize Android notification channels
 ///
 /// Creates three notification channels for Android 8.0+ (API 26+):
@@ -233,7 +238,6 @@ fn get_android_context() -> Result<JObject<'static>, String> {
     }
     Ok(activity)
 }
-
 /// Create notification channels via JNI
 ///
 /// Calls NotificationHelper.createNotificationChannels(Context) using JNI.
@@ -250,23 +254,14 @@ fn get_android_context() -> Result<JObject<'static>, String> {
 fn create_notification_channels() -> Result<(), String> {
     let mut env = get_jni_env()?;
     let context = get_android_context()?;
-    
-    // Load NotificationHelper using app ClassLoader (inline to avoid lifetime issues)
     let class_loader = env
-        .call_method(
-            &context,
-            "getClassLoader",
-            "()Ljava/lang/ClassLoader;",
-            &[],
-        )
+        .call_method(&context, "getClassLoader", "()Ljava/lang/ClassLoader;", &[])
         .map_err(|e| format!("Failed to get ClassLoader: {:?}", e))?
         .l()
         .map_err(|e| format!("ClassLoader not an object: {:?}", e))?;
-    
     let j_class_name = env
         .new_string("se.malmo.skaggbyran.amp.NotificationHelper")
         .map_err(|e| format!("Failed to create class name string: {:?}", e))?;
-    
     let class_obj = env
         .call_method(
             class_loader,
@@ -277,9 +272,7 @@ fn create_notification_channels() -> Result<(), String> {
         .map_err(|e| format!("Failed to load NotificationHelper: {:?}", e))?
         .l()
         .map_err(|e| format!("Loaded class not an object: {:?}", e))?;
-    
     let helper_class = JClass::from(class_obj);
-    
     env.call_static_method(
         helper_class,
         "createNotificationChannels",
@@ -326,23 +319,14 @@ fn show_notification(
     let j_body = env
         .new_string(body)
         .map_err(|e| format!("Failed to create Java string for body: {:?}", e))?;
-    
-    // Load NotificationHelper using app ClassLoader (inline to avoid lifetime issues)
     let class_loader = env
-        .call_method(
-            &context,
-            "getClassLoader",
-            "()Ljava/lang/ClassLoader;",
-            &[],
-        )
+        .call_method(&context, "getClassLoader", "()Ljava/lang/ClassLoader;", &[])
         .map_err(|e| format!("Failed to get ClassLoader: {:?}", e))?
         .l()
         .map_err(|e| format!("ClassLoader not an object: {:?}", e))?;
-    
     let j_class_name = env
         .new_string("se.malmo.skaggbyran.amp.NotificationHelper")
         .map_err(|e| format!("Failed to create class name string: {:?}", e))?;
-    
     let class_obj = env
         .call_method(
             class_loader,
@@ -353,9 +337,7 @@ fn show_notification(
         .map_err(|e| format!("Failed to load NotificationHelper: {:?}", e))?
         .l()
         .map_err(|e| format!("Loaded class not an object: {:?}", e))?;
-    
     let helper_class = JClass::from(class_obj);
-    
     env.call_static_method(
         helper_class,
         "showNotification",
