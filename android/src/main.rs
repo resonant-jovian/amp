@@ -32,7 +32,9 @@ fn main() {
 
     log::info!("Starting Amp Android app");
 
-    // Remove the background thread - MainActivity.onWebViewCreate() handles it!
+    // Request notification permission on Android 13+
+    #[cfg(target_os = "android")]
+    android_bridge::request_notification_permission_jni();
 
     #[cfg(target_os = "android")]
     {
