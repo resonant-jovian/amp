@@ -93,9 +93,9 @@ pub fn notify_one_day(address: &StoredAddress) {
         );
         return;
     }
-    let title = "📅 Street cleaning tomorrow";
+    let title = "Städning inom 1 dygn";
     let body = format!(
-        "Street cleaning tomorrow on {}. Plan to move your car from {} {}.",
+        "Städning inom 1 dygn på {}. Planera att flytta din bil från {} {}.",
         address.street, address.street, address.street_number,
     );
     send_notification(CHANNEL_ONE_DAY, title, &body, address.id);
@@ -134,9 +134,9 @@ pub fn notify_six_hours(address: &StoredAddress) {
         );
         return;
     }
-    let title = "⏰ Street cleaning in 6 hours";
+    let title = "Städning om 6 timmar";
     let body = format!(
-        "Street cleaning starting soon on {}. Consider moving your car from {} {}.",
+        "Städning börjar snart på {}. Du bör flytta din bil från {} {}.",
         address.street, address.street, address.street_number,
     );
     send_notification(CHANNEL_SIX_HOURS, title, &body, address.id);
@@ -175,9 +175,9 @@ pub fn notify_active(address: &StoredAddress) {
         );
         return;
     }
-    let title = "🚫 Street cleaning NOW!";
+    let title = "Städning NU!";
     let body = format!(
-        "Street cleaning active on {}. Your car at {} {} is in an active zone!",
+        "Städning pågående på {}. Din bil på {} {} kan få böter!",
         address.street, address.street, address.street_number,
     );
     send_notification(CHANNEL_ACTIVE, title, &body, address.id);
