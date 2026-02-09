@@ -472,16 +472,6 @@ APK_PATH="$(
 if [ -n "$APK_PATH" ]; then
     ls -lh -- "$APK_PATH"
 
-    # Verify icons
-    echo ""
-    echo "🔍 Verifying icons in APK..."
-    if unzip -l "$APK_PATH" | grep -Ei "res/(mipmap|drawable).*launcher.*\.png" > /dev/null; then
-        echo "✅ Custom launcher-like icons found in APK:"
-        unzip -l "$APK_PATH" | grep -Ei "res/(mipmap|drawable).*launcher.*\.png"
-    else
-        echo "⚠️  No launcher-like PNGs found (names may be aapt-compiled)."
-    fi
-
     # ========== VERIFY NotificationHelper IN DEX ==========
     echo ""
     echo "🔍 CRITICAL: Verifying NotificationHelper compiled into classes.dex..."
