@@ -6,6 +6,8 @@ mod android_bridge;
 mod android_utils;
 mod components;
 mod ui;
+#[cfg(target_os = "android")]
+mod webview_config;
 fn main() {
     #[cfg(target_os = "android")]
     {
@@ -27,5 +29,48 @@ fn main() {
         env_logger::init();
     }
     log::info!("Starting Amp Android app");
+    // ========== CRITICAL: Configure WebView DOM Storage ==========
+    // Spawn background thread to configure WebView after Dioxus creates it.
+    // This fixes blank screen by enabling localStorage/sessionStorage.
+    //
+    // Why background thread?
+    // - Dioxus launch() blocks until app exits
+    // - WebView is created internally by WRY during launch()
+    // - We need to wait for WebView to exist before configuring it
+    // - Background thread allows us to configure after ~300ms delay
+    //
+    // Alternative: Hook WRY's WebViewBuilder (requires Dioxus fork)
+    #[cfg(target_os = "android")]
+    {
+        log::info!("[Main] Spawning WebView configuration thread...");
+        std::thread::spawn(|| {
+            // Wait for WebView to be created
+            // Dioxus typically creates WebView within first 100-200ms
+            log::debug!("[Main] Waiting 300ms for WebView creation...");
+            std::thread::sleep(std::time::Duration::from_millis(300));
+            // Configure WebView via JNI
+            log::info!("[Main] Configuring WebView DOM storage...");
+            match webview_config::configure_webview_dom_storage() {
+                Ok(()) => {
+                    log::info!("[Main] ✅ WebView configuration successful!");
+                    log::info!("[Main] DOM storage enabled - Dioxus should render");
+                    // Verify configuration
+                    match webview_config::verify_dom_storage_enabled() {
+                        Ok(true) => log::info!("[Main] ✅ Verification: DOM storage is enabled"),
+                        Ok(false) => log::warn!("[Main] ⚠️  Verification: DOM storage still disabled"),
+                        Err(e) => log::warn!("[Main] ⚠️  Verification failed: {}", e),
+                    }
+                }
+                Err(e) => {
+                    log::error!("[Main] ❌ WebView configuration FAILED: {}", e);
+                    log::error!("[Main] App will show blank screen without DOM storage");
+                    log::error!("[Main] Workaround: Add INTERNET permission temporarily");
+                }
+            }
+        });
+        log::info!("[Main] WebView configuration thread spawned");
+    }
+    // ========== END WEBVIEW CONFIGURATION ==========
+    log::info!("[Main] Launching Dioxus...");
     launch(ui::App);
 }
