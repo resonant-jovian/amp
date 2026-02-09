@@ -62,10 +62,17 @@
 //! 1. Get Android Context from `ndk_context`
 //! 2. Convert raw VM pointer to JavaVM
 //! 3. Attach to JVM thread
-//! 4. Find `WebViewConfigurator` class
-//! 5. Get `Activity` from context
-//! 6. Find `WebView` in activity's view hierarchy
-//! 7. Call `WebViewConfigurator.configure(webView)`
+//! 4. Get Activity's ClassLoader (critical for app classes)
+//! 5. Load `WebViewConfigurator` class via app ClassLoader
+//! 6. Get `Activity` from context
+//! 7. Find `WebView` in activity's view hierarchy
+//! 8. Call `WebViewConfigurator.configure(webView)`
+//!
+//! ## ClassLoader Context Fix
+//!
+//! **Critical:** JNI's `find_class()` uses the system ClassLoader, which can't
+//! see app-specific classes. We must use `Activity.getClassLoader().loadClass()`
+//! to find classes in the app's APK.
 //!
 //! ## Error Handling
 //!
@@ -119,10 +126,11 @@
 //! - [Dioxus Issue #1875](https://github.com/DioxusLabs/dioxus/issues/1875)
 //! - [Android WebSettings](https://developer.android.com/reference/android/webkit/WebSettings)
 //! - [JNI Spec](https://docs.oracle.com/javase/8/docs/technotes/guides/jni/)
+//! - [Android ClassLoader](https://developer.android.com/reference/java/lang/ClassLoader)
 #[cfg(target_os = "android")]
 use jni::{
     JNIEnv, JavaVM,
-    objects::{JObject, JValue},
+    objects::{JObject, JValue, JClass},
 };
 #[cfg(target_os = "android")]
 use log::{debug, error, info, warn};
@@ -169,28 +177,62 @@ pub fn configure_webview_dom_storage() -> Result<(), String> {
 /// Internal JNI implementation of WebView configuration.
 ///
 /// Separated from public API to allow easier testing and mocking.
+/// 
+/// # ClassLoader Fix
+/// 
+/// **Critical:** Uses Activity's ClassLoader instead of system ClassLoader.
+/// JNI's `find_class()` searches the system ClassLoader, which doesn't have
+/// access to app-specific classes in the APK. We must use:
+/// ```java
+/// activity.getClassLoader().loadClass("se.malmo.skaggbyran.amp.WebViewConfigurator")
+/// ```
 #[cfg(target_os = "android")]
 fn configure_webview_internal(env: &mut JNIEnv) -> Result<(), String> {
-    debug!("[{}] Looking up WebViewConfigurator class...", TAG);
-    let configurator_class = env
-        .find_class("se/malmo/skaggbyran/amp/WebViewConfigurator")
-        .map_err(|e| {
-            error!("[{}] ❌ WebViewConfigurator class not found: {:?}", TAG, e);
-            error!(
-                "[{}] Check if WebViewConfigurator.kt was compiled into DEX",
-                TAG
-            );
-            error!(
-                "[{}] Run: dexdump -l plain app.apk | grep WebViewConfigurator",
-                TAG
-            );
-            format!("WebViewConfigurator class not found: {:?}", e)
-        })?;
-    debug!("[{}] ✓ WebViewConfigurator class found", TAG);
-    debug!("[{}] Getting Activity from context...", TAG);
+    debug!("[{}] Getting Activity context...", TAG);
     let ctx = ndk_context::android_context();
     let activity = unsafe { JObject::from_raw(ctx.context() as *mut _) };
     debug!("[{}] ✓ Activity context obtained", TAG);
+    
+    // ========== CRITICAL FIX: Use app ClassLoader ==========
+    debug!("[{}] Getting Activity's ClassLoader...", TAG);
+    let class_loader = env
+        .call_method(
+            activity,
+            "getClassLoader",
+            "()Ljava/lang/ClassLoader;",
+            &[],
+        )
+        .map_err(|e| format!("Failed to get ClassLoader: {:?}", e))?
+        .l()
+        .map_err(|e| format!("ClassLoader not an object: {:?}", e))?;
+    debug!("[{}] ✓ ClassLoader obtained from Activity", TAG);
+    
+    debug!("[{}] Loading WebViewConfigurator via app ClassLoader...", TAG);
+    let class_name = env
+        .new_string("se.malmo.skaggbyran.amp.WebViewConfigurator")
+        .map_err(|e| format!("Failed to create class name string: {:?}", e))?;
+    
+    let configurator_class_obj = env
+        .call_method(
+            class_loader,
+            "loadClass",
+            "(Ljava/lang/String;)Ljava/lang/Class;",
+            &[JValue::Object(&class_name.into())],
+        )
+        .map_err(|e| {
+            error!("[{}] ❌ Failed to load WebViewConfigurator via ClassLoader: {:?}", TAG, e);
+            error!("[{}] This means the class is NOT in the APK or was stripped by R8", TAG);
+            error!("[{}] Check: dexdump -l plain app.apk | grep WebViewConfigurator", TAG);
+            format!("WebViewConfigurator class not found in app ClassLoader: {:?}", e)
+        })?
+        .l()
+        .map_err(|e| format!("Loaded class not an object: {:?}", e))?;
+    
+    // Convert JObject to JClass for static method calls
+    let configurator_class = JClass::from(configurator_class_obj);
+    debug!("[{}] ✓ WebViewConfigurator class loaded via app ClassLoader", TAG);
+    // ========== END CLASSLOADER FIX ==========
+    
     debug!("[{}] Getting Window from Activity...", TAG);
     let window = env
         .call_method(activity, "getWindow", "()Landroid/view/Window;", &[])
