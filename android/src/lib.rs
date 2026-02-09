@@ -10,13 +10,13 @@
 //!
 //! ```text
 //! ┌─────────────────────────────────────┐
-//! │   Dioxus UI Components (ui/)       │  ← User interface
+//! │   Dioxus UI Components (ui/)        │  ← User interface
 //! ├─────────────────────────────────────┤
-//! │   Business Logic (components/)     │  ← App logic, state management
+//! │   Business Logic (components/)      │  ← App logic, state management
 //! ├─────────────────────────────────────┤
-//! │   Android Bridge (android_bridge)  │  ← JNI integration
+//! │   Android Bridge (android_bridge)   │  ← JNI integration
 //! ├─────────────────────────────────────┤
-//! │   Core Library (amp_core)          │  ← Parking correlation engine
+//! │   Core Library (amp_core)           │  ← Parking correlation engine
 //! └─────────────────────────────────────┘
 //! ```
 //!

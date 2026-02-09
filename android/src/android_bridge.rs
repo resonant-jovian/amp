@@ -58,7 +58,7 @@ fn request_notification_permission() -> Result<(), String> {
         .l()
         .map_err(|e| format!("Not object: {:?}", e))?;
     let j_class_name = env
-        .new_string("se.malmo.skaggbyran.amp.NotificationPermissionHelper")
+        .new_string("se.malmo.skaggbyran.amp.NotificationHelper")
         .map_err(|e| format!("String error: {:?}", e))?;
     let class_obj = env
         .call_method(
