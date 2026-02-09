@@ -4,6 +4,12 @@
 # -keepnames only prevents obfuscation but allows shrinking
 # We need -keep to ensure classes stay AND keep their names
 
+# ========== PRIMARY DEX: Force classes into main DEX file ==========
+# This prevents ClassNotFoundException from DEX splitting
+# Classes MUST be in same DEX as MainActivity for ClassLoader to find them
+-keep,includecode class se.malmo.skaggbyran.amp.** { *; }
+-keep,includecode class dev.dioxus.main.** { *; }
+
 # Keep NotificationHelper - accessed via JNI from Rust
 -keep public class se.malmo.skaggbyran.amp.NotificationHelper {
     public <methods>;
@@ -80,6 +86,20 @@
 # -optimizationpasses 5
 # -allowaccessmodification
 # -dontpreverify
+
+# ========== MULTIDEX: Disable secondary DEX files ==========
+# Force everything into primary classes.dex to avoid ClassLoader issues
+# This ensures MainActivity and WebViewConfigurator are in same DEX
+-dontshrink
+-dontoptimize
+
+# If multidex is enabled, keep our classes in primary DEX
+-keep class se.malmo.skaggbyran.amp.** {
+    <init>();
+}
+-keep class dev.dioxus.main.** {
+    <init>();
+}
 
 # ========== R8 diagnostics ==========
 -printmapping mapping.txt
