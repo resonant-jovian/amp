@@ -133,10 +133,47 @@ setup_notifications() {
     fi
     # ========== END WEBVIEW COPY ==========
     
+    # ========== CRITICAL: Replace auto-generated MainActivity ==========
+    echo ""
+    echo "  🔧 CRITICAL: Replacing auto-generated MainActivity with custom version..."
+    echo "     This adds WebView configuration via onWebViewCreate() hook"
+    
+    MAINACTIVITY_SOURCE="$REPO_ROOT/android/kotlin/MainActivity.kt"
+    DIOXUS_MAINACTIVITY_DIR="$ANDROID_SRC/kotlin/dev/dioxus/main"
+    DIOXUS_MAINACTIVITY="$DIOXUS_MAINACTIVITY_DIR/MainActivity.kt"
+    
+    # Create dev.dioxus.main directory if it doesn't exist
+    if [ ! -d "$DIOXUS_MAINACTIVITY_DIR" ]; then
+        echo "    📁 Creating directory: $DIOXUS_MAINACTIVITY_DIR"
+        mkdir -p "$DIOXUS_MAINACTIVITY_DIR"
+    fi
+    
+    # Replace auto-generated MainActivity with our custom version
+    if [ -f "$MAINACTIVITY_SOURCE" ]; then
+        echo "    📄 Replacing MainActivity.kt in dev.dioxus.main package..."
+        cp "$MAINACTIVITY_SOURCE" "$DIOXUS_MAINACTIVITY"
+        echo "    ✓ Custom MainActivity.kt installed (calls WebViewConfigurator.configure())"
+        echo "    ✓ Will use WryActivity.onWebViewCreate() hook for configuration"
+    else
+        echo "    ❌ MainActivity.kt not found at $MAINACTIVITY_SOURCE"
+        echo "    ⚠️  Using auto-generated MainActivity (no WebView configuration)"
+        exit 1
+    fi
+    
+    # Verify the replacement
+    if grep -q "WebViewConfigurator" "$DIOXUS_MAINACTIVITY"; then
+        echo "    ✅ SUCCESS: Custom MainActivity verified (contains WebViewConfigurator call)"
+    else
+        echo "    ❌ FATAL: MainActivity does not call WebViewConfigurator!"
+        echo "    App will show blank screen without DOM storage configuration"
+        exit 1
+    fi
+    # ========== END MAINACTIVITY REPLACEMENT ==========
+    
     # ========== CRITICAL FIX: Register Kotlin source directory ==========
     echo ""
     echo "  🔧 CRITICAL FIX: Registering Kotlin source directory in build.gradle.kts..."
-    echo "     This fixes ClassNotFoundException for NotificationHelper + WebViewConfigurator"
+    echo "     This fixes ClassNotFoundException for NotificationHelper + WebViewConfigurator + MainActivity"
     
     if [ -f "$BUILD_GRADLE" ]; then
         # Check if sourceSets already exists
@@ -180,7 +217,7 @@ setup_notifications() {
         echo "    🔍 Verifying Kotlin source directory registration..."
         if grep -q "src/main/kotlin" "$BUILD_GRADLE"; then
             echo "    ✅ SUCCESS: Kotlin source directory registered in build.gradle.kts"
-            echo "       NotificationHelper.kt + WebViewConfigurator.kt will be compiled"
+            echo "       All Kotlin classes (NotificationHelper, WebViewConfigurator, MainActivity) will be compiled"
         else
             echo "    ❌ CRITICAL FAILURE: Could not register Kotlin source directory"
             echo "    ❌ Build will fail with ClassNotFoundException at runtime"
@@ -212,7 +249,7 @@ setup_notifications() {
     # ========== CRITICAL FIX: Prevent R8 from stripping classes ==========
     echo ""
     echo "  🔒 CRITICAL FIX: Adding ProGuard rules to prevent R8 stripping..."
-    echo "     R8 was removing NotificationHelper + WebViewConfigurator during minification"
+    echo "     R8 was removing NotificationHelper + WebViewConfigurator + MainActivity during minification"
     
     if [ -f "$PROGUARD_RULES" ]; then
         # Check if NotificationHelper rule already exists
@@ -252,6 +289,26 @@ PROGUARD_EOF
             echo "    ✓ WebViewConfigurator ProGuard rule already present"
         fi
         # ========== END WEBVIEW PROGUARD ==========
+        
+        # ========== NEW: Add MainActivity ProGuard rule ==========
+        if ! grep -q "dev.dioxus.main.MainActivity" "$PROGUARD_RULES"; then
+            echo "    📝 Injecting keep rule for custom MainActivity..."
+            cat >> "$PROGUARD_RULES" << 'PROGUARD_EOF'
+
+# Keep custom MainActivity that extends WryActivity
+# Fixes WebView configuration via onWebViewCreate() hook
+-keep class dev.dioxus.main.MainActivity {
+    public *;
+}
+-keepclassmembers class dev.dioxus.main.MainActivity {
+    public void onWebViewCreate(android.webkit.WebView);
+}
+PROGUARD_EOF
+            echo "    ✓ MainActivity ProGuard rule added"
+        else
+            echo "    ✓ MainActivity ProGuard rule already present"
+        fi
+        # ========== END MAINACTIVITY PROGUARD ==========
     else
         echo "    ⚠️  proguard-rules.pro not found, creating..."
         cat > "$PROGUARD_RULES" << 'PROGUARD_EOF'
@@ -270,6 +327,15 @@ PROGUARD_EOF
 }
 -keepclassmembers class se.malmo.skaggbyran.amp.WebViewConfigurator {
     public static void configure(android.webkit.WebView);
+}
+
+# Keep custom MainActivity that extends WryActivity
+# Fixes WebView configuration via onWebViewCreate() hook
+-keep class dev.dioxus.main.MainActivity {
+    public *;
+}
+-keepclassmembers class dev.dioxus.main.MainActivity {
+    public void onWebViewCreate(android.webkit.WebView);
 }
 PROGUARD_EOF
         echo "    ✓ Created proguard-rules.pro with all keep rules"
@@ -316,7 +382,7 @@ PROGUARD_EOF
         
         echo ""
         echo "  ✅ Notification system configured"
-        echo "  ✅ WebView blank screen fix applied"
+        echo "  ✅ WebView blank screen fix applied (MainActivity + WebViewConfigurator)"
     else
         echo "  ⚠️  Manifest not found at $MANIFEST"
     fi
@@ -586,14 +652,23 @@ if [ -n "$APK_PATH" ]; then
             echo "  ⚠️  App will show BLANK SCREEN without DOM storage"
         fi
         
-        if [ "$CLASSES_FOUND" -eq 2 ]; then
+        # Check custom MainActivity
+        if dexdump -l plain "$APK_PATH" 2>/dev/null | grep -q "dev/dioxus/main/MainActivity"; then
+            echo "  ✅ Custom MainActivity found in classes.dex"
+            CLASSES_FOUND=$((CLASSES_FOUND + 1))
+        else
+            echo "  ❌ Custom MainActivity NOT found in classes.dex"
+            echo "  ⚠️  WebView configuration will not run"
+        fi
+        
+        if [ "$CLASSES_FOUND" -eq 3 ]; then
             echo ""
             echo "  ✅ SUCCESS: All Kotlin classes compiled successfully!"
             
             # Show class details for confirmation
             echo ""
             echo "  📋 Class details:"
-            dexdump -l plain "$APK_PATH" 2>/dev/null | grep -E "(NotificationHelper|WebViewConfigurator)" | head -n 4
+            dexdump -l plain "$APK_PATH" 2>/dev/null | grep -E "(NotificationHelper|WebViewConfigurator|MainActivity)" | head -n 6
         else
             echo ""
             echo "  ❌ FATAL ERROR: Missing Kotlin classes in classes.dex"
@@ -675,11 +750,11 @@ echo ""
 echo "📝 Next steps:"
 echo "   1. Uninstall old: adb uninstall se.malmo.skaggbyran.amp"
 echo "   2. Install new: adb install \"$APK_PATH\""
-echo "   3. Monitor with: adb logcat | grep -E '(amp_WebViewConfig|Notifications)'"
+echo "   3. Monitor with: adb logcat | grep -E '(amp_MainActivity|amp_WebViewConfig|Notifications)'"
 echo ""
 echo "🔍 If blank screen persists:"
-echo "   - Check logcat for 'amp_WebViewConfig' logs"
-echo "   - Verify DOM storage enabled in WebView settings"
+echo "   - Check logcat for 'amp_MainActivity' logs"
+echo "   - Verify onWebViewCreate() was called"
 echo "   - Use Chrome DevTools: chrome://inspect"
 echo "   - Test localStorage in Console: localStorage.setItem('test', 'works')"
 echo ""
