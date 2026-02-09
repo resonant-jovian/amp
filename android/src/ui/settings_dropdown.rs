@@ -1,4 +1,6 @@
 use crate::components::settings::{load_settings, save_settings};
+use crate::ui::StoredAddress;
+use crate::components::notifications::{notify_active, notify_six_hours, notify_one_day};
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::fa_brands_icons::FaDev;
@@ -29,7 +31,7 @@ enum OpenSection {
 /// * Aviseringar - Notification preferences (städas nu, 6h, 1 day)
 /// * Inställningar - Theme toggle and language selector
 /// * Info - App information
-/// * Debug - Debug mode toggle
+/// * Debug - Debug mode toggle + test notification buttons
 ///
 /// # Props
 /// * `is_open` - Controls visibility of the dropdown
@@ -91,6 +93,49 @@ pub fn SettingsDropdown(
         current.notifications.en_dag = !current.notifications.en_dag;
         save_settings(&current);
         settings.set(current);
+    };
+
+    // Debug notification trigger handlers
+    let trigger_active_notification = move || {
+        let debug_address = StoredAddress {
+            id: 99999,
+            street: "Debug Street".to_string(),
+            street_number: "42".to_string(),
+            postal_code: "00000".to_string(),
+            valid: true,
+            active: true,
+            matched_entry: None,
+        };
+        eprintln!("[Debug] Triggering active notification");
+        notify_active(&debug_address);
+    };
+
+    let trigger_six_hour_notification = move || {
+        let debug_address = StoredAddress {
+            id: 99998,
+            street: "Debug Street".to_string(),
+            street_number: "42".to_string(),
+            postal_code: "00000".to_string(),
+            valid: true,
+            active: false,
+            matched_entry: None,
+        };
+        eprintln!("[Debug] Triggering 6-hour notification");
+        notify_six_hours(&debug_address);
+    };
+
+    let trigger_one_day_notification = move || {
+        let debug_address = StoredAddress {
+            id: 99997,
+            street: "Debug Street".to_string(),
+            street_number: "42".to_string(),
+            postal_code: "00000".to_string(),
+            valid: true,
+            active: false,
+            matched_entry: None,
+        };
+        eprintln!("[Debug] Triggering 1-day notification");
+        notify_one_day(&debug_address);
     };
 
     if !is_open {
@@ -338,6 +383,7 @@ pub fn SettingsDropdown(
                             "aria-hidden": if open_section() == OpenSection::Debug { "false" } else { "true" },
 
                             div { class: "settings-section-body",
+                                // Debug mode toggle
                                 div { class: "settings-toggle-item",
                                     div { class: "settings-item-text",
                                         div { class: "settings-item-label", "Debug adresser" }
@@ -358,6 +404,51 @@ pub fn SettingsDropdown(
                                                 div { class: "settings-led" }
                                             }
                                         }
+                                    }
+                                }
+
+                                // Test notification: Active
+                                div { class: "settings-toggle-item",
+                                    div { class: "settings-item-text",
+                                        div { class: "settings-item-label", "Test Städas nu" }
+                                        div { class: "settings-item-description",
+                                            "Skicka aktiv städning-avisering"
+                                        }
+                                    }
+                                    button {
+                                        class: "btn-debug-trigger",
+                                        onclick: move |_| trigger_active_notification(),
+                                        "🚫"
+                                    }
+                                }
+
+                                // Test notification: 6 hours
+                                div { class: "settings-toggle-item",
+                                    div { class: "settings-item-text",
+                                        div { class: "settings-item-label", "Test 6 timmar" }
+                                        div { class: "settings-item-description",
+                                            "Skicka 6-timmars varning"
+                                        }
+                                    }
+                                    button {
+                                        class: "btn-debug-trigger",
+                                        onclick: move |_| trigger_six_hour_notification(),
+                                        "⏰"
+                                    }
+                                }
+
+                                // Test notification: 1 day
+                                div { class: "settings-toggle-item",
+                                    div { class: "settings-item-text",
+                                        div { class: "settings-item-label", "Test 1 dag" }
+                                        div { class: "settings-item-description",
+                                            "Skicka 1-dags påminnelse"
+                                        }
+                                    }
+                                    button {
+                                        class: "btn-debug-trigger",
+                                        onclick: move |_| trigger_one_day_notification(),
+                                        "📅"
                                     }
                                 }
                             }
