@@ -95,6 +95,22 @@ verify_package_structure() {
         ISSUES=$((ISSUES + 1))
     fi
     
+    # Check ProGuard rules file exists
+    if [ -f "$REPO_ROOT/android/proguard/proguard-rules.pro" ]; then
+        echo "  ✅ ProGuard rules file found"
+        
+        # Verify it contains -dontobfuscate
+        if grep -q "^-dontobfuscate" "$REPO_ROOT/android/proguard/proguard-rules.pro"; then
+            echo "  ✅ ProGuard rules contain -dontobfuscate flag"
+        else
+            echo "  ⚠️  ProGuard rules missing -dontobfuscate flag (classes will be obfuscated!)"
+            ISSUES=$((ISSUES + 1))
+        fi
+    else
+        echo "  ❌ ProGuard rules file not found at $REPO_ROOT/android/proguard/proguard-rules.pro"
+        ISSUES=$((ISSUES + 1))
+    fi
+    
     echo ""
     if [ "$ISSUES" -eq 0 ]; then
         echo "  ✅ Package structure verification PASSED"
@@ -106,6 +122,7 @@ verify_package_structure() {
         echo "  1. Ensure all .kt files have correct package declarations"
         echo "  2. Ensure MainActivity extends WryActivity and overrides onWebViewCreate()"
         echo "  3. Ensure MainActivity calls WebViewConfigurator.configure()"
+        echo "  4. Ensure ProGuard rules file exists with -dontobfuscate flag"
         return 1
     fi
 }
@@ -226,7 +243,7 @@ setup_notifications() {
         exit 1
     fi
     
-    # ========== NEW: Copy WebViewConfigurator.kt ==========
+    # Copy WebViewConfigurator.kt
     if [ -f "$WEBVIEW_SOURCE" ]; then
         echo "  📄 Copying WebViewConfigurator.kt to kotlin/ directory..."
         cp "$WEBVIEW_SOURCE" "$KOTLIN_DIR/WebViewConfigurator.kt"
@@ -235,7 +252,6 @@ setup_notifications() {
         echo "  ⚠️  WebViewConfigurator.kt not found at $WEBVIEW_SOURCE"
         echo "     App may show blank screen without DOM storage enabled"
     fi
-    # ========== END WEBVIEW COPY ==========
     
     # ========== CRITICAL: Replace auto-generated MainActivity ==========
     echo ""
@@ -351,118 +367,44 @@ setup_notifications() {
     fi
     # ========== END SOURCE SETS VALIDATION ==========
     
-    # ========== ENHANCED: ProGuard rules with R8 diagnostics ==========
+    # ========== CRITICAL: Copy comprehensive ProGuard rules ==========
     echo ""
-    echo "  🔒 CRITICAL FIX: Adding ProGuard rules to prevent R8 stripping..."
-    echo "     R8 was removing NotificationHelper + WebViewConfigurator + MainActivity during minification"
+    echo "  🔒 CRITICAL FIX: Installing comprehensive ProGuard rules..."
+    echo "     Prevents R8 obfuscation of NotificationHelper + WebViewConfigurator + MainActivity"
     
-    if [ -f "$PROGUARD_RULES" ]; then
-        # Check if NotificationHelper rule already exists
-        if ! grep -q "NotificationHelper" "$PROGUARD_RULES"; then
-            echo "    📝 Injecting keep rule for NotificationHelper..."
-            cat >> "$PROGUARD_RULES" << 'PROGUARD_EOF'
-
-# Keep NotificationHelper for JNI access from Rust
--keep class se.malmo.skaggbyran.amp.NotificationHelper {
-    public *;
-}
--keepclassmembers class se.malmo.skaggbyran.amp.NotificationHelper {
-    public *;
-}
-PROGUARD_EOF
-            echo "    ✓ NotificationHelper ProGuard rule added"
+    PROGUARD_SOURCE="$REPO_ROOT/android/proguard/proguard-rules.pro"
+    
+    if [ -f "$PROGUARD_SOURCE" ]; then
+        echo "    📄 Copying ProGuard rules from $PROGUARD_SOURCE"
+        cp "$PROGUARD_SOURCE" "$PROGUARD_RULES"
+        echo "    ✅ ProGuard rules installed"
+        
+        # Verify critical rules are present
+        if grep -q "^-dontobfuscate" "$PROGUARD_RULES"; then
+            echo "    ✅ -dontobfuscate flag present (disables all obfuscation)"
         else
-            echo "    ✓ NotificationHelper ProGuard rule already present"
+            echo "    ⚠️  -dontobfuscate not found (classes may be obfuscated)"
         fi
         
-        # Add WebViewConfigurator ProGuard rule
-        if ! grep -q "WebViewConfigurator" "$PROGUARD_RULES"; then
-            echo "    📝 Injecting keep rule for WebViewConfigurator..."
-            cat >> "$PROGUARD_RULES" << 'PROGUARD_EOF'
-
-# Keep WebViewConfigurator for MainActivity onCreate call
-# Fixes blank screen by enabling DOM storage
--keep class se.malmo.skaggbyran.amp.WebViewConfigurator {
-    public *;
-}
--keepclassmembers class se.malmo.skaggbyran.amp.WebViewConfigurator {
-    public static void configure(android.webkit.WebView);
-}
-PROGUARD_EOF
-            echo "    ✓ WebViewConfigurator ProGuard rule added"
-        else
-            echo "    ✓ WebViewConfigurator ProGuard rule already present"
+        if grep -q "NotificationHelper" "$PROGUARD_RULES"; then
+            echo "    ✅ NotificationHelper keep rule present"
         fi
         
-        # Add MainActivity ProGuard rule
-        if ! grep -q "dev.dioxus.main.MainActivity" "$PROGUARD_RULES"; then
-            echo "    📝 Injecting keep rule for custom MainActivity..."
-            cat >> "$PROGUARD_RULES" << 'PROGUARD_EOF'
-
-# Keep custom MainActivity that extends WryActivity
-# Fixes WebView configuration via onWebViewCreate() hook
--keep class dev.dioxus.main.MainActivity {
-    public *;
-}
--keepclassmembers class dev.dioxus.main.MainActivity {
-    public void onWebViewCreate(android.webkit.WebView);
-}
-
-# Keep the package name references (prevents ClassNotFoundException)
--keeppackagenames se.malmo.skaggbyran.amp
--keeppackagenames dev.dioxus.main
-
-# Enable R8 diagnostics
--printmapping mapping.txt
--printseeds seeds.txt
--printusage usage.txt
--verbose
-PROGUARD_EOF
-            echo "    ✓ MainActivity ProGuard rule added"
-            echo "    ✓ R8 diagnostics enabled (mapping.txt, seeds.txt, usage.txt)"
-        else
-            echo "    ✓ MainActivity ProGuard rule already present"
+        if grep -q "WebViewConfigurator" "$PROGUARD_RULES"; then
+            echo "    ✅ WebViewConfigurator keep rule present"
+        fi
+        
+        if grep -q "dev.dioxus.main.MainActivity" "$PROGUARD_RULES"; then
+            echo "    ✅ MainActivity keep rule present"
+        fi
+        
+        if grep -q "printmapping" "$PROGUARD_RULES"; then
+            echo "    ✅ R8 diagnostics enabled (mapping.txt, seeds.txt, usage.txt)"
         fi
     else
-        echo "    ⚠️  proguard-rules.pro not found, creating..."
-        cat > "$PROGUARD_RULES" << 'PROGUARD_EOF'
-# Keep NotificationHelper for JNI access from Rust
--keep class se.malmo.skaggbyran.amp.NotificationHelper {
-    public *;
-}
--keepclassmembers class se.malmo.skaggbyran.amp.NotificationHelper {
-    public *;
-}
-
-# Keep WebViewConfigurator for MainActivity onCreate call
-# Fixes blank screen by enabling DOM storage
--keep class se.malmo.skaggbyran.amp.WebViewConfigurator {
-    public *;
-}
--keepclassmembers class se.malmo.skaggbyran.amp.WebViewConfigurator {
-    public static void configure(android.webkit.WebView);
-}
-
-# Keep custom MainActivity that extends WryActivity
-# Fixes WebView configuration via onWebViewCreate() hook
--keep class dev.dioxus.main.MainActivity {
-    public *;
-}
--keepclassmembers class dev.dioxus.main.MainActivity {
-    public void onWebViewCreate(android.webkit.WebView);
-}
-
-# Keep the package name references (prevents ClassNotFoundException)
--keeppackagenames se.malmo.skaggbyran.amp
--keeppackagenames dev.dioxus.main
-
-# Enable R8 diagnostics
--printmapping mapping.txt
--printseeds seeds.txt
--printusage usage.txt
--verbose
-PROGUARD_EOF
-        echo "    ✓ Created proguard-rules.pro with all keep rules and R8 diagnostics"
+        echo "    ❌ ProGuard rules source not found at $PROGUARD_SOURCE"
+        echo "    This will cause ClassNotFoundException at runtime!"
+        exit 1
     fi
     # ========== END PROGUARD ==========
     
