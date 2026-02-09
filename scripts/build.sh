@@ -99,6 +99,7 @@ setup_notifications() {
     ANDROID_SRC="$ANDROID_DIR/app/src/main"
     KOTLIN_DIR="$ANDROID_SRC/kotlin/se/malmo/skaggbyran/amp"
     MANIFEST="$ANDROID_SRC/AndroidManifest.xml"
+    BUILD_GRADLE="$ANDROID_DIR/app/build.gradle.kts"
     KOTLIN_SOURCE="$REPO_ROOT/android/kotlin/NotificationHelper.kt"
     
     # Create Kotlin directory matching package structure
@@ -113,8 +114,84 @@ setup_notifications() {
         cp "$KOTLIN_SOURCE" "$KOTLIN_DIR/NotificationHelper.kt"
         echo "  ✓ NotificationHelper.kt copied to $KOTLIN_DIR"
     else
-        echo "  ⚠️  NotificationHelper.kt not found at $KOTLIN_SOURCE"
+        echo "  ❌ NotificationHelper.kt not found at $KOTLIN_SOURCE"
+        exit 1
     fi
+    
+    # ========== CRITICAL FIX: Register Kotlin source directory ==========
+    echo ""
+    echo "  🔧 CRITICAL FIX: Registering Kotlin source directory in build.gradle.kts..."
+    echo "     This fixes ClassNotFoundException for NotificationHelper"
+    
+    if [ -f "$BUILD_GRADLE" ]; then
+        # Check if sourceSets already exists
+        if grep -q "sourceSets {" "$BUILD_GRADLE"; then
+            echo "    ⚠️  sourceSets block already exists"
+            echo "    Attempting to append kotlin directory to existing configuration..."
+            
+            # Try to modify existing java.srcDirs line to include kotlin
+            if grep -q 'java\.srcDirs' "$BUILD_GRADLE"; then
+                # Backup before modification
+                cp "$BUILD_GRADLE" "$BUILD_GRADLE.backup"
+                
+                # Replace java.srcDirs line to include kotlin directory
+                sed -i '/java\.srcDirs/ s/)$/, "src\/main\/kotlin")/' "$BUILD_GRADLE" 2>/dev/null || {
+                    echo "    ⚠️  sed replacement failed, trying alternative approach..."
+                    mv "$BUILD_GRADLE.backup" "$BUILD_GRADLE"
+                    
+                    # Alternative: add after the sourceSets line
+                    sed -i '/sourceSets {/a\        getByName("main") {\n            java.srcDirs("src/main/java", "src/main/kotlin")\n        }' "$BUILD_GRADLE"
+                }
+                
+                rm -f "$BUILD_GRADLE.backup"
+            fi
+        else
+            echo "    📝 Injecting sourceSets block into android {} block..."
+            
+            # Insert sourceSets block after 'android {' line
+            # Use a more robust sed pattern that works across different android block formats
+            if grep -q '^android {' "$BUILD_GRADLE"; then
+                sed -i '/^android {$/a\    sourceSets {\n        getByName("main") {\n            java.srcDirs("src/main/java", "src/main/kotlin")\n        }\n    }\n' "$BUILD_GRADLE"
+            else
+                # Fallback for different formatting
+                sed -i '/android\s*{/a\    sourceSets {\n        getByName("main") {\n            java.srcDirs("src/main/java", "src/main/kotlin")\n        }\n    }\n' "$BUILD_GRADLE"
+            fi
+            
+            echo "    ✓ sourceSets block injected"
+        fi
+        
+        # Verify the fix was applied
+        echo ""
+        echo "    🔍 Verifying Kotlin source directory registration..."
+        if grep -q "src/main/kotlin" "$BUILD_GRADLE"; then
+            echo "    ✅ SUCCESS: Kotlin source directory registered in build.gradle.kts"
+            echo "       NotificationHelper.kt will now be compiled into classes.dex"
+        else
+            echo "    ❌ CRITICAL FAILURE: Could not register Kotlin source directory"
+            echo "    ❌ Build will fail with ClassNotFoundException at runtime"
+            echo ""
+            echo "    Please manually add to $BUILD_GRADLE:"
+            echo "    android {"
+            echo "        sourceSets {"
+            echo "            getByName(\"main\") {"
+            echo "                java.srcDirs(\"src/main/java\", \"src/main/kotlin\")"
+            echo "            }"
+            echo "        }"
+            echo "    }"
+            exit 1
+        fi
+        
+        # Display relevant section for debugging
+        echo ""
+        echo "    📋 Current source directory configuration:"
+        grep -B 2 -A 5 "src/main/kotlin" "$BUILD_GRADLE" | head -n 10 || {
+            echo "    (Could not extract sourceSets block for display)"
+        }
+    else
+        echo "    ❌ build.gradle.kts not found at $BUILD_GRADLE"
+        exit 1
+    fi
+    # ========== END CRITICAL FIX ==========
     
     # Add notification permissions to manifest if not already present
     if [ -f "$MANIFEST" ]; then
@@ -405,14 +482,79 @@ if [ -n "$APK_PATH" ]; then
         echo "⚠️  No ic_launcher.png files found"
     fi
 
-    # Verify NotificationHelper.kt
+    # ========== VERIFY NotificationHelper IN DEX ==========
     echo ""
-    echo "🔍 Verifying NotificationHelper in APK..."
-    if unzip -l "$APK_PATH" | grep -i "NotificationHelper" > /dev/null; then
-        echo "✅ NotificationHelper found in APK"
+    echo "🔍 CRITICAL: Verifying NotificationHelper compiled into classes.dex..."
+    
+    # Check if dexdump is available
+    if command -v dexdump &>/dev/null; then
+        echo "  Using dexdump to verify class compilation..."
+        
+        # Extract and check DEX file
+        if dexdump -l plain "$APK_PATH" 2>/dev/null | grep -q "NotificationHelper"; then
+            echo "  ✅ SUCCESS: NotificationHelper found in classes.dex"
+            echo "     The Kotlin source was successfully compiled!"
+            
+            # Show class details for confirmation
+            echo ""
+            echo "  📋 Class details:"
+            dexdump -l plain "$APK_PATH" 2>/dev/null | grep -A 3 "NotificationHelper" | head -n 8
+        else
+            echo "  ❌ FATAL ERROR: NotificationHelper NOT found in classes.dex"
+            echo "  ❌ The Kotlin source directory was not compiled by Gradle"
+            echo "  ❌ App will crash with ClassNotFoundException at runtime"
+            echo ""
+            echo "  Troubleshooting:"
+            echo "  1. Check if src/main/kotlin is registered in build.gradle.kts"
+            echo "  2. Verify kotlin-android plugin is applied"
+            echo "  3. Check build logs for Kotlin compilation errors"
+            exit 1
+        fi
     else
-        echo "⚠️  NotificationHelper not found in APK"
+        echo "  ⚠️  dexdump not available, using fallback verification..."
+        
+        # Fallback: Check if Kotlin runtime is present (indicates Kotlin was used)
+        if unzip -l "$APK_PATH" 2>/dev/null | grep -q "kotlin"; then
+            echo "  ✅ Kotlin runtime detected in APK (basic verification)"
+            echo "     Install Android SDK build-tools for detailed DEX verification"
+        else
+            echo "  ⚠️  No Kotlin runtime detected - build may be incomplete"
+            echo "     Cannot verify NotificationHelper without dexdump"
+        fi
     fi
+    # ========== END DEX VERIFICATION ==========
+
+    # ========== VERIFY NO INTERNET PERMISSIONS ==========
+    echo ""
+    echo "🔒 Verifying no internet permissions (security requirement)..."
+    
+    # Method 1: Check AndroidManifest.xml directly
+    TEMP_MANIFEST="/tmp/amp_manifest_$$.xml"
+    if unzip -p "$APK_PATH" AndroidManifest.xml > "$TEMP_MANIFEST" 2>/dev/null; then
+        # Binary XML, need to decode or check with aapt
+        if command -v aapt &>/dev/null; then
+            if aapt dump permissions "$APK_PATH" 2>/dev/null | grep -q "android.permission.INTERNET"; then
+                echo "  ❌ SECURITY VIOLATION: INTERNET permission found in APK!"
+                echo "  ❌ This app MUST NOT have network access"
+                rm -f "$TEMP_MANIFEST"
+                exit 1
+            else
+                echo "  ✅ No internet permissions detected (REQUIRED)"
+            fi
+        else
+            # Fallback: just check string presence (less reliable)
+            if strings "$TEMP_MANIFEST" 2>/dev/null | grep -q "android.permission.INTERNET"; then
+                echo "  ⚠️  Possible INTERNET permission detected (unverified)"
+                echo "  Install aapt for reliable verification"
+            else
+                echo "  ✅ No obvious internet permissions (basic check)"
+            fi
+        fi
+        rm -f "$TEMP_MANIFEST"
+    else
+        echo "  ⚠️  Could not extract manifest for verification"
+    fi
+    # ========== END PERMISSION VERIFICATION ==========
 
     echo ""
     echo "Ready to deploy! 🚀"
@@ -438,3 +580,8 @@ echo "📝 Next steps:"
 echo "   1. Uninstall old: adb uninstall se.malmo.skaggbyran.amp"
 echo "   2. Install new: adb install \"$APK_PATH\""
 echo "   3. Test notifications: adb logcat | grep -E '(Notifications|amp_)'"
+echo ""
+echo "🔍 If app crashes, check:"
+echo "   - ClassNotFoundException → NotificationHelper not in DEX (run dexdump verification)"
+echo "   - JNI errors → Check android_bridge.rs calls correct package"
+echo "   - Build errors → Check gradle logs in /tmp/gradle_build.log"
