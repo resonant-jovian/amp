@@ -518,4 +518,489 @@ GRADLE_TASK
 }
 # ========== END NOTIFICATION SETUP ==========
 
-# [REST OF FILE CONTINUES UNCHANGED...]
+# Build with Dioxus (generates fresh gradle files)
+echo "📦 Building APK with Dioxus..."
+if ! dx build --android --release --device HQ646M01AF --verbose; then
+    echo ""
+    echo "⚠️  First build failed, applying fixes and retrying..."
+    echo ""
+
+    # FIX: Update generated gradle files for Java 21
+    echo "🔧 Fixing generated gradle files for Java 21..."
+
+    if [ -d "$ANDROID_DIR" ]; then
+        # Fix root build.gradle.kts (parent level)
+        ROOT_BUILD_GRADLE="$(dirname "$ANDROID_DIR")/build.gradle.kts"
+        if [ -f "$ROOT_BUILD_GRADLE" ]; then
+            echo "  Patching: build.gradle.kts (root)"
+            sed -i 's/VERSION_1_8/VERSION_21/g' "$ROOT_BUILD_GRADLE" 2>/dev/null || true
+            sed -i 's/jvmTarget = "1.8"/jvmTarget = "21"/g' "$ROOT_BUILD_GRADLE" 2>/dev/null || true
+            echo "✓ Fixed root build.gradle.kts"
+        fi
+
+        # Fix app/build.gradle.kts (CRITICAL - comprehensive fix)
+        if [ -f "$ANDROID_DIR/build.gradle.kts" ]; then
+            echo "  Patching: build.gradle.kts (app module)"
+
+            # Fix ALL Java version references
+            sed -i 's/VERSION_1_8/VERSION_21/g' "$ANDROID_DIR/build.gradle.kts" 2>/dev/null || true
+            sed -i 's/JavaVersion\.VERSION_1_8/JavaVersion.VERSION_21/g' "$ANDROID_DIR/build.gradle.kts" 2>/dev/null || true
+
+            # Fix Kotlin JVM target
+            sed -i 's/jvmTarget = "1.8"/jvmTarget = "21"/g' "$ANDROID_DIR/build.gradle.kts" 2>/dev/null || true
+
+            # CRITICAL: Fix compileOptions block (AGP's Java compiler settings)
+            if grep -q "compileOptions {" "$ANDROID_DIR/build.gradle.kts"; then
+                sed -i '/compileOptions {/,/}/ {
+                    s/sourceCompatibility = JavaVersion\.VERSION_1_8/sourceCompatibility = JavaVersion.VERSION_21/g
+                    s/targetCompatibility = JavaVersion\.VERSION_1_8/targetCompatibility = JavaVersion.VERSION_21/g
+                }' "$ANDROID_DIR/build.gradle.kts" 2>/dev/null || true
+            fi
+            if ! grep -q "compileOptions {" "$ANDROID_DIR/build.gradle.kts"; then
+                echo "    📝 Injecting compileOptions block..."
+                sed -i '/^android {/a\    compileOptions {\n        sourceCompatibility = JavaVersion.VERSION_21\n        targetCompatibility = JavaVersion.VERSION_21\n    }' "$ANDROID_DIR/build.gradle.kts"
+                echo "    ✓ Injected compileOptions with Java 21"
+            fi
+            echo "✓ Fixed app/build.gradle.kts (Java + Kotlin)"
+        fi
+
+        # Verify the fixes worked
+        echo ""
+        echo "📋 Verifying fixes:"
+
+        if [ -f "$ANDROID_DIR/build.gradle.kts" ]; then
+            if grep -q "VERSION_21\|jvmTarget = \"21\"" "$ANDROID_DIR/build.gradle.kts"; then
+                echo "✓ App build.gradle.kts uses Java 21"
+            else
+                echo "⚠️  App build.gradle.kts may not be fixed"
+            fi
+        fi
+
+        # Fix Android manifest extractNativeLibs issue
+        echo ""
+        echo "🔧 Fixing Android manifest issues..."
+        MANIFEST_FILE="$ANDROID_DIR/src/main/AndroidManifest.xml"
+        if [ -f "$MANIFEST_FILE" ]; then
+            if grep -q 'android:extractNativeLibs="false"' "$MANIFEST_FILE"; then
+                echo "  Removing deprecated extractNativeLibs attribute..."
+                sed -i 's/ android:extractNativeLibs="false"//g' "$MANIFEST_FILE"
+                echo "✓ Fixed manifest extractNativeLibs"
+            fi
+            if grep -q 'android:extractNativeLibs="true"' "$MANIFEST_FILE"; then
+                echo "  Removing extractNativeLibs=true attribute..."
+                sed -i 's/ android:extractNativeLibs="true"//g' "$MANIFEST_FILE"
+                echo "✓ Removed extractNativeLibs attribute"
+            fi
+        fi
+
+        # ========== INJECT NOTIFICATION SETUP HERE ==========
+        setup_notifications
+        # ========== END NOTIFICATION SETUP ==========
+
+        # ========== INJECT CUSTOM APP ICONS (AGGRESSIVE OVERRIDE) ==========
+        echo ""
+        echo "🎨 Injecting custom app icons..."
+
+        RES_DIR="$ANDROID_DIR/src/main/res"
+        ICON_SOURCE="$REPO_ROOT/android/assets/icon"
+
+        # 1. CRITICAL: Remove ALL existing ic_launcher* files
+        echo "  🗑️  Removing all existing ic_launcher* files..."
+        find "$RES_DIR" -type f \
+          \( -name "ic_launcher.png" -o \
+             -name "ic_launcher.webp" -o \
+             -name "ic_launcher_round.*" -o \
+             -name "ic_launcher_foreground.*" -o \
+             -name "ic_launcher_background.*" -o \
+             -name "ic_launcher.xml" \) \
+          -delete 2>/dev/null || true
+        echo "  ✓ Removed all auto-generated launcher icons"
+
+        # 2. Create mipmap directories
+        mkdir -p "$RES_DIR/mipmap-mdpi" \
+                 "$RES_DIR/mipmap-hdpi" \
+                 "$RES_DIR/mipmap-xhdpi" \
+                 "$RES_DIR/mipmap-xxhdpi" \
+                 "$RES_DIR/mipmap-xxxhdpi"
+
+        # 3. Copy PNG icons
+        if [ -f "$ICON_SOURCE/icon-mdpi.png" ]; then
+            cp "$ICON_SOURCE/icon-mdpi.png" "$RES_DIR/mipmap-mdpi/ic_launcher.png"
+            echo "  ✓ Copied mdpi icon (48x48)"
+        fi
+
+        if [ -f "$ICON_SOURCE/icon-hdpi.png" ]; then
+            cp "$ICON_SOURCE/icon-hdpi.png" "$RES_DIR/mipmap-hdpi/ic_launcher.png"
+            echo "  ✓ Copied hdpi icon (72x72)"
+        fi
+
+        if [ -f "$ICON_SOURCE/icon-xhdpi.png" ]; then
+            cp "$ICON_SOURCE/icon-xhdpi.png" "$RES_DIR/mipmap-xhdpi/ic_launcher.png"
+            echo "  ✓ Copied xhdpi icon (96x96)"
+        fi
+
+        if [ -f "$ICON_SOURCE/icon-xxhdpi.png" ]; then
+            cp "$ICON_SOURCE/icon-xxhdpi.png" "$RES_DIR/mipmap-xxhdpi/ic_launcher.png"
+            echo "  ✓ Copied xxhdpi icon (144x144)"
+        fi
+
+        if [ -f "$ICON_SOURCE/icon-xxxhdpi.png" ]; then
+            cp "$ICON_SOURCE/icon-xxxhdpi.png" "$RES_DIR/mipmap-xxxhdpi/ic_launcher.png"
+            echo "  ✓ Copied xxxhdpi icon (192x192)"
+        fi
+
+        echo "  ✅ Custom launcher icons injected"
+
+        # 4. Force manifest to use mipmap
+        echo ""
+        echo "🔧 Forcing AndroidManifest.xml to use @mipmap/ic_launcher..."
+
+        if [ -f "$MANIFEST_FILE" ]; then
+            if grep -q 'android:icon=' "$MANIFEST_FILE"; then
+                sed -i 's/android:icon="[^"]*"/android:icon="@mipmap\/ic_launcher"/' "$MANIFEST_FILE"
+                echo "  ✓ Updated android:icon"
+            else
+                sed -i 's/<application /<application android:icon="@mipmap\/ic_launcher" /' "$MANIFEST_FILE"
+                echo "  ✓ Added android:icon"
+            fi
+
+            if grep -q 'android:roundIcon=' "$MANIFEST_FILE"; then
+                sed -i 's/ android:roundIcon="[^"]*"//g' "$MANIFEST_FILE"
+                echo "  ✓ Removed roundIcon"
+            fi
+
+            echo ""
+            echo "  📋 Manifest <application> tag:"
+            grep -A 3 "<application" "$MANIFEST_FILE" | head -n 4
+        fi
+
+        echo ""
+        echo "✅ Icon injection complete!"
+        # ========== END ICON INJECTION ==========
+
+        # Create/update gradle.properties
+        echo "🔧 Updating gradle.properties..."
+        GRADLE_PROPS="$ANDROID_DIR/gradle.properties"
+        cat >> "$GRADLE_PROPS" << 'GRADLE_EOF'
+
+# Suppress Java 8 deprecation warnings
+android.javaCompile.suppressSourceTargetDeprecationWarning=true
+
+# Modern Android Gradle Plugin settings
+android.useAndroidX=true
+android.enableJetifier=true
+
+# Performance optimizations
+android.enableBuildFeatures.buildConfig=false
+org.gradle.jvmargs=-Xmx4096m
+org.gradle.parallel=true
+org.gradle.caching=true
+GRADLE_EOF
+        echo "✓ Updated gradle.properties"
+
+        # Clean gradle cache
+        echo "🧹 Cleaning gradle cache..."
+        rm -rf -- "$ANDROID_DIR/.gradle" 2>/dev/null || true
+        pkill -9 gradle java 2>/dev/null || true
+        sleep 2
+
+        # Rebuild with gradle
+        echo ""
+        echo "📦 Rebuilding with fixed configuration..."
+        # Navigate to the PARENT directory (where Gradle multi-build expects to be)
+        GRADLE_ROOT="$(dirname "$ANDROID_DIR")"
+        if ! "$GRADLE_ROOT/gradlew" -p "$GRADLE_ROOT" clean assembleRelease -x lintVitalAnalyzeRelease -x lintVitalRelease -x lintVitalReportRelease 2>&1 | tee /tmp/gradle_build.log; then
+            echo ""
+            echo "❌ Gradle build failed after fixes"
+            echo "⚠️  Build log saved to /tmp/gradle_build.log"
+
+            if [ -n "$DIOXUS_BACKUP" ] && [ -f "$DIOXUS_BACKUP" ]; then
+                echo ""
+                echo "🔄 Restoring Dioxus.toml..."
+                cp -- "$DIOXUS_BACKUP" "Dioxus.toml"
+                rm -f -- "$DIOXUS_BACKUP"
+            fi
+
+            exit 1
+        fi
+        echo ""
+        echo "✅ BUILD SUCCESSFUL!"
+    else
+        echo "❌ Android directory not created: $ANDROID_DIR"
+        exit 1
+    fi
+else
+    echo ""
+    echo "✓ Dioxus build completed successfully on first try!"
+    
+    # Even on success, run notification setup if it hasn't been done
+    if [ -d "$ANDROID_DIR" ]; then
+        setup_notifications
+    fi
+fi
+
+# ========== POST-BUILD R8 DIAGNOSTICS ==========
+analyze_r8_output() {
+    echo ""
+    echo "🔍 POST-BUILD: Analyzing R8 output..."
+    
+    local MAPPING_FILE="$ANDROID_DIR/build/outputs/mapping/release/mapping.txt"
+    local SEEDS_FILE="$ANDROID_DIR/build/outputs/mapping/release/seeds.txt"
+    local USAGE_FILE="$ANDROID_DIR/build/outputs/mapping/release/usage.txt"
+    
+    if [ -f "$MAPPING_FILE" ]; then
+        echo "  📄 R8 mapping.txt found - analyzing..."
+        
+        # Check if our classes were obfuscated (they shouldn't be with -keep rules)
+        local OBFUSCATED=0
+        
+        if grep -q "se.malmo.skaggbyran.amp.NotificationHelper" "$MAPPING_FILE"; then
+            echo "  ⚠️  NotificationHelper appears in mapping.txt (may be obfuscated)"
+            OBFUSCATED=$((OBFUSCATED + 1))
+        fi
+        
+        if grep -q "se.malmo.skaggbyran.amp.WebViewConfigurator" "$MAPPING_FILE"; then
+            echo "  ⚠️  WebViewConfigurator appears in mapping.txt (may be obfuscated)"
+            OBFUSCATED=$((OBFUSCATED + 1))
+        fi
+        
+        if grep -q "dev.dioxus.main.MainActivity" "$MAPPING_FILE"; then
+            echo "  ⚠️  MainActivity appears in mapping.txt (may be obfuscated)"
+            OBFUSCATED=$((OBFUSCATED + 1))
+        fi
+        
+        if [ "$OBFUSCATED" -gt 0 ]; then
+            echo "  ⚠️  WARNING: $OBFUSCATED critical classes were obfuscated!"
+            echo "     This may cause ClassNotFoundException at runtime"
+        else
+            echo "  ✅ No critical class obfuscation detected"
+        fi
+    else
+        echo "  ℹ️  mapping.txt not found (R8 may not have run or diagnostics not enabled)"
+    fi
+    
+    if [ -f "$SEEDS_FILE" ]; then
+        echo ""
+        echo "  📄 R8 seeds.txt found - verifying ProGuard rules..."
+        
+        local KEPT=0
+        
+        if grep -q "se.malmo.skaggbyran.amp.NotificationHelper" "$SEEDS_FILE"; then
+            echo "  ✅ NotificationHelper kept by ProGuard rules"
+            KEPT=$((KEPT + 1))
+        else
+            echo "  ❌ NotificationHelper NOT in seeds.txt (ProGuard rule failed!)"
+        fi
+        
+        if grep -q "se.malmo.skaggbyran.amp.WebViewConfigurator" "$SEEDS_FILE"; then
+            echo "  ✅ WebViewConfigurator kept by ProGuard rules"
+            KEPT=$((KEPT + 1))
+        else
+            echo "  ❌ WebViewConfigurator NOT in seeds.txt (ProGuard rule failed!)"
+        fi
+        
+        if grep -q "dev.dioxus.main.MainActivity" "$SEEDS_FILE"; then
+            echo "  ✅ MainActivity kept by ProGuard rules"
+            KEPT=$((KEPT + 1))
+        else
+            echo "  ❌ MainActivity NOT in seeds.txt (ProGuard rule failed!)"
+        fi
+        
+        if [ "$KEPT" -lt 3 ]; then
+            echo ""
+            echo "  ❌ CRITICAL: Only $KEPT/3 classes kept by ProGuard!"
+            echo "     App will crash with ClassNotFoundException"
+            return 1
+        fi
+    else
+        echo "  ℹ️  seeds.txt not found"
+    fi
+    
+    if [ -f "$USAGE_FILE" ]; then
+        echo ""
+        echo "  📄 R8 usage.txt available for manual inspection"
+    fi
+    
+    echo ""
+    echo "  ✅ R8 diagnostics complete"
+    return 0
+}
+
+# Run R8 diagnostics
+if [ -d "$ANDROID_DIR" ]; then
+    analyze_r8_output || {
+        echo ""
+        echo "  ⚠️  R8 diagnostics detected issues"
+        echo "     Check ProGuard rules in: $ANDROID_DIR/proguard-rules.pro"
+    }
+fi
+# ========== END R8 DIAGNOSTICS ==========
+
+# Show APK location
+echo ""
+echo "📍 APK location:"
+APK_DIR="$ANDROID_DIR/build/outputs/apk/release"
+
+APK_PATH="$(
+  find "$APK_DIR" -maxdepth 1 -type f -name '*.apk' -printf '%T@ %p\n' 2>/dev/null \
+  | sort -nr \
+  | head -n 1 \
+  | cut -d' ' -f2-
+)"
+
+if [ -n "$APK_PATH" ]; then
+    ls -lh -- "$APK_PATH"
+
+    # ========== VERIFY Kotlin CLASSES IN DEX ==========
+    echo ""
+    echo "🔍 CRITICAL: Verifying Kotlin classes compiled into classes.dex..."
+    
+    # Check if dexdump is available
+    if command -v dexdump &>/dev/null; then
+        echo "  Using dexdump to verify class compilation..."
+        
+        CLASSES_FOUND=0
+        
+        # Check NotificationHelper
+        if dexdump -l plain "$APK_PATH" 2>/dev/null | grep -q "NotificationHelper"; then
+            echo "  ✅ NotificationHelper found in classes.dex"
+            CLASSES_FOUND=$((CLASSES_FOUND + 1))
+        else
+            echo "  ❌ NotificationHelper NOT found in classes.dex"
+        fi
+        
+        # Check WebViewConfigurator
+        if dexdump -l plain "$APK_PATH" 2>/dev/null | grep -q "WebViewConfigurator"; then
+            echo "  ✅ WebViewConfigurator found in classes.dex"
+            CLASSES_FOUND=$((CLASSES_FOUND + 1))
+        else
+            echo "  ❌ WebViewConfigurator NOT found in classes.dex"
+            echo "  ⚠️  App will show BLANK SCREEN without DOM storage"
+        fi
+        
+        # Check custom MainActivity
+        if dexdump -l plain "$APK_PATH" 2>/dev/null | grep -q "dev/dioxus/main/MainActivity"; then
+            echo "  ✅ Custom MainActivity found in classes.dex"
+            CLASSES_FOUND=$((CLASSES_FOUND + 1))
+        else
+            echo "  ❌ Custom MainActivity NOT found in classes.dex"
+            echo "  ⚠️  WebView configuration will not run"
+        fi
+        
+        if [ "$CLASSES_FOUND" -eq 3 ]; then
+            echo ""
+            echo "  ✅ SUCCESS: All Kotlin classes compiled successfully!"
+            
+            # Show class details for confirmation
+            echo ""
+            echo "  📋 Class details:"
+            dexdump -l plain "$APK_PATH" 2>/dev/null | grep -E "(NotificationHelper|WebViewConfigurator|dev/dioxus/main/MainActivity)" | head -n 10
+            
+            # Verify methods exist
+            echo ""
+            echo "  🔍 Verifying critical methods..."
+            if dexdump -l plain "$APK_PATH" 2>/dev/null | grep -q "configure.*Landroid/webkit/WebView"; then
+                echo "  ✅ WebViewConfigurator.configure(WebView) method present"
+            else
+                echo "  ⚠️  WebViewConfigurator.configure() method signature unclear"
+            fi
+            
+            if dexdump -l plain "$APK_PATH" 2>/dev/null | grep -q "onWebViewCreate"; then
+                echo "  ✅ MainActivity.onWebViewCreate() method present"
+            else
+                echo "  ⚠️  MainActivity.onWebViewCreate() method not clearly visible"
+            fi
+        else
+            echo ""
+            echo "  ❌ FATAL ERROR: Missing Kotlin classes in classes.dex"
+            echo "  ❌ App will crash or show blank screen at runtime"
+            echo ""
+            echo "  Troubleshooting:"
+            echo "  1. Check if src/main/kotlin is registered in build.gradle.kts"
+            echo "  2. Verify kotlin-android plugin is applied"
+            echo "  3. Check build logs for Kotlin compilation errors"
+            echo "  4. Review R8 diagnostics above - classes may have been stripped"
+            exit 1
+        fi
+    else
+        echo "  ⚠️  dexdump not available, using fallback verification..."
+        
+        # Fallback: Check if Kotlin runtime is present (indicates Kotlin was used)
+        if unzip -l "$APK_PATH" 2>/dev/null | grep -q "kotlin"; then
+            echo "  ✅ Kotlin runtime detected in APK (basic verification)"
+            echo "     Install Android SDK build-tools for detailed DEX verification"
+        else
+            echo "  ⚠️  No Kotlin runtime detected - build may be incomplete"
+            echo "     Cannot verify classes without dexdump"
+        fi
+    fi
+    # ========== END DEX VERIFICATION ==========
+
+    # ========== VERIFY NO INTERNET PERMISSIONS ==========
+    echo ""
+    echo "🔒 Verifying no internet permissions (security requirement)..."
+    
+    # Method 1: Check AndroidManifest.xml directly
+    TEMP_MANIFEST="/tmp/amp_manifest_$$.xml"
+    if unzip -p "$APK_PATH" AndroidManifest.xml > "$TEMP_MANIFEST" 2>/dev/null; then
+        # Binary XML, need to decode or check with aapt
+        if command -v aapt &>/dev/null; then
+            if aapt dump permissions "$APK_PATH" 2>/dev/null | grep -q "android.permission.INTERNET"; then
+                echo "  ❌ SECURITY VIOLATION: INTERNET permission found in APK!"
+                echo "  ❌ This app MUST NOT have network access"
+                rm -f "$TEMP_MANIFEST"
+                exit 1
+            else
+                echo "  ✅ No internet permissions (REQUIRED)"
+            fi
+        else
+            # Fallback: just check string presence (less reliable)
+            if strings "$TEMP_MANIFEST" 2>/dev/null | grep -q "android.permission.INTERNET"; then
+                echo "  ⚠️  Possible INTERNET permission detected (unverified)"
+                echo "  Install aapt for reliable verification"
+            else
+                echo "  ✅ No obvious internet permissions (basic check)"
+            fi
+        fi
+        rm -f "$TEMP_MANIFEST"
+    else
+        echo "  ⚠️  Could not extract manifest for verification"
+    fi
+    # ========== END PERMISSION VERIFICATION ==========
+
+    echo ""
+    echo "Ready to deploy! 🚀"
+else
+    echo "  APK not found at expected location"
+fi
+
+# Restore Dioxus.toml
+echo ""
+echo "🔄 Restoring original Dioxus.toml..."
+if [ -n "$DIOXUS_BACKUP" ] && [ -f "$DIOXUS_BACKUP" ]; then
+    cp -- "$DIOXUS_BACKUP" "Dioxus.toml"
+    rm -f -- "$DIOXUS_BACKUP"
+    echo "✓ Restored"
+else
+    echo "⚠️  No backup available"
+fi
+
+echo ""
+echo "✅ Build complete!"
+echo ""
+echo "📝 Next steps:"
+echo "   1. Uninstall old: adb uninstall se.malmo.skaggbyran.amp"
+echo "   2. Install new: adb install \"$APK_PATH\""
+echo "   3. Monitor with: adb logcat | grep -E '(amp_MainActivity|amp_WebViewConfig|Notifications|AndroidRuntime)'"
+echo ""
+echo "🔍 If blank screen persists:"
+echo "   - Check logcat for 'amp_MainActivity' logs"
+echo "   - Verify onWebViewCreate() was called"
+echo "   - Use Chrome DevTools: chrome://inspect"
+echo "   - Test localStorage in Console: localStorage.setItem('test', 'works')"
+echo ""
+echo "🔍 If app crashes, check:"
+echo "   - ClassNotFoundException → Review R8 diagnostics above"
+echo "   - Check R8 mapping files: $ANDROID_DIR/build/outputs/mapping/release/"
+echo "   - JNI errors → Check android_bridge.rs calls correct package"
+echo "   - Build errors → Check gradle logs in /tmp/gradle_build.log"
