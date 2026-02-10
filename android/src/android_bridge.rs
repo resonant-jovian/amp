@@ -31,6 +31,25 @@ use ndk_context;
 use once_cell::sync::OnceCell;
 #[cfg(target_os = "android")]
 static JAVA_VM: OnceCell<JavaVM> = OnceCell::new();
+/// Request notification permission from user
+///
+/// For Android 13+: Shows system permission dialog
+/// For Android <13: No-op (permission not required)
+#[allow(dead_code)]
+pub fn request_notification_permission_jni() {
+    #[cfg(target_os = "android")]
+    {
+        match request_notification_permission() {
+            Ok(()) => eprintln!("[Android Bridge] Notification permission requested"),
+            Err(e) => eprintln!("[Android Bridge] Permission request failed: {}", e),
+        }
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        eprintln!("[Mock Android Bridge] Notification permission request (no-op)");
+    }
+}
+#[allow(dead_code)]
 #[cfg(target_os = "android")]
 fn request_notification_permission() -> Result<(), String> {
     let mut env = get_jni_env()?;
