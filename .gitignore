@@ -13,7 +13,4 @@ release.jks.backup
 keystore.properties
 /android/Dioxus.toml.backup.1769416147
 /keystore.b64
-/data/adresser.json
-/data/miljoparkeringar.json
-/data/parkeringsavgifter.json
 /android/settings.parquet
