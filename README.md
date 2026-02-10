@@ -1,211 +1,175 @@
-```
-                                .         .                          
-         .8.                   ,8.       ,8.          8 888888888o   
-        .888.                 ,888.     ,888.         8 8888    `88. 
-       :88888.               .`8888.   .`8888.        8 8888     `88 
-      . `88888.             ,8.`8888. ,8.`8888.       8 8888     ,88 
-     .8. `88888.           ,8'8.`8888,8^8.`8888.      8 8888.   ,88' 
-    .8`8. `88888.         ,8' `8.`8888' `8.`8888.     8 888888888P'  
-   .8' `8. `88888.       ,8'   `8.`88'   `8.`8888.    8 8888         
-  .8'   `8. `88888.     ,8'     `8.`'     `8.`8888.   8 8888         
- .888888888. `88888.   ,8'       `8        `8.`8888.  8 8888         
-.8'       `8. `88888. ,8'         `         `8.`8888. 8 8888         
+# AMP
 
-```
-
-**Address-to-Miljozone Parking** — Geospatial correlation library matching addresses to environmental parking zones in Malmö, Sweden.
+**Address-to-Miljözone Parking** — Geospatial correlation library for Swedish environmental parking zones in Malmö.
 
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 [![Rust 2024](https://img.shields.io/badge/rust-2024%2B-orange)](https://www.rust-lang.org/)
 
 ## Overview
 
-AMP correlates street addresses with parking restriction zones using geospatial algorithms. It provides a Rust library, CLI tool, and mobile apps for checking parking restrictions without internet access.
+AMP correlates street addresses with parking restriction zones using multiple geospatial algorithms. It consists of:
 
-**Key Features:**
-- Six correlation algorithms (distance-based, raycasting, spatial indexing, grid-based)
-- Dual dataset support (miljödata + parkering zones)
-- CLI with testing mode, benchmarking, and data update checks
-- Android and iOS apps built with Dioxus
-- Visual testing interface with StadsAtlas integration
+- **[Core Library](core/)** — Rust library with correlation algorithms and data structures
+- **[CLI Tool](server/)** — Testing, benchmarking, and correlation command-line interface  
+- **[Android App](android/)** — Offline parking lookup app with smart notifications
+- **[iOS App](ios/)** — iOS version sharing UI code with Android
+- **[Build Scripts](scripts/)** — Automation for building and deployment
 
 ## Quick Start
 
-### Testing Mode (Visual Verification)
-
-Open browser windows to visually verify correlation accuracy against official StadsAtlas:
-
 ```bash
-# Default: 10 windows, KD-Tree algorithm, 50m threshold
+# Visual testing (opens browser tabs)
 cargo run --release -- test
 
-# Custom parameters
-cargo run -- test --algorithm rtree --cutoff 100 --windows 15
-```
+# Run correlation on addresses
+cargo run --release -p amp_server -- correlate
 
-**What each window shows:**
-- **Tab 1:** Official Malmö StadsAtlas with parking zones
-- **Tab 2:** Correlation result details (address, distance, zone info)
-
-Manually verify that Tab 2 matches what you see in Tab 1's StadsAtlas.
-
-See [docs/cli-usage.md](docs/cli-usage.md) for complete testing guide.
-
-### CLI - Standard Commands
-
-```bash
-# Build
-cargo build --release -p amp_server
-
-# Run correlation (default: KD-Tree, 50m threshold)
-./target/release/amp-server correlate
-
-# Custom algorithm and distance threshold
-./target/release/amp-server correlate --algorithm rtree --cutoff 75
-
-# Benchmark algorithms interactively
-./target/release/amp-server benchmark --sample-size 500
-
-# Check if data has been updated
-./target/release/amp-server check-updates
-```
-
-### Library Usage
-
-```rust
-use amp_core::api::api_miljo_only;
-use amp_core::correlation_algorithms::{RTreeSpatialAlgo, CorrelationAlgo};
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let (addresses, zones) = api_miljo_only()?;
-    let algo = RTreeSpatialAlgo::new(&zones);
-    
-    for addr in addresses.iter().take(10) {
-        if let Some((idx, dist)) = algo.correlate(addr, &zones) {
-            println!("{}: {:.2}m to zone {}", addr.adress, dist, idx);
-        }
-    }
-    Ok(())
-}
+# Benchmark algorithms
+cargo run --release -p amp_server -- benchmark
 ```
 
 ## Documentation
 
-### Getting Started
-- **[CLI Usage](docs/cli-usage.md)** — Complete command reference
-- **[Testing Guide](docs/testing.md)** — Visual and unit testing procedures
-
-### Architecture & Design
+### Core Concepts
 - **[Architecture](docs/architecture.md)** — System design and data flow
-- **[Algorithms](docs/algorithms.md)** — How each algorithm works
-- **[API Integration](docs/api-integration.md)** — ArcGIS data fetching
+- **[Algorithms](docs/algorithms.md)** — How geospatial correlation works
+- **[Data Format](docs/data-format.md)** — Parquet storage structure
 
-### Module Guides
-- **[Core Library](core/README.md)** — Library API and usage
-- **[Server/CLI](server/README.md)** — CLI tool guide
+### Development
+- **[Building](docs/building.md)** — Build instructions for all components
+- **[Testing](docs/testing.md)** — Visual and automated testing guide
+- **[API Integration](docs/api-integration.md)** — Fetching data from Malmö Open Data
+
+### Android Notifications
+- **[Notification System](docs/android-notifications.md)** — Complete notification implementation guide
+- **[Kotlin Integration](docs/android-kotlin-integration.md)** — JNI bridge and Android setup
+
+### Component Documentation
+- **[Core Library](core/README.md)** — API reference and usage examples
+- **[CLI Tool](server/README.md)** — Command reference and options
+- **[Android App](android/README.md)** — Android-specific build and architecture
+- **[iOS App](ios/README.md)** — iOS setup and code sharing
+- **[Scripts](scripts/README.md)** — Automation scripts reference
+
+## Features
+
+### Core Library
+- 🗺️ **Multiple algorithms**: KD-Tree, R-Tree, Quadtree, Grid-based
+- 🚀 **Optimized**: Pre-computed correlations, O(1) lookups
+- 📦 **Parquet storage**: Efficient binary format
+- 🧪 **Visual testing**: Compare against official StadsAtlas
+
+### Android App
+- 📱 **Offline-first**: No internet required after initial data load
+- ⏰ **Real-time countdowns**: Know exactly when restrictions apply
+- 🔔 **Smart notifications**: Three-tier alert system (1 day, 6 hours, active)
+- 💾 **Persistent storage**: Saves addresses locally
+- 🎯 **Fuzzy matching**: Handles typos and partial addresses
+- ✅ **Validity checking**: Accounts for date-dependent restrictions
 
 ## Project Structure
 
 ```
 amp/
-├── README.md              # This file
-├── docs/                  # Documentation
-│   ├── cli-usage.md       # CLI command reference
-│   ├── testing.md         # Testing procedures
-│   ├── architecture.md    # System design
-│   ├── algorithms.md      # Algorithm details
-│   └── api-integration.md # Data fetching
-├── core/                  # Rust library crate
-│   ├── README.md          # Library guide
-│   └── src/
-├── server/                # CLI tool crate
-│   ├── README.md          # Server guide
-│   └── src/
-├── android/               # Android app (Dioxus)
-├── ios/                   # iOS app (Dioxus)
-└── build.sh              # Build script
+├── core/              # Rust library (algorithms, data structures)
+│   ├── src/
+│   │   ├── api.rs                    # Malmö Open Data API client
+│   │   ├── parquet.rs                # Parquet read/write operations
+│   │   ├── structs.rs                # Core data structures
+│   │   ├── correlation_algorithms/   # Algorithm implementations
+│   │   └── benchmark.rs              # Performance testing
+│   └── README.md
+├── server/            # CLI tool for testing and correlation
+│   ├── src/main.rs
+│   └── README.md
+├── android/           # Android app (Dioxus)
+│   ├── src/
+│   │   ├── main.rs                   # App entry point
+│   │   ├── ui/                       # UI components
+│   │   ├── components/               # Business logic
+│   │   │   ├── notifications.rs      # Notification system
+│   │   │   ├── transitions.rs        # Panel transition detection
+│   │   │   └── lifecycle.rs          # Background tasks
+│   │   ├── storage.rs                # Data persistence
+│   │   └── android_bridge.rs         # JNI bridge
+│   ├── tests/                        # Integration tests
+│   └── README.md
+├── ios/               # iOS app (shares UI with Android)
+│   ├── src/
+│   └── README.md
+├── scripts/           # Build and automation scripts
+│   └── README.md
+└── docs/              # General documentation
+    ├── android-notifications.md      # Notification system guide
+    └── android-kotlin-integration.md # Kotlin/JNI setup
 ```
 
 ## Building
 
 ### Prerequisites
-- Rust 1.70+ ([rustup](https://rustup.rs))
-- For mobile: Dioxus CLI (`cargo install dioxus-cli`)
+- **Rust 1.70+** — [Install](https://rustup.rs)
+- **Dioxus CLI** — `cargo install dioxus-cli` (for mobile apps)
+- **Android SDK + Java 21** — For Android builds
+- **Xcode** — For iOS builds (macOS only)
 
 ### Build Commands
 
 ```bash
-# Library and CLI
-cargo build --release -p amp_core
-cargo build --release -p amp_server
+# Core library and CLI
+cargo build --release
 
 # Run tests
 cargo test --release
 
-# Android
-cd android && dx build --release
+# Android APK
+./scripts/build.sh
 
-# iOS
+# iOS app
 cd ios && dx build --release
 ```
 
-## Dependencies
-
-Core dependencies:
-- `rust_decimal` — High-precision coordinates
-- `rayon` — Parallel processing
-- `tokio` — Async runtime
-- `reqwest` — HTTP client
-- `rstar` — R-tree spatial indexing
-- `kiddo` — KD-tree spatial indexing
-- `dioxus` — UI framework (mobile)
-
-See `Cargo.toml` files for complete lists.
-
-## Data Sources
-
-AMP fetches parking zone data from official Malmö Open Data:
-- **Miljöparkering** — Environmental parking restrictions
-- **Parkeringsavgifter** — Parking fee zones
-- **Adresser** — Address coordinates
-
-Data is verified using checksums. Run `check-updates` to detect new data.
+See **[Building Guide](docs/building.md)** for detailed instructions.
 
 ## Testing
 
-### Visual Testing (Browser)
-
-Test correlation accuracy by comparing results against official StadsAtlas:
+### Visual Testing
+Compare algorithm results against official Malmö StadsAtlas:
 
 ```bash
-# Quick test (5 windows)
-cargo run -- test --windows 5
+# Default: 10 windows, KD-Tree algorithm
+cargo run -- test
 
-# Compare algorithms
-cargo run -- test --algorithm kdtree --windows 10
-cargo run -- test --algorithm rtree --windows 10
-
-# Validate distance thresholds
-cargo run -- test --cutoff 25 --windows 5
-cargo run -- test --cutoff 50 --windows 5
-cargo run -- test --cutoff 100 --windows 5
+# Custom parameters
+cargo run -- test --algorithm rtree --cutoff 100 --windows 15
 ```
 
-See [docs/testing.md](docs/testing.md) for detailed testing guide.
-
-### Unit & Integration Tests
-
+### Automated Tests
 ```bash
 # All tests
 cargo test --release
 
-# Specific algorithm
-cargo test --lib correlation_algorithms::rtree
-
-# Benchmarks
-cargo bench
+# Android notification tests
+cd android && cargo test --lib notifications
+cd android && cargo test --lib transitions
+cd android && cargo test --test notification_integration_tests
 ```
+
+See **[Testing Guide](docs/testing.md)** for details.
+
+## Android Notification System
+
+The Android app includes a comprehensive notification system:
+
+- **Three notification channels**:
+  - 🔴 **Active Now**: Urgent alerts with sound + vibration + heads-up
+  - 🟠 **6 Hours**: High-priority warnings with sound + vibration
+  - 🟡 **1 Day**: Silent reminders in notification tray
+
+- **Smart transition detection**: Only notifies when entering new time panels
+- **User control**: Respects notification preferences in settings
+- **No duplicates**: State tracking prevents repeat notifications
+
+See **[Notification System Guide](docs/android-notifications.md)** for implementation details.
 
 ## License
 
@@ -216,14 +180,3 @@ GPL-3.0 — See [LICENSE](LICENSE) for details.
 **Albin Sjögren**  
 [albin@sjoegren.se](mailto:albin@sjoegren.se)  
 Malmö, Sweden
-
-## Related Documentation
-
-For detailed information, see:
-- [CLI Usage Guide](docs/cli-usage.md) — All commands and parameters
-- [Testing Strategies](docs/testing.md) — Visual, unit, and integration testing
-- [Architecture Overview](docs/architecture.md) — System design
-- [Algorithm Comparison](docs/algorithms.md) — How each algorithm works
-- [API Integration](docs/api-integration.md) — Data fetching from ArcGIS
-- [Core Library](core/README.md) — Library API documentation
-- [Server Tool](server/README.md) — CLI tool documentation

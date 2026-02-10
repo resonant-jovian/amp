@@ -12,13 +12,8 @@ clap.workspace = true
 rayon.workspace = true
 indicatif.workspace = true
 rand = "0.8"
-urlencoding = "2.1"
-dirs = "5.0"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-chrono = "0.4"
-uuid = { version = "1.0", features = ["v4"] }
 
 [[bin]]
 name = "amp-server"
 path = "src/main.rs"
+doctest = false
