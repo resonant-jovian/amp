@@ -52,12 +52,12 @@ jobs:
 
       - name: Make scripts executable
         run: |
-          chmod +x build.sh
-          chmod +x serve.sh
-          chmod +x adb-install.sh
+          chmod +x scripts/build.sh
+          chmod +x scripts/serve.sh
+          chmod +x scripts/adb-install.sh
 
       - name: Build Android APK
-        run: ./build.sh
+        run: ./scripts/build.sh
         env:
           GRADLE_OPTS: "-Xmx4096m"
 
