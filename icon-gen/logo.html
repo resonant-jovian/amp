@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logo Preview</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Workbench&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 0;
+        }
+
+        .logo-container {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: linear-gradient(
+                0deg,
+                #e0e0e0 0%,
+                #e1d4dd 25%,
+                #d59aba 75%,
+                #bb4ea0 100%
+            );
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            /* REMOVED: box-shadow */
+            position: relative;
+            overflow: hidden;
+        }
+
+        .logo-text {
+            font-family: 'Workbench', cursive;
+            font-size: 72px;
+            font-weight: 400;
+            color: #000000;
+            text-transform: lowercase;
+            text-shadow: 0 0 0.5rem #bb4ea0;
+            user-select: none;
+        }
+
+        .logo-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(
+                circle at 30% 30%,
+                rgba(255, 255, 255, 0.2) 0%,
+                transparent 60%
+            );
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="logo-container">
+        <span class="logo-text">amp</span>
+    </div>
+</body>
+</html>
+

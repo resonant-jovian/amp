@@ -1,341 +1,275 @@
 # API Integration
 
-AMP fetches geospatial data from Malmö's Open Data Portal using ESRI ArcGIS Feature Services.
+AMP fetches geospatial data from Malmö Open Data API.
 
 ## Data Sources
 
-### 1. Miljöparkering (Environmental Parking)
+All datasets provided by [Malmö Open Data](https://malmo.se/opendata).
 
-**URL:** `https://opendata.malmo.se/@fastighets-och-gatukontoret/miljoparkering/73490f00-0d71-4b17-903c-f77ab7664a53`
+### 1. Addresses
 
-**Format:** GeoJSON FeatureCollection
+**Endpoint:** `https://opendata.malmo.se/api/3/action/datastore_search`
 
-**Fields:**
-- `geometry` — LineString (parking zone boundaries)
-- `properties.INFO` — Restriction description
-- `properties.TID` — Time restrictions
-- `properties.DAG` — Day of week (bitmask)
+**Dataset ID:** `d41fb5ea-a7bc-4e00-b31a-4c799e05de11`
 
-**Example:**
-```json
-{
-  "type": "Feature",
-  "geometry": {
-    "type": "LineString",
-    "coordinates": [[13.0024, 55.6050], [13.0028, 55.6052]]
-  },
-  "properties": {
-    "INFO": "Miljözon",
-    "TID": "06:00-18:00",
-    "DAG": 31
-  }
-}
-```
+**Description:** Complete address database for Malmö with coordinates.
 
-### 2. Parkeringsavgifter (Parking Fees)
+**Fields used:**
+- `POINT_X` — Longitude (WGS84)
+- `POINT_Y` — Latitude (WGS84)
+- `POSTNUMMER` — Postal code
+- `ADRESS` — Full address
+- `GATA` — Street name
+- `GATUNUMMER` — Street number
 
-**URL:** `https://opendata.malmo.se/@fastighets-och-gatukontoret/parkeringsavgifter/1a6bd68b-30ca-40a5-9d62-01e2a566982e`
+### 2. Miljöparkeringar (Environmental Parking)
 
-**Format:** GeoJSON FeatureCollection
+**Endpoint:** GeoJSON API
 
-**Fields:**
-- `geometry` — LineString (parking zone boundaries)
-- `properties.BESKRIVNING` — Fee description
-- `properties.TID` — Time restrictions
-- `properties.VECKODAG` — Weekday restrictions
+**URL:** `https://geodata.malmo.se/datasets/malmo-stad::miljoparkeringar.geojson`
 
-### 3. Adresser (Addresses)
+**Description:** Time-restricted parking zones for street cleaning.
 
-**URL:** `https://opendata.malmo.se/@stadsbyggnadskontoret/adresser/caf1cee8-9af2-4a75-8fb7-f1d7cb11daeb`
+**Fields used:**
+- `geometry` — LineString coordinates
+- `INFO` — Restriction description
+- `TID` — Time range ("HHMM-HHMM")
+- `DAG` — Day of month (1-31)
 
-**Format:** GeoJSON FeatureCollection
+### 3. Parkeringsavgifter (Parking Fees)
 
-**Fields:**
-- `geometry` — Point (address coordinates)
-- `properties.ADRESS` — Full address string
-- `properties.GATA` — Street name
-- `properties.GATUNUMMER` — Street number
-- `properties.POSTNUMMER` — Postal code
+**Endpoint:** GeoJSON API
 
-**Example:**
-```json
-{
-  "type": "Feature",
-  "geometry": {
-    "type": "Point",
-    "coordinates": [13.0024, 55.6050]
-  },
-  "properties": {
-    "ADRESS": "Stortorget 1",
-    "GATA": "Stortorget",
-    "GATUNUMMER": "1",
-    "POSTNUMMER": "211 22"
-  }
-}
-```
+**URL:** `https://geodata.malmo.se/datasets/malmo-stad::parkeringsavgifter.geojson`
+
+**Description:** Paid parking zones with taxa information.
+
+**Fields used:**
+- `geometry` — LineString coordinates
+- `TAXA` — Zone identifier (A-E)
+- `ANTAL_PLATSER` — Number of parking spots
+- `TYP_AV_PARKERING` — Type (e.g., "Längsgående 6")
 
 ## Implementation
 
-**Module:** `core/src/api.rs`
+### API Client
 
-### Main Function
-
-```rust
-pub async fn api() -> Result<(
-    Vec<AdressClean>,
-    Vec<MiljoeDataClean>,
-    Vec<MiljoeDataClean>
-), Box<dyn std::error::Error>> {
-    let client = reqwest::Client::new();
-    
-    // Fetch all three datasets in parallel
-    let (addresses, miljo, parkering) = tokio::join!(
-        fetch_addresses(&client),
-        fetch_miljoparkering(&client),
-        fetch_parkeringsavgifter(&client)
-    );
-    
-    Ok((addresses?, miljo?, parkering?))
-}
-```
-
-### Pagination Handling
-
-ArcGIS limits responses to 1000 features. AMP handles pagination automatically:
+**Location:** `core/src/api.rs`
 
 ```rust
-async fn fetch_all_features(client: &Client, base_url: &str) 
-    -> Result<Vec<Feature>, Box<dyn std::error::Error>> 
-{
-    let mut all_features = Vec::new();
-    let mut offset = 0;
-    const PAGE_SIZE: usize = 1000;
-    
-    loop {
-        let url = format!(
-            "{}?resultOffset={}&resultRecordCount={}",
-            base_url, offset, PAGE_SIZE
-        );
-        
-        let response: FeatureCollection = client
-            .get(&url)
-            .send()
-            .await?
-            .json()
-            .await?;
-        
-        let count = response.features.len();
-        all_features.extend(response.features);
-        
-        if count < PAGE_SIZE {
-            break;  // Last page
-        }
-        
-        offset += PAGE_SIZE;
-    }
-    
-    Ok(all_features)
-}
-```
+use amp_core::api;
 
-### Data Transformation
-
-**GeoJSON → Rust Structs:**
-
-```rust
-fn parse_address(feature: Feature) -> Option<AdressClean> {
-    let coords = match feature.geometry {
-        Geometry::Point { coordinates } => [
-            Decimal::from_f64(coordinates[0])?,
-            Decimal::from_f64(coordinates[1])?
-        ],
-        _ => return None,
-    };
-    
-    Some(AdressClean {
-        coordinates: coords,
-        adress: feature.properties.get("ADRESS")?.as_str()?.to_string(),
-        gata: feature.properties.get("GATA")?.as_str()?.to_string(),
-        gatunummer: feature.properties.get("GATUNUMMER")?.as_str()?.to_string(),
-        postnummer: feature.properties.get("POSTNUMMER")?.as_str()?.to_string(),
-    })
-}
-
-fn parse_miljodata(feature: Feature) -> Option<MiljoeDataClean> {
-    let coords = match feature.geometry {
-        Geometry::LineString { coordinates } => [
-            [
-                Decimal::from_f64(coordinates[0][0])?,
-                Decimal::from_f64(coordinates[0][1])?                ],
-            [
-                Decimal::from_f64(coordinates[1][0])?,
-                Decimal::from_f64(coordinates[1][1])?
-            ]
-        ],
-        _ => return None,
-    };
-    
-    Some(MiljoeDataClean {
-        coordinates: coords,
-        info: feature.properties.get("INFO")?.as_str()?.to_string(),
-        tid: feature.properties.get("TID")?.as_str()?.to_string(),
-        dag: feature.properties.get("DAG")?.as_u64()? as u8,
-    })
-}
+// Fetch all datasets
+let addresses = api::fetch_addresses().await?;
+let miljo = api::fetch_miljo_zones().await?;
+let parkering = api::fetch_parkering_zones().await?;
 ```
 
 ### Error Handling
 
-**Strategy:** Graceful degradation
-
 ```rust
-// Skip invalid features instead of failing entire dataset
-let addresses: Vec<AdressClean> = features
-    .into_iter()
-    .filter_map(parse_address)  // Returns Option<AdressClean>
-    .collect();
-```
-
-**Handled Errors:**
-- Missing fields → Skip feature
-- Invalid coordinates → Skip feature
-- Network timeout → Retry with exponential backoff
-- Invalid JSON → Return error
-
-## Data Verification
-
-**Module:** `core/src/checksum.rs`
-
-### SHA256 Checksums
-
-```rust
-use sha2::{Sha256, Digest};
-
-pub struct DataChecksum {
-    pub miljoparkering: String,
-    pub parkeringsavgifter: String,
-    pub adresser: String,
-    pub last_checked: String,
-}
-
-impl DataChecksum {
-    pub async fn update_from_remote(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let client = reqwest::Client::new();
-        
-        // Fetch raw data
-        let miljo_data = client.get(&self.miljoparkering_url).send().await?.bytes().await?;
-        let parkering_data = client.get(&self.parkeringsavgifter_url).send().await?.bytes().await?;
-        let adress_data = client.get(&self.adresser_url).send().await?.bytes().await?;
-        
-        // Compute checksums
-        self.miljoparkering = format!("{:x}", Sha256::digest(&miljo_data));
-        self.parkeringsavgifter = format!("{:x}", Sha256::digest(&parkering_data));
-        self.adresser = format!("{:x}", Sha256::digest(&adress_data));
-        self.last_checked = chrono::Utc::now().to_rfc3339();
-        
-        Ok(())
+match api::fetch_addresses().await {
+    Ok(addresses) => {
+        println!("Fetched {} addresses", addresses.len());
     }
-    
-    pub fn has_changed(&self, old: &DataChecksum) -> bool {
-        self.miljoparkering != old.miljoparkering
-            || self.parkeringsavgifter != old.parkeringsavgifter
-            || self.adresser != old.adresser
+    Err(e) => {
+        eprintln!("Failed to fetch addresses: {}", e);
     }
 }
 ```
 
-**Use Cases:**
-- Detect when city updates data
-- Trigger re-correlation on changes
-- Monitor data freshness
+### Rate Limiting
 
-## Performance Considerations
+Malmö Open Data API has no documented rate limits, but use respectful practices:
 
-**Parallel Fetching:**
-```rust
-// Fetch all datasets simultaneously
-let (addresses, miljo, parkering) = tokio::join!(
-    fetch_addresses(&client),
-    fetch_miljoparkering(&client),
-    fetch_parkeringsavgifter(&client)
-);
-```
+- **Cache data locally** (Parquet files)
+- **Batch requests** when possible
+- **Use exponential backoff** on errors
 
-**Connection Pooling:**
-```rust
-// Reqwest automatically reuses connections
-let client = reqwest::Client::builder()
-    .pool_max_idle_per_host(10)
-    .build()?;
-```
-
-**Timeouts:**
-```rust
-let client = reqwest::Client::builder()
-    .timeout(Duration::from_secs(30))
-    .build()?;
-```
-
-## Testing
-
-**Mock API responses:**
+### Retry Logic
 
 ```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
-    
-    #[tokio::test]
-    async fn test_parse_address() {
-        let geojson = r#"
-        {
-            "type": "Feature",
-            "geometry": {"type": "Point", "coordinates": [13.0, 55.6]},
-            "properties": {
-                "ADRESS": "Test 1",
-                "GATA": "Test",
-                "GATUNUMMER": "1",
-                "POSTNUMMER": "211 22"
-            }
+use tokio::time::{sleep, Duration};
+
+let mut retries = 0;
+let max_retries = 3;
+
+loop {
+    match api::fetch_addresses().await {
+        Ok(data) => break Ok(data),
+        Err(e) if retries < max_retries => {
+            retries += 1;
+            let delay = Duration::from_secs(2u64.pow(retries));
+            eprintln!("Retry {}/{}: {:?}", retries, max_retries, e);
+            sleep(delay).await;
         }
-        "#;
-        
-        let feature: Feature = serde_json::from_str(geojson).unwrap();
-        let addr = parse_address(feature).unwrap();
-        
-        assert_eq!(addr.adress, "Test 1");
+        Err(e) => break Err(e),
     }
 }
 ```
 
-## Limitations
+## Data Processing
 
-- **Rate Limiting:** None enforced by Malmö Open Data Portal (as of 2026)
-- **Data Freshness:** Updated by city irregularly (weekly to monthly)
-- **Pagination:** Max 1000 features per request (handled automatically)
-- **Coordinate Precision:** 6 decimal places (~0.1 meter accuracy)
-
-## Alternative Functions
-
-**Fetch single dataset:**
+### Parsing GeoJSON
 
 ```rust
-// For testing or CLI with one dataset
-pub async fn api_miljo_only() -> Result<(
-    Vec<AdressClean>,
-    Vec<MiljoeDataClean>
-), Box<dyn std::error::Error>> {
-    let client = reqwest::Client::new();
-    let (addresses, miljo) = tokio::join!(
-        fetch_addresses(&client),
-        fetch_miljoparkering(&client)
-    );
-    Ok((addresses?, miljo?))
+use geojson::{GeoJson, Feature};
+
+let geojson_str = fetch_raw_geojson(url).await?;
+let geojson = geojson_str.parse::<GeoJson>()?;
+
+if let GeoJson::FeatureCollection(collection) = geojson {
+    for feature in collection.features {
+        // Extract properties
+        let properties = feature.properties.unwrap();
+        let info = properties.get("INFO")?.as_str()?;
+        
+        // Extract geometry
+        if let Some(geom) = feature.geometry {
+            // Process LineString coordinates
+        }
+    }
+}
+```
+
+### Coordinate Conversion
+
+```rust
+use rust_decimal::Decimal;
+
+// GeoJSON uses f64, convert to Decimal for precision
+let lon_f64: f64 = coords[0];
+let lat_f64: f64 = coords[1];
+
+let lon = Decimal::from_f64_retain(lon_f64).unwrap();
+let lat = Decimal::from_f64_retain(lat_f64).unwrap();
+
+let coordinates = [lon, lat];
+```
+
+## Data Updates
+
+### Update Workflow
+
+```bash
+# 1. Fetch latest data from API
+cargo run --release -p amp_server -- fetch
+
+# 2. Verify checksums changed
+diff server/checksums.json.old server/checksums.json
+
+# 3. Test with new data
+cargo run --release -- test
+
+# 4. Update mobile app assets
+cp server/*.parquet android/assets/
+cp server/*.parquet ios/assets/
+
+# 5. Rebuild apps
+./scripts/build.sh
+```
+
+### Update Frequency
+
+**Recommended:** Monthly
+
+**Reasons:**
+- Street cleaning schedules change seasonally
+- New addresses added regularly
+- Parking zones occasionally updated
+
+### Checksum Validation
+
+```rust
+use amp_core::checksum;
+
+// Calculate checksum for new file
+let new_checksum = checksum::calculate_file("addresses.parquet")?;
+
+// Load expected checksums
+let checksums = checksum::load_checksums("checksums.json")?;
+
+// Compare
+if new_checksum != checksums.addresses {
+    println!("⚠️  Data changed! Update required.");
+}
+```
+
+Checksums stored in `server/checksums.json`.
+
+## API Response Examples
+
+### Addresses Response
+
+```json
+{
+  "result": {
+    "records": [
+      {
+        "POINT_X": "13.003456",
+        "POINT_Y": "55.604523",
+        "POSTNUMMER": "21438",
+        "ADRESS": "Åhusgatan 1",
+        "GATA": "Åhusgatan",
+        "GATUNUMMER": "1"
+      }
+    ]
+  }
+}
+```
+
+### Miljöparkeringar GeoJSON
+
+```json
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [13.003456, 55.604523],
+          [13.004567, 55.605634]
+        ]
+      },
+      "properties": {
+        "INFO": "Parkering förbjuden",
+        "TID": "0800-1200",
+        "DAG": 15
+      }
+    }
+  ]
+}
+```
+
+### Parkeringsavgifter GeoJSON
+
+```json
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [13.003456, 55.604523],
+          [13.004567, 55.605634]
+        ]
+      },
+      "properties": {
+        "TAXA": "Taxa C",
+        "ANTAL_PLATSER": 26,
+        "TYP_AV_PARKERING": "Längsgående 6"
+      }
+    }
+  ]
 }
 ```
 
 ## Related Documentation
 
-- [Architecture](architecture.md) — System design
-- [CLI Usage](cli-usage.md) — check-updates command
-- [core/README.md](../core/README.md) — Core library guide
+- **[Data Format](data-format.md)** — Parquet storage details
+- **[Architecture](architecture.md)** — System overview
+- **[Core Library](../core/README.md)** — API client reference

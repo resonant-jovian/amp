@@ -8,6 +8,21 @@ license.workspace = true
 [dependencies]
 amp-core = { path = "../core" }
 dioxus.workspace = true
+dioxus-free-icons.workspace = true
+chrono.workspace = true
+anyhow.workspace = true
+strsim.workspace = true
+uuid.workspace = true
+arrow.workspace = true
+parquet.workspace = true
+bytes.workspace = true
+tokio.workspace = true
+log.workspace = true
+env_logger.workspace = true
+android_logger.workspace = true
+jni.workspace = true
+ndk-context.workspace = true
+once_cell.workspace = true
 
 [features]
 default = ["mobile"]
@@ -16,3 +31,7 @@ mobile = ["dioxus/mobile"]
 [[bin]]
 name = "amp"
 path = "src/main.rs"
+doctest = false
+
+[lib]
+doctest = false
