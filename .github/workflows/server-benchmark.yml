@@ -78,7 +78,7 @@ jobs:
 
       - name: Run benchmark (1000 samples)
         run: |
-          cargo run -p amp-server --release -- benchmark --sample-size 1000 2>&1 | tee benchmark_output.txt
+          cd /home/runner/work/amp/amp/server && cargo run -p amp-server --release -- benchmark --sample-size 1000 2>&1 | tee benchmark_output.txt
         timeout-minutes: 45
 
       - name: Extract benchmark results
