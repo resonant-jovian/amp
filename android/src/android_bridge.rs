@@ -35,6 +35,7 @@ static JAVA_VM: OnceCell<JavaVM> = OnceCell::new();
 ///
 /// For Android 13+: Shows system permission dialog
 /// For Android <13: No-op (permission not required)
+#[allow(dead_code)]
 pub fn request_notification_permission_jni() {
     #[cfg(target_os = "android")]
     {

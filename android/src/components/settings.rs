@@ -222,10 +222,11 @@ pub fn save_settings(settings: &AppSettings) {
         Ok(path) => {
             if let Some(parent) = path.parent()
                 && !parent.exists()
-                    && let Err(e) = std::fs::create_dir_all(parent) {
-                        eprintln!("[Settings] Failed to create directory {:?}: {}", parent, e,);
-                        return;
-                    }
+                && let Err(e) = std::fs::create_dir_all(parent)
+            {
+                eprintln!("[Settings] Failed to create directory {:?}: {}", parent, e);
+                return;
+            }
             let settings_data = to_settings_data(settings);
             match build_settings_parquet(vec![settings_data]) {
                 Ok(parquet_bytes) => match std::fs::write(&path, parquet_bytes) {
