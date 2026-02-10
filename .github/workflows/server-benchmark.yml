@@ -84,14 +84,14 @@ jobs:
       - name: Extract benchmark results
         if: always()
         run: |
-          echo "## 🏁 Benchmark Results" > benchmark_summary.md
+          echo "## \U0001F3C1 Benchmark Results" > benchmark_summary.md
           echo "" >> benchmark_summary.md
           echo "**Configuration:** 1000 sample addresses" >> benchmark_summary.md
           echo "**Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> benchmark_summary.md
           echo "" >> benchmark_summary.md
-          echo "\`\`\`" >> benchmark_summary.md
+          echo '```' >> benchmark_summary.md
           tail -50 benchmark_output.txt >> benchmark_summary.md
-          echo "\`\`\`" >> benchmark_summary.md
+          echo '```' >> benchmark_summary.md
           cat benchmark_summary.md
 
       - name: Upload benchmark results
@@ -134,7 +134,7 @@ jobs:
     steps:
       - name: Print summary
         run: |
-          echo "# 🏁 Server Benchmark Summary"
+          echo "# \U0001F3C1 Server Benchmark Summary"
           echo ""
           echo "## Configuration"
           echo "- **Sample Size:** 1000 addresses"
