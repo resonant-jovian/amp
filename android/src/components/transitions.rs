@@ -33,6 +33,7 @@
 //! ```
 use crate::components::countdown::{TimeBucket, bucket_for};
 use crate::ui::StoredAddress;
+use amp_core::structs::DB;
 use std::collections::HashMap;
 use std::sync::Mutex;
 /// Global state tracking last known panel for each address
@@ -184,6 +185,39 @@ pub fn tracked_address_count() -> usize {
     let state = PANEL_STATE.lock().unwrap();
     state.as_ref().map_or(0, |map| map.len())
 }
+#[allow(dead_code)]
+pub fn create_test_address_with_bucket(
+    id: usize,
+    day: u8,
+    time: &str,
+) -> (StoredAddress, TimeBucket) {
+    let db = DB::from_dag_tid(
+        Some("22100".to_string()),
+        format!("Test Street {}", id),
+        Some("Test Street".to_string()),
+        Some(id.to_string()),
+        None,
+        day,
+        time,
+        None,
+        None,
+        None,
+        2024,
+        1,
+    )
+    .expect("Failed to create test DB entry");
+    let bucket = bucket_for(&db);
+    let addr = StoredAddress {
+        id,
+        street: "Test Street".to_string(),
+        street_number: id.to_string(),
+        postal_code: "22100".to_string(),
+        valid: true,
+        active: true,
+        matched_entry: Some(db),
+    };
+    (addr, bucket)
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -214,38 +248,6 @@ mod tests {
             active: true,
             matched_entry: Some(db),
         }
-    }
-    fn create_test_address_with_bucket(
-        id: usize,
-        day: u8,
-        time: &str,
-    ) -> (StoredAddress, TimeBucket) {
-        let db = DB::from_dag_tid(
-            Some("22100".to_string()),
-            format!("Test Street {}", id),
-            Some("Test Street".to_string()),
-            Some(id.to_string()),
-            None,
-            day,
-            time,
-            None,
-            None,
-            None,
-            2024,
-            1,
-        )
-        .expect("Failed to create test DB entry");
-        let bucket = bucket_for(&db);
-        let addr = StoredAddress {
-            id,
-            street: "Test Street".to_string(),
-            street_number: id.to_string(),
-            postal_code: "22100".to_string(),
-            valid: true,
-            active: true,
-            matched_entry: Some(db),
-        };
-        (addr, bucket)
     }
     #[test]
     fn test_initialize_panel_tracker() {
