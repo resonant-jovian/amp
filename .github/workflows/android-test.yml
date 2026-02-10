@@ -52,6 +52,7 @@ jobs:
 
       - name: Make scripts executable
         run: |
+          cd /home/runner/work/amp/amp/scripts
           chmod +x build.sh
           chmod +x serve.sh
           chmod +x adb-install.sh
