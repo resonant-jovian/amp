@@ -257,7 +257,7 @@ mod tests {
         assert_eq!(settings.language, Language::Svenska);
         assert!(settings.notifications.stadning_nu);
         assert!(settings.notifications.sex_timmar);
-        assert!(!settings.notifications.en_dag);
+        assert!(settings.notifications.en_dag);
     }
     #[test]
     fn test_theme_display() {

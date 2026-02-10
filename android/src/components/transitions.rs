@@ -53,12 +53,12 @@ static PANEL_STATE: Mutex<Option<HashMap<usize, TimeBucket>>> = Mutex::new(None)
 /// initialize_panel_tracker();
 /// ```
 pub fn initialize_panel_tracker() {
-    let mut state = PANEL_STATE.lock().unwrap();
+    let mut state = PANEL_STATE.lock().expect("Panel state poisoned");
     if state.is_none() {
         *state = Some(HashMap::new());
         eprintln!("[PanelTracker] Initialized state tracking");
     } else {
-        eprintln!("[PanelTracker] Already initialized, skipping");
+        eprintln!("[PanelTracker] Already initialized, skipping {:?}", state);
     }
 }
 /// Check for panel transitions and return list of addresses that changed panels
