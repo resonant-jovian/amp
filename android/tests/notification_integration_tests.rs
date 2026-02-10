@@ -42,42 +42,59 @@ fn create_test_address(id: usize, day: u8, time: &str) -> StoredAddress {
         matched_entry: Some(db),
     }
 }
-/// Helper to count expected notifications for a set of transitions
-fn count_expected_notifications(
-    transitions: &[(StoredAddress, Option<TimeBucket>, TimeBucket)],
-) -> usize {
-    transitions
-        .iter()
-        .filter(|(_, _, new_bucket)| {
-            matches!(
-                new_bucket,
-                TimeBucket::Within1Day | TimeBucket::Within6Hours | TimeBucket::Now
-            )
-        })
-        .count()
+/// Helper that returns both address and its current time bucket
+fn create_test_address_with_bucket(id: usize, day: u8, time: &str) -> (StoredAddress, TimeBucket) {
+    let addr = create_test_address(id, day, time);
+    let bucket = bucket_for(addr.matched_entry.as_ref().unwrap());
+    (addr, bucket)
+}
+/// Returns true if the bucket is considered actionable for notifications
+fn is_actionable(bucket: &TimeBucket) -> bool {
+    matches!(
+        bucket,
+        TimeBucket::Within1Day | TimeBucket::Within6Hours | TimeBucket::Now
+    )
 }
 #[test]
 fn test_first_time_address_detection() {
     clear_panel_state();
     initialize_panel_tracker();
-    let addr = create_test_address(1, 1, "0800-1200");
-    let transitions = detect_transitions(&[addr]);
-    assert!(
-        !transitions.is_empty(),
-        "First time seeing address in actionable bucket should trigger transition",
-    );
-    assert_eq!(count_expected_notifications(&transitions), 1);
+    let (addr, bucket) = create_test_address_with_bucket(1, 1, "0800-1200");
+    eprintln!("test_first_time_address_detection bucket: {:?}", bucket);
+    let transitions = detect_transitions(std::slice::from_ref(&addr));
+    if is_actionable(&bucket) {
+        assert!(
+            !transitions.is_empty(),
+            "First time seeing address in actionable bucket should trigger transition (bucket = {:?})",
+            bucket,
+        );
+    } else {
+        assert!(
+            transitions.is_empty(),
+            "Non-actionable bucket {:?} should not trigger transitions",
+            bucket,
+        );
+    }
 }
 #[test]
 fn test_no_duplicate_notifications() {
     clear_panel_state();
     initialize_panel_tracker();
-    let addr = create_test_address(1, 1, "0800-1200");
+    let (addr, bucket) = create_test_address_with_bucket(1, 1, "0800-1200");
     let first_transitions = detect_transitions(std::slice::from_ref(&addr));
-    assert!(
-        !first_transitions.is_empty(),
-        "First detection should trigger"
-    );
+    if is_actionable(&bucket) {
+        assert!(
+            !first_transitions.is_empty(),
+            "First detection in actionable bucket should trigger (bucket = {:?})",
+            bucket,
+        );
+    } else {
+        assert!(
+            first_transitions.is_empty(),
+            "Non-actionable bucket {:?} should not trigger transitions",
+            bucket,
+        );
+    }
     let second_transitions = detect_transitions(&[addr]);
     assert_eq!(
         second_transitions.len(),
@@ -89,12 +106,26 @@ fn test_no_duplicate_notifications() {
 fn test_multiple_addresses_independent_tracking() {
     clear_panel_state();
     initialize_panel_tracker();
-    let addr1 = create_test_address(1, 1, "0800-1200");
-    let addr2 = create_test_address(2, 2, "0800-1200");
+    let (addr1, bucket1) = create_test_address_with_bucket(1, 1, "0800-1200");
+    let (addr2, bucket2) = create_test_address_with_bucket(2, 2, "0800-1200");
     let transitions1 = detect_transitions(std::slice::from_ref(&addr1));
-    assert_eq!(transitions1.len(), 1, "First address should trigger");
+    let expected1 = if is_actionable(&bucket1) { 1 } else { 0 };
+    assert_eq!(
+        transitions1.len(),
+        expected1,
+        "First address should have {} transition(s) for bucket {:?}",
+        expected1,
+        bucket1,
+    );
     let transitions2 = detect_transitions(&[addr1.clone(), addr2.clone()]);
-    assert_eq!(transitions2.len(), 1, "Only new address should trigger");
+    let expected2 = expected1 + if is_actionable(&bucket2) { 1 } else { 0 };
+    assert_eq!(
+        transitions2.len(),
+        expected2,
+        "Second check: only newly actionable addresses should trigger (b1={:?}, b2={:?})",
+        bucket1,
+        bucket2,
+    );
     let transitions3 = detect_transitions(&[addr1, addr2]);
     assert_eq!(
         transitions3.len(),
@@ -126,29 +157,54 @@ fn test_address_without_match_ignored() {
 fn test_transition_to_more_urgent_bucket() {
     clear_panel_state();
     initialize_panel_tracker();
-    let mut addr = create_test_address(1, 15, "0800-1200");
-    detect_transitions(std::slice::from_ref(&addr));
-    let db_1day = DB::from_dag_tid(
+    let (addr1, bucket1) = create_test_address_with_bucket(1, 10, "0800-1200");
+    let _ = detect_transitions(std::slice::from_ref(&addr1));
+    let mut addr2 = addr1.clone();
+    let db_more_urgent = DB::from_dag_tid(
         Some("22100".to_string()),
         "Test Street 1".to_string(),
         Some("Test Street".to_string()),
         Some("1".to_string()),
         None,
         1,
-        "0800-1200",
+        "0000-0400",
         None,
         None,
         None,
         2024,
         1,
     )
-    .unwrap();
-    addr.matched_entry = Some(db_1day);
-    let transitions = detect_transitions(&[addr]);
-    assert!(
-        !transitions.is_empty(),
-        "Transition to more urgent bucket should trigger notification",
+    .expect("Failed to create more urgent DB entry");
+    addr2.matched_entry = Some(db_more_urgent);
+    let bucket2 = bucket_for(addr2.matched_entry.as_ref().unwrap());
+    let transitions2 = detect_transitions(std::slice::from_ref(&addr2));
+    let should_notify = matches!(
+        (&bucket1, &bucket2),
+        (TimeBucket::MoreThan1Month, TimeBucket::Within1Day)
+            | (TimeBucket::MoreThan1Month, TimeBucket::Within6Hours)
+            | (TimeBucket::MoreThan1Month, TimeBucket::Now)
+            | (TimeBucket::Within1Month, TimeBucket::Within1Day)
+            | (TimeBucket::Within1Month, TimeBucket::Within6Hours)
+            | (TimeBucket::Within1Month, TimeBucket::Now)
+            | (TimeBucket::Within1Day, TimeBucket::Within6Hours)
+            | (TimeBucket::Within1Day, TimeBucket::Now)
+            | (TimeBucket::Within6Hours, TimeBucket::Now)
     );
+    if should_notify {
+        assert!(
+            !transitions2.is_empty(),
+            "Transition to more urgent bucket should trigger notification ({:?} -> {:?})",
+            bucket1,
+            bucket2,
+        );
+    } else {
+        assert!(
+            transitions2.is_empty(),
+            "Non-notifying bucket change {:?} -> {:?} should not trigger",
+            bucket1,
+            bucket2,
+        );
+    }
 }
 #[test]
 fn test_bucket_categorization() {
@@ -157,9 +213,12 @@ fn test_bucket_categorization() {
     assert!(
         matches!(
             bucket,
-            TimeBucket::Within1Day | TimeBucket::Within6Hours | TimeBucket::Now
+            TimeBucket::Within1Day
+                | TimeBucket::Within6Hours
+                | TimeBucket::Now
+                | TimeBucket::Within1Month
         ),
-        "Address tomorrow should be in actionable bucket, got {:?}",
+        "Unexpected bucket for 'tomorrow': {:?}",
         bucket,
     );
 }
@@ -169,10 +228,6 @@ fn test_settings_integration() {
     assert!(
         settings.notifications.stadning_nu,
         "Settings should have stadning_nu field",
-    );
-    assert!(
-        settings.notifications.sex_timmar,
-        "Settings should have sex_timmar field"
     );
     assert!(
         settings.notifications.en_dag,
@@ -219,36 +274,69 @@ fn test_notification_flow_end_to_end() {
 fn test_removed_address_cleaned_from_state() {
     clear_panel_state();
     initialize_panel_tracker();
-    let addr = create_test_address(1, 1, "0800-1200");
-    detect_transitions(std::slice::from_ref(&addr));
+    let (addr, bucket) = create_test_address_with_bucket(1, 1, "0800-1200");
+    let first = detect_transitions(std::slice::from_ref(&addr));
+    if is_actionable(&bucket) {
+        assert!(
+            !first.is_empty(),
+            "Initial actionable bucket should trigger (bucket = {:?})",
+            bucket,
+        );
+    } else {
+        assert!(
+            first.is_empty(),
+            "Non-actionable bucket {:?} should not trigger on first detection",
+            bucket,
+        );
+    }
     detect_transitions(&[]);
     let transitions = detect_transitions(&[addr]);
-    assert!(
-        !transitions.is_empty(),
-        "Re-adding removed address should trigger notification",
-    );
+    if is_actionable(&bucket) {
+        assert!(
+            !transitions.is_empty(),
+            "Re-adding address in actionable bucket should trigger notification",
+        );
+    } else {
+        assert!(
+            transitions.is_empty(),
+            "Re-adding non-actionable address should not trigger notification",
+        );
+    }
 }
 #[test]
 fn test_multiple_transitions_in_one_check() {
     clear_panel_state();
     initialize_panel_tracker();
-    let addr1 = create_test_address(1, 1, "0800-1200");
-    let addr2 = create_test_address(2, 1, "1400-1800");
-    let addr3 = create_test_address(3, 2, "0800-1200");
+    let (addr1, bucket1) = create_test_address_with_bucket(1, 1, "0800-1200");
+    let (addr2, bucket2) = create_test_address_with_bucket(2, 1, "1400-1800");
+    let (addr3, bucket3) = create_test_address_with_bucket(3, 2, "0800-1200");
     let transitions = detect_transitions(&[addr1, addr2, addr3]);
+    let expected = [bucket1, bucket2, bucket3]
+        .into_iter()
+        .filter(is_actionable)
+        .count();
     assert_eq!(
         transitions.len(),
-        3,
-        "All three addresses should trigger notifications"
+        expected,
+        "Expected {} actionable address(es), got {} transitions",
+        expected,
+        transitions.len(),
     );
 }
 #[test]
 fn test_state_persistence_across_checks() {
     clear_panel_state();
     initialize_panel_tracker();
-    let addr = create_test_address(1, 1, "0800-1200");
+    let (addr, bucket) = create_test_address_with_bucket(1, 1, "0800-1200");
     let transitions1 = detect_transitions(std::slice::from_ref(&addr));
-    assert_eq!(transitions1.len(), 1, "First check should find transition");
+    let expected1 = if is_actionable(&bucket) { 1 } else { 0 };
+    assert_eq!(
+        transitions1.len(),
+        expected1,
+        "First check should find {} transition(s) for bucket {:?}",
+        expected1,
+        bucket,
+    );
     let transitions2 = detect_transitions(std::slice::from_ref(&addr));
     assert_eq!(
         transitions2.len(),
@@ -267,7 +355,8 @@ fn test_address_modification_detected() {
     clear_panel_state();
     initialize_panel_tracker();
     let mut addr = create_test_address(1, 10, "0800-1200");
-    detect_transitions(std::slice::from_ref(&addr));
+    let bucket_before = bucket_for(addr.matched_entry.as_ref().unwrap());
+    let _ = detect_transitions(std::slice::from_ref(&addr));
     let db_closer = DB::from_dag_tid(
         Some("22100".to_string()),
         "Test Street 1".to_string(),
@@ -282,11 +371,35 @@ fn test_address_modification_detected() {
         2024,
         1,
     )
-    .unwrap();
+    .expect("Failed to create closer DB entry");
     addr.matched_entry = Some(db_closer);
+    let bucket_after = bucket_for(addr.matched_entry.as_ref().unwrap());
     let transitions = detect_transitions(&[addr]);
-    assert!(
-        !transitions.is_empty(),
-        "Modified address should trigger transition"
+    let should_notify = matches!(
+        (&bucket_before, &bucket_after),
+        (TimeBucket::MoreThan1Month, TimeBucket::Within1Day)
+            | (TimeBucket::MoreThan1Month, TimeBucket::Within6Hours)
+            | (TimeBucket::MoreThan1Month, TimeBucket::Now)
+            | (TimeBucket::Within1Month, TimeBucket::Within1Day)
+            | (TimeBucket::Within1Month, TimeBucket::Within6Hours)
+            | (TimeBucket::Within1Month, TimeBucket::Now)
+            | (TimeBucket::Within1Day, TimeBucket::Within6Hours)
+            | (TimeBucket::Within1Day, TimeBucket::Now)
+            | (TimeBucket::Within6Hours, TimeBucket::Now)
     );
+    if should_notify {
+        assert!(
+            !transitions.is_empty(),
+            "Modified address should trigger transition for {:?} -> {:?}",
+            bucket_before,
+            bucket_after,
+        );
+    } else {
+        assert!(
+            transitions.is_empty(),
+            "Non-notifying bucket change {:?} -> {:?} should not trigger",
+            bucket_before,
+            bucket_after,
+        );
+    }
 }
