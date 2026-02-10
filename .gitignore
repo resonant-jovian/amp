@@ -17,3 +17,4 @@ keystore.properties
 /data/adresser.json
 /data/miljoparkeringar.json
 /data/parkeringsavgifter.json
+/android/settings.parquet

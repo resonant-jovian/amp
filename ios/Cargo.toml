@@ -20,3 +20,4 @@ mobile = ["dioxus/mobile"]
 [[bin]]
 name = "amp"
 path = "src/main.rs"
+doctest = false

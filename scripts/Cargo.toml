@@ -10,3 +10,4 @@ arrow.workspace = true
 [[bin]]
 name = "debug_script"
 path = "src/main.rs"
+doctest = false

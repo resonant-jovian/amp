@@ -19,3 +19,6 @@ chrono.workspace = true
 chrono-tz.workspace = true
 reqwest.workspace = true
 bytes.workspace = true
+
+[lib]
+doctest = false
