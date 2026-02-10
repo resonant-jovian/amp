@@ -4,6 +4,10 @@
 
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 [![Rust 2024](https://img.shields.io/badge/rust-2024%2B-orange)](https://www.rust-lang.org/)
+[![CI](https://github.com/resonant-jovian/amp/actions/workflows/ci.yml/badge.svg)](https://github.com/resonant-jovian/amp/actions/workflows/ci.yml)
+[![Correlation Algorithms](https://github.com/resonant-jovian/amp/actions/workflows/correlation-tests.yml/badge.svg)](https://github.com/resonant-jovian/amp/actions/workflows/correlation-tests.yml)
+[![Server Benchmark](https://github.com/resonant-jovian/amp/actions/workflows/server-benchmark.yml/badge.svg)](https://github.com/resonant-jovian/amp/actions/workflows/server-benchmark.yml)
+[![Android Build](https://github.com/resonant-jovian/amp/actions/workflows/android-test.yml/badge.svg)](https://github.com/resonant-jovian/amp/actions/workflows/android-test.yml)
 
 ## Overview
 
