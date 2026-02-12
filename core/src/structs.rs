@@ -77,7 +77,7 @@ pub const SWEDISH_TZ: Tz = Stockholm;
 /// - `adress`: Full address string (e.g., "Storgatan 10")
 /// - `gata`: Street name only (e.g., "Storgatan")
 /// - `gatunummer`: Street number with optional building code (e.g., "10", "10A")
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct AdressClean {
     pub coordinates: [Decimal; 2],
     pub postnummer: Option<String>,
