@@ -1,5 +1,6 @@
 //! AMP Server - Address-Parking Correlation CLI
 //! Supports multiple correlation algorithms, benchmarking, testing with visual verification
+extern crate core;
 use amp_core::api::api;
 use amp_core::benchmark::Benchmarker;
 use amp_core::checksum::DataChecksum;
@@ -10,19 +11,23 @@ use amp_core::correlation_algorithms::{
     OverlappingChunksParkeringAlgo, ParkeringCorrelationAlgo, RTreeSpatialAlgo, RaycastingAlgo,
     RaycastingParkeringAlgo,
 };
-use amp_core::parquet::write_output_parquet;
+use amp_core::parquet::{write_adress_clean_parquet, write_output_parquet};
 use amp_core::structs::{
     AdressClean, CorrelationResult, MiljoeDataClean, OutputData, OutputDataWithDistance,
     ParkeringsDataClean,
 };
 use clap::{Parser, Subcommand};
+use geojson::{Feature, GeoJson};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use rayon::prelude::*;
+use rust_decimal::Decimal;
+use rust_decimal::prelude::FromPrimitive;
 use std::env;
 use std::fs;
-use std::io::{self, Write};
+use std::fs::File;
+use std::io::{self, BufReader, Write};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
@@ -96,6 +101,23 @@ enum Commands {
         )]
         checksum_file: String,
     },
+    /// Convert GeoJSON adresser.json to adresser.parquet
+    CreateAdresserParquet {
+        #[arg(
+            short,
+            long,
+            default_value = "data/adresser.json",
+            help = "Input JSON file path"
+        )]
+        input: String,
+        #[arg(
+            short,
+            long,
+            default_value = "android/assets/data/adresser.parquet",
+            help = "Output parquet file path"
+        )]
+        output: String,
+    },
 }
 #[derive(clap::ValueEnum, Clone, Debug)]
 enum AlgorithmChoice {
@@ -142,8 +164,89 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::CheckUpdates { checksum_file } => {
             tokio::runtime::Runtime::new()?.block_on(check_updates(&checksum_file))?
         }
+        Commands::CreateAdresserParquet { input, output } => {
+            run_create_adresser_parquet(&input, &output)?;
+        }
     }
     Ok(())
+}
+fn run_create_adresser_parquet(input: &str, output: &str) -> anyhow::Result<()> {
+    let file = File::open(input)
+        .map_err(|e| anyhow::anyhow!("Failed to open input JSON '{}': {}", input, e))?;
+    let reader = BufReader::new(file);
+    let geojson: GeoJson = serde_json::from_reader(reader)
+        .map_err(|e| anyhow::anyhow!("Failed to parse GeoJSON from '{}': {}", input, e))?;
+    let fc = match geojson {
+        GeoJson::FeatureCollection(fc) => fc,
+        _ => anyhow::bail!("Expected a GeoJSON FeatureCollection in '{}'", input),
+    };
+    let total = fc.features.len() as u64;
+    let pb = ProgressBar::new(total);
+    pb.set_style(
+        ProgressStyle::with_template(
+            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})",
+        )?
+        .progress_chars("##-"),
+    );
+    let mut records = Vec::with_capacity(fc.features.len());
+    for feature in fc.features.into_iter() {
+        pb.inc(1);
+        if let Some(record) = feature_to_adress_clean(&feature) {
+            records.push(record);
+        }
+    }
+    pb.finish_with_message("Parsed adresser, writing parquet...");
+    write_adress_clean_parquet(records, output)?;
+    pb.finish_with_message("Done writing adresser.parquet");
+    Ok(())
+}
+fn feature_to_adress_clean(feature: &Feature) -> Option<AdressClean> {
+    let geometry = feature.geometry.as_ref()?;
+    if geometry.value.type_name() != "Point" {
+        return None;
+    }
+    let coords = match geometry.value.clone() {
+        geojson::Value::Point(c) => c,
+        _ => return None,
+    };
+    if coords.len() != 2 {
+        return None;
+    }
+    let x = Decimal::from_f64(coords[0])?;
+    let y = Decimal::from_f64(coords[1])?;
+    let props = feature.properties.as_ref()?;
+    let adress = props
+        .get("BELADRESS")?
+        .as_str()
+        .unwrap_or_default()
+        .to_string();
+    let gata = props
+        .get("ADRESSOMR")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default()
+        .to_string();
+    let nrnum = props
+        .get("NR_NUM")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default()
+        .to_string();
+    let nrlitt = props.get("ADRESSPLAT").and_then(|v| v.as_str()).unwrap_or("");
+    let gatunummer = if nrlitt.is_empty() {
+        nrnum.clone()
+    } else {
+        format!("{}{}", nrnum, nrlitt)
+    };
+    let postnummer = props
+        .get("POSTNR")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    Some(AdressClean {
+        coordinates: [x, y],
+        postnummer,
+        adress,
+        gata,
+        gatunummer,
+    })
 }
 /// Load asset files (HTML, CSS, JS) from server/src/assets/
 fn load_asset_file(filename: &str) -> Result<String, Box<dyn std::error::Error>> {
