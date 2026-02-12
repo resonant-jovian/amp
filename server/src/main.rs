@@ -867,6 +867,7 @@ fn open_browser_window(
     let filename = format!("amp_test_{}.html", window_idx);
     let temp_file = temp_dir.join(&filename);
     fs::write(&temp_file, &tabbed_page)?;
+    #[allow(unused)]
     let file_url = format!("file://{}", temp_file.display());
     #[cfg(target_os = "windows")]
     {

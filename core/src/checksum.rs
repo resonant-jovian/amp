@@ -73,6 +73,9 @@ impl DataChecksum {
 #[cfg(test)]
 mod tests {
     use super::*;
+    //noinspection HttpUrlsUsage
+    //noinspection HttpUrlsUsage
+    //noinspection HttpUrlsUsage
     #[test]
     fn test_checksum_creation() {
         let cs = DataChecksum::new(
