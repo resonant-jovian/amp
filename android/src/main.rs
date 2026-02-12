@@ -5,8 +5,6 @@ mod android_bridge;
 mod android_utils;
 mod components;
 mod ui;
-#[cfg(target_os = "android")]
-mod webview_config;
 fn main() {
     #[cfg(target_os = "android")]
     {

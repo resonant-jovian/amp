@@ -43,7 +43,6 @@
 //!
 //! - [`android_bridge`]: JNI functions for Kotlin/Java interop
 //! - [`android_utils`]: Android-specific file system access
-//! - [`webview_config`]: WebView configuration for offline operation
 //!
 //! # Quick Start
 //!
@@ -218,14 +217,12 @@
 //! - [`storage`]: Data persistence and Parquet handling
 //! - [`LifecycleManager`]: Android lifecycle management
 //! - [`AppSettings`]: Configuration management
-//! - [`webview_config`]: WebView configuration for offline apps
 pub mod android_bridge;
 #[cfg(target_os = "android")]
 pub mod android_utils;
 pub mod components;
 pub mod ui;
 #[cfg(target_os = "android")]
-pub mod webview_config;
 #[cfg(target_os = "android")]
 pub use android_utils::{get_android_files_dir, init_android_storage};
 pub use components::{
