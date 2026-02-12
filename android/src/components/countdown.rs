@@ -74,6 +74,7 @@ use chrono::{Datelike, Duration, Utc};
 ///     println!("Minutes remaining: {}", duration.num_minutes());
 /// }
 /// ```
+#[allow(unused)]
 pub fn remaining_duration(restriction: &DB) -> Option<Duration> {
     let now = Utc::now();
     restriction.time_until_end(now)
