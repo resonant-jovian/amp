@@ -2,7 +2,6 @@
 //!
 //! Provides access to Android system resources like internal storage directory
 use std::path::PathBuf;
-//noinspection GrazieInspection
 #[cfg(target_os = "android")]
 /// Get Android internal files directory using JNI
 ///
@@ -43,7 +42,6 @@ pub fn get_android_files_dir() -> anyhow::Result<PathBuf> {
 pub fn get_android_files_dir() -> anyhow::Result<PathBuf> {
     anyhow::bail!("get_android_files_dir only works on Android")
 }
-//noinspection GrazieInspection
 /// Initialize Android storage directory as environment variable
 ///
 /// This should be called once at app startup to set APP_FILES_DIR

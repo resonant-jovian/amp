@@ -29,7 +29,6 @@ use amp_core::parquet::load_debug_addresses as load_from_parquet;
 /// Contains 'adress' and 'postnummer' fields - all other fields are NULL
 /// This mimics user input via "Add Address" button
 static DEBUG_PARQUET: &[u8] = include_bytes!("../../assets/data/debug.parquet");
-//noinspection GrazieInspection
 /// Load debug addresses from embedded debug.parquet file
 ///
 /// Reads the minimal debug.parquet file that contains address strings and postal codes.

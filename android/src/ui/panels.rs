@@ -136,7 +136,9 @@
 //! - [`crate::components::countdown`]: Countdown calculation logic
 //! - [`crate::ui::StoredAddress`]: Address data structure
 //! - [`crate::ui::App`]: Root component using panels
-use crate::components::countdown::{TimeBucket, bucket_for, format_countdown, time_until_next_occurrence};
+use crate::components::countdown::{
+    TimeBucket, bucket_for, format_countdown, time_until_next_occurrence,
+};
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
 use tokio::time::Duration;
@@ -254,8 +256,14 @@ fn AddressItem(addr: StoredAddress, index: usize, on_remove: EventHandler<usize>
 /// ```
 pub fn sorting_time(mut active_addrs: Vec<StoredAddress>) -> Vec<StoredAddress> {
     active_addrs.sort_by(|a, b| {
-        let time_a = a.matched_entry.as_ref().and_then(time_until_next_occurrence);
-        let time_b = b.matched_entry.as_ref().and_then(time_until_next_occurrence);
+        let time_a = a
+            .matched_entry
+            .as_ref()
+            .and_then(time_until_next_occurrence);
+        let time_b = b
+            .matched_entry
+            .as_ref()
+            .and_then(time_until_next_occurrence);
         match (time_a, time_b) {
             (Some(dur_a), Some(dur_b)) => dur_a.cmp(&dur_b),
             (Some(_), None) => std::cmp::Ordering::Less,
