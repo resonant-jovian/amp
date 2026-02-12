@@ -18,7 +18,7 @@ set -e
 
 # ===== Configuration =====
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-APK_DIR="$REPO_ROOT/target/dx/amp/release/android/app/app/build/outputs/apk/release"
+APK_DIR="$REPO_ROOT/target/dx/amp/debug/android/app/app/build/outputs/apk/debug"
 PACKAGE_NAME="se.malmo.skaggbyran.amp"
 OUTPUT_FILE=""
 DEVICE_ONLY=false
@@ -536,7 +536,7 @@ verify_assets() {
     
     # Expected assets (from Dioxus.toml bundle resources)
     local expected_assets=(
-        "assets/data/adress_info.parquet"
+        "assets/data/db.parquet"
         "assets/style.css"
     )
     
