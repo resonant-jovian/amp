@@ -100,6 +100,28 @@ pub fn InfoDialog(
                             }
                         }
                     }
+                    if addr.matched_entry.as_ref().map_or(true, |e| e.taxa.is_none()) {
+                        if let Some(ref parking) = addr.parking_info {
+                            if let Some(ref taxa) = parking.taxa {
+                                div { class: "info-row",
+                                    span { class: "info-label", "Taxa:" }
+                                    span { class: "info-value", "{taxa}" }
+                                }
+                            }
+                            if let Some(ref typ) = parking.typ_av_parkering {
+                                div { class: "info-row",
+                                    span { class: "info-label", "Typ:" }
+                                    span { class: "info-value", "{typ}" }
+                                }
+                            }
+                            if let Some(platser) = parking.antal_platser {
+                                div { class: "info-row",
+                                    span { class: "info-label", "Platser:" }
+                                    span { class: "info-value", "{platser}" }
+                                }
+                            }
+                        }
+                    }
                 }
                 div { class: "modal-actions",
                     button {

@@ -96,6 +96,7 @@ pub fn SettingsDropdown(
             valid: true,
             active: true,
             matched_entry: None,
+            parking_info: None,
         };
         eprintln!("[Debug] Triggering active notification");
         notify_active(&debug_address);
@@ -109,6 +110,7 @@ pub fn SettingsDropdown(
             valid: true,
             active: false,
             matched_entry: None,
+            parking_info: None,
         };
         eprintln!("[Debug] Triggering 6-hour notification");
         notify_six_hours(&debug_address);
@@ -122,6 +124,7 @@ pub fn SettingsDropdown(
             valid: true,
             active: false,
             matched_entry: None,
+            parking_info: None,
         };
         eprintln!("[Debug] Triggering 1-day notification");
         notify_one_day(&debug_address);

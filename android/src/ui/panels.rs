@@ -137,7 +137,7 @@
 //! - [`crate::ui::StoredAddress`]: Address data structure
 //! - [`crate::ui::App`]: Root component using panels
 use crate::components::countdown::{
-    TimeBucket, bucket_for, format_countdown, time_until_next_occurrence,
+    TimeBucket, bucket_for, format_countdown, time_until_next_occurrence, time_until_next_start,
 };
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
@@ -273,6 +273,29 @@ pub fn sorting_time(mut active_addrs: Vec<StoredAddress>) -> Vec<StoredAddress> 
     });
     active_addrs
 }
+/// Sort addresses by time until next restriction start (for non-Active panels).
+///
+/// Like [`sorting_time`] but uses start time instead of end time,
+/// so upcoming restrictions are sorted by when they begin.
+pub fn sorting_time_by_start(mut addrs: Vec<StoredAddress>) -> Vec<StoredAddress> {
+    addrs.sort_by(|a, b| {
+        let time_a = a
+            .matched_entry
+            .as_ref()
+            .and_then(time_until_next_start);
+        let time_b = b
+            .matched_entry
+            .as_ref()
+            .and_then(time_until_next_start);
+        match (time_a, time_b) {
+            (Some(dur_a), Some(dur_b)) => dur_a.cmp(&dur_b),
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            (None, None) => std::cmp::Ordering::Equal,
+        }
+    });
+    addrs
+}
 /// Panel displaying addresses with parking restrictions currently active.
 ///
 /// Shows addresses where the parking restriction is happening **right now**.
@@ -387,7 +410,7 @@ pub fn SixHoursPanel(addresses: Vec<StoredAddress>) -> Element {
             }
         })
         .collect();
-    addrs = sorting_time(addrs);
+    addrs = sorting_time_by_start(addrs);
     let count = addrs.len();
     rsx! {
         div { class: "category-container category-6h",
@@ -459,7 +482,7 @@ pub fn OneDayPanel(addresses: Vec<StoredAddress>) -> Element {
             }
         })
         .collect();
-    addrs = sorting_time(addrs);
+    addrs = sorting_time_by_start(addrs);
     let count = addrs.len();
     rsx! {
         div { class: "category-container category-24h",
@@ -531,7 +554,7 @@ pub fn OneMonthPanel(addresses: Vec<StoredAddress>) -> Element {
             }
         })
         .collect();
-    addrs = sorting_time(addrs);
+    addrs = sorting_time_by_start(addrs);
     let count = addrs.len();
     rsx! {
         div { class: "category-container category-month",
@@ -603,7 +626,7 @@ pub fn MoreThan1MonthPanel(addresses: Vec<StoredAddress>) -> Element {
             }
         })
         .collect();
-    addrs = sorting_time(addrs);
+    addrs = sorting_time_by_start(addrs);
     let count = addrs.len();
     rsx! {
         div { class: "category-container category-later",

@@ -138,6 +138,41 @@ pub fn time_until_next_occurrence(restriction: &DB) -> Option<Duration> {
         None
     }
 }
+/// Calculate duration until the next start of this restriction.
+///
+/// For non-active panels, this gives the time until the restriction begins.
+/// If the start time has already passed this month (restriction is active or ended),
+/// calculates the next month's start time.
+pub fn time_until_next_start(restriction: &DB) -> Option<Duration> {
+    let now = Utc::now();
+    if let Some(duration) = restriction.time_until_start(now) {
+        return Some(duration);
+    }
+    // Start has passed — look for next month's occurrence
+    let current_date = now.date_naive();
+    let restriction_day = restriction.start_time_swedish().day();
+    let mut next_month = current_date.month() + 1;
+    let mut next_year = current_date.year();
+    if next_month > 12 {
+        next_month = 1;
+        next_year += 1;
+    }
+    use chrono::NaiveDate;
+    let next_date = NaiveDate::from_ymd_opt(next_year, next_month, restriction_day)?;
+    let start_time = restriction.start_time_swedish().time();
+    let next_datetime = next_date.and_time(start_time);
+    use amp_core::structs::SWEDISH_TZ;
+    use chrono::TimeZone;
+    let next_start = SWEDISH_TZ
+        .from_local_datetime(&next_datetime)
+        .single()?
+        .with_timezone(&Utc);
+    if now < next_start {
+        Some(next_start - now)
+    } else {
+        None
+    }
+}
 /// Format countdown as human-readable string with adaptive granularity
 ///
 /// Converts the remaining duration into a formatted string, adapting
@@ -171,8 +206,13 @@ pub fn time_until_next_occurrence(restriction: &DB) -> Option<Duration> {
 /// }
 /// ```
 pub fn format_countdown(restriction: &DB) -> Option<String> {
-    let remaining = time_until_next_occurrence(restriction)?;
     let bucket = bucket_for(restriction);
+    // Active panel: countdown to end time; other panels: countdown to start time
+    let remaining = match bucket {
+        TimeBucket::Now => time_until_next_occurrence(restriction)?,
+        TimeBucket::Invalid => return None,
+        _ => time_until_next_start(restriction)?,
+    };
     match bucket {
         TimeBucket::Now | TimeBucket::Within6Hours | TimeBucket::Within1Day => {
             let hours = remaining.num_hours();
@@ -236,13 +276,17 @@ pub enum TimeBucket {
 /// println!("Urgency: {:?}", bucket);
 /// ```
 pub fn bucket_for(restriction: &DB) -> TimeBucket {
-    let remaining = match time_until_next_occurrence(restriction) {
+    let now = Utc::now();
+    // Currently active restrictions go to the Active panel
+    if restriction.is_active(now) {
+        return TimeBucket::Now;
+    }
+    // For non-active restrictions, bucket by time until start
+    let remaining = match time_until_next_start(restriction) {
         Some(d) => d,
         None => return TimeBucket::Invalid,
     };
-    if remaining <= Duration::hours(4) {
-        TimeBucket::Now
-    } else if remaining <= Duration::hours(6) {
+    if remaining <= Duration::hours(6) {
         TimeBucket::Within6Hours
     } else if remaining <= Duration::days(1) {
         TimeBucket::Within1Day

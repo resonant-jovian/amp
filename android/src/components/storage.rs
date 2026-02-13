@@ -206,6 +206,19 @@ fn to_local_data(addr: &StoredAddress) -> LocalData {
                 entry.antal_platser,
                 entry.typ_av_parkering.clone(),
             )
+        } else if let Some(ref parking) = addr.parking_info {
+            eprintln!(
+                "[Storage::to_local_data] Persisting parking-only data: taxa={:?}",
+                parking.taxa,
+            );
+            (
+                None,
+                None,
+                None,
+                parking.taxa.clone(),
+                parking.antal_platser,
+                parking.typ_av_parkering.clone(),
+            )
         } else {
             eprintln!("[Storage::to_local_data] No matched_entry to persist");
             (None, None, None, None, None, None)
@@ -336,6 +349,21 @@ fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
         eprintln!("[Storage::from_local_data] Address is invalid, no match data expected",);
         None
     };
+    // Restore parking-only data when no matched_entry but parking fields present
+    let parking_info = if matched_entry.is_none()
+        && (data.taxa.is_some()
+            || data.antal_platser.is_some()
+            || data.typ_av_parkering.is_some())
+    {
+        use crate::ui::ParkingInfo;
+        Some(ParkingInfo {
+            taxa: data.taxa,
+            antal_platser: data.antal_platser,
+            typ_av_parkering: data.typ_av_parkering,
+        })
+    } else {
+        None
+    };
     let stored_address = StoredAddress {
         id,
         street,
@@ -344,10 +372,12 @@ fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
         valid: data.valid,
         active: data.active,
         matched_entry,
+        parking_info,
     };
     eprintln!(
-        "[Storage::from_local_data] === END CONVERSION (matched={}) ===",
+        "[Storage::from_local_data] === END CONVERSION (matched={}, parking_info={}) ===",
         stored_address.matched_entry.is_some(),
+        stored_address.parking_info.is_some(),
     );
     stored_address
 }
@@ -668,6 +698,7 @@ mod tests {
             valid: true,
             active: true,
             matched_entry: None,
+            parking_info: None,
         };
         let local_data = to_local_data(&original);
         let restored = from_local_data(local_data, 1);
@@ -696,6 +727,7 @@ mod tests {
                 valid: true,
                 active: false,
                 matched_entry: None,
+                parking_info: None,
             };
             let local_data = to_local_data(&original);
             let restored = from_local_data(local_data, 1);
@@ -725,6 +757,7 @@ mod tests {
                 valid: true,
                 active: false,
                 matched_entry: None,
+                parking_info: None,
             },
             StoredAddress {
                 id: 2,
@@ -734,6 +767,7 @@ mod tests {
                 valid: true,
                 active: true,
                 matched_entry: None,
+                parking_info: None,
             },
         ];
         let save_result = write_addresses_to_device(&addresses);
@@ -791,6 +825,7 @@ mod tests {
             valid: false,
             active: true,
             matched_entry: None,
+            parking_info: None,
         }];
         let save_result = write_addresses_to_device(&address);
         assert!(save_result.is_ok(), "Save single address should succeed");
@@ -831,6 +866,7 @@ mod tests {
             valid: true,
             active: true,
             matched_entry: Some(db_entry.clone()),
+            parking_info: None,
         };
         let save_result = write_addresses_to_device(&[original.clone()]);
         assert!(save_result.is_ok(), "Save should succeed");
@@ -902,6 +938,7 @@ mod tests {
                 valid: true,
                 active: true,
                 matched_entry: Some(db_entry),
+                parking_info: None,
             },
             StoredAddress {
                 id: 2,
@@ -911,6 +948,7 @@ mod tests {
                 valid: false,
                 active: false,
                 matched_entry: None,
+                parking_info: None,
             },
         ];
         let save_result = write_addresses_to_device(&addresses);

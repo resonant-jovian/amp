@@ -261,8 +261,17 @@ pub fn TopBar(
             warn!("Address parsing failed: need at least 2 words");
             return;
         }
-        let street_number = street_words[street_words.len() - 1].to_string();
-        let street = street_words[..street_words.len() - 1].join(" ");
+        // Find first word containing a digit — that starts the street number.
+        // This handles compound numbers like "14 U4" or "50 U1".
+        let number_start = street_words
+            .iter()
+            .position(|w| w.chars().any(|c| c.is_ascii_digit()));
+        let Some(idx) = number_start.filter(|&i| i > 0) else {
+            warn!("Address parsing failed: could not identify street number");
+            return;
+        };
+        let street = street_words[..idx].join(" ");
+        let street_number = street_words[idx..].join(" ");
         info!(
             "Parsed: street='{}', street_number='{}', postal_code='{}'",
             street, street_number, postal_code

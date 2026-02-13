@@ -219,6 +219,17 @@ const _MAX_LEVENSHTEIN_DISTANCE: usize = 3;
 ///     println!("Found parking data: {:?}", addr.matched_entry);
 /// }
 /// ```
+/// Parking zone data for addresses without time-based restrictions (miljödata).
+///
+/// Some addresses have only parking zone data (taxa, platser, typ) without
+/// street cleaning schedules (dag, tid). This struct holds that data so
+/// it can be displayed in the info dialog even when there's no DB entry.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ParkingInfo {
+    pub taxa: Option<String>,
+    pub antal_platser: Option<u64>,
+    pub typ_av_parkering: Option<String>,
+}
 #[derive(Clone, Debug, PartialEq)]
 pub struct StoredAddress {
     /// Unique stable identifier (UUID v4)
@@ -233,8 +244,10 @@ pub struct StoredAddress {
     pub valid: bool,
     /// Whether this address should be displayed in panels
     pub active: bool,
-    /// The matched database entry (if valid)
+    /// The matched database entry with time restrictions (if valid with miljödata)
     pub matched_entry: Option<DB>,
+    /// Parking-only data (when address has parking zone info but no street cleaning schedule)
+    pub parking_info: Option<ParkingInfo>,
 }
 impl StoredAddress {
     /// Create a new stored address and attempt to match against database
@@ -264,10 +277,22 @@ impl StoredAddress {
     /// ```
     pub fn new(street: String, street_number: String, postal_code: String) -> Self {
         let fuzzy_match_result = fuzzy_match_address(&street, &street_number, &postal_code);
-        let (valid, matched_entry) = match fuzzy_match_result {
+        let (db_valid, matched_entry) = match fuzzy_match_result {
             Some(entry) => (true, Some(entry)),
             None => (false, None),
         };
+        // Check parking-only data (addresses with zone info but no cleaning schedule)
+        let parking_info = if matched_entry
+            .as_ref()
+            .map_or(true, |e| e.taxa.is_none())
+        {
+            use crate::components::static_data::get_parking_only_entry;
+            let postal_norm = postal_code.trim().replace(' ', "");
+            get_parking_only_entry(&street, &street_number, &postal_norm).cloned()
+        } else {
+            None
+        };
+        let valid = db_valid || parking_info.is_some();
         let uuid = Uuid::new_v4();
         let id = uuid_to_usize(&uuid);
         StoredAddress {
@@ -278,6 +303,7 @@ impl StoredAddress {
             valid,
             active: true,
             matched_entry,
+            parking_info,
         }
     }
 }

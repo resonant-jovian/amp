@@ -14,3 +14,4 @@ keystore.properties
 /android/Dioxus.toml.backup.*
 /keystore.b64
 /android/settings.parquet
+/.claude/ralph-loop.local.md

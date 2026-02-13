@@ -222,6 +222,7 @@ mod tests {
             valid: true,
             active: false,
             matched_entry: None,
+            parking_info: None,
         };
         notify_one_day(&address);
         notify_six_hours(&address);
