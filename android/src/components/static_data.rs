@@ -108,7 +108,6 @@ fn load_parking_data() -> (HashMap<String, DB>, HashMap<String, ParkingInfo>) {
                 current_year, current_month, current_day,
             );
             for record in records {
-                // Records with dag + tid have miljödata (time-based restrictions)
                 if let (Some(dag), Some(tid)) = (record.dag, &record.tid) {
                     let (year, month) =
                         determine_year_month(dag, current_year, current_month, current_day);
@@ -144,12 +143,16 @@ fn load_parking_data() -> (HashMap<String, DB>, HashMap<String, ParkingInfo>) {
                     || record.antal_platser.is_some()
                     || record.typ_av_parkering.is_some()
                 {
-                    // Parking-only record (no time restrictions, only zone data)
+                    let postal_norm = record
+                        .postnummer
+                        .as_deref()
+                        .unwrap_or("unknown")
+                        .replace(' ', "");
                     let key = format!(
                         "{}_{}_{}_parking",
-                        record.postnummer.as_deref().unwrap_or("unknown"),
+                        postal_norm,
                         record.gata.to_lowercase(),
-                        record.gatunummer,
+                        record.gatunummer.to_lowercase(),
                     );
                     parking_only_map.insert(
                         key,
@@ -435,7 +438,7 @@ pub fn get_parking_only_entry(
         "{}_{}_{}_parking",
         postal_code,
         street.to_lowercase(),
-        street_number,
+        street_number.to_lowercase(),
     );
     data.get(&key)
 }
@@ -474,5 +477,34 @@ mod tests {
         let (year, month) = determine_year_month(29, 2026, 2, 5);
         assert_eq!(year, 2026);
         assert_eq!(month, 3);
+    }
+    #[test]
+    fn test_parking_only_data_loaded() {
+        ensure_data_loaded();
+        let data = PARKING_ONLY_DATA
+            .get()
+            .expect("Parking-only data should be loaded");
+        eprintln!("Loaded {} parking-only entries", data.len());
+        for (i, key) in data.keys().enumerate() {
+            if i >= 10 {
+                break;
+            }
+            eprintln!("  parking-only key: {}", key);
+        }
+        assert!(!data.is_empty(), "Parking-only data should not be empty");
+    }
+    #[test]
+    fn test_parking_only_lookup_amiralsgatan() {
+        let result = get_parking_only_entry("Amiralsgatan", "83E", "21437");
+        assert!(
+            result.is_some(),
+            "Amiralsgatan 83E should have parking-only data"
+        );
+        let info = result.unwrap();
+        assert!(info.taxa.is_some());
+        assert!(info.antal_platser.is_some());
+        assert!(info.typ_av_parkering.is_some());
+        let result2 = get_parking_only_entry("amiralsgatan", "83e", "21437");
+        assert!(result2.is_some());
     }
 }

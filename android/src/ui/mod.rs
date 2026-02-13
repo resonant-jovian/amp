@@ -281,11 +281,7 @@ impl StoredAddress {
             Some(entry) => (true, Some(entry)),
             None => (false, None),
         };
-        // Check parking-only data (addresses with zone info but no cleaning schedule)
-        let parking_info = if matched_entry
-            .as_ref()
-            .map_or(true, |e| e.taxa.is_none())
-        {
+        let parking_info = if matched_entry.as_ref().is_none_or(|e| e.taxa.is_none()) {
             use crate::components::static_data::get_parking_only_entry;
             let postal_norm = postal_code.trim().replace(' ', "");
             get_parking_only_entry(&street, &street_number, &postal_norm).cloned()
@@ -424,7 +420,8 @@ fn fuzzy_match_address(street: &str, street_number: &str, postal_code: &str) -> 
 use crate::ui::{
     addresses::Addresses,
     panels::{
-        ActivePanel, InvalidPanel, MoreThan1MonthPanel, OneDayPanel, OneMonthPanel, SixHoursPanel,
+        ActivePanel, InvalidPanel, MoreThan1MonthPanel, OneDayPanel, OneMonthPanel,
+        ParkingOnlyPanel, SixHoursPanel,
     },
     top_bar::TopBar,
 };
@@ -609,6 +606,7 @@ pub fn App() -> Element {
             OneDayPanel { addresses: stored_addresses.read().clone() }
             OneMonthPanel { addresses: stored_addresses.read().clone() }
             MoreThan1MonthPanel { addresses: stored_addresses.read().clone() }
+            ParkingOnlyPanel { addresses: stored_addresses.read().clone() }
             InvalidPanel { addresses: stored_addresses.read().clone() }
         }
         script {}

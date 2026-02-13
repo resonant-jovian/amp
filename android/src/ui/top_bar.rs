@@ -261,8 +261,6 @@ pub fn TopBar(
             warn!("Address parsing failed: need at least 2 words");
             return;
         }
-        // Find first word containing a digit — that starts the street number.
-        // This handles compound numbers like "14 U4" or "50 U1".
         let number_start = street_words
             .iter()
             .position(|w| w.chars().any(|c| c.is_ascii_digit()));

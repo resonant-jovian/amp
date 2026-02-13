@@ -741,6 +741,15 @@ input[type=number] {
     background: rgba(156, 39, 176, 0.08);
 }
 
+.category-parking-only .category-title {
+    background: linear-gradient(135deg, #8D6E63 0%, #5D4037 100%);
+    box-shadow: 0 8px 16px rgba(141, 110, 99, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2);
+}
+
+.category-parking-only .category-content {
+    background: rgba(141, 110, 99, 0.08);
+}
+
 .category-invalid .category-title {
     background: linear-gradient(135deg, #757575 0%, #424242 100%);
     box-shadow: 0 8px 16px rgba(117, 117, 117, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2);

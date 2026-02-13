@@ -197,6 +197,38 @@ mod tests {
         );
     }
     #[test]
+    fn test_parking_only_address_valid_with_parking_info() {
+        let addresses = load_debug_addresses();
+        let amiralsgatan = addresses
+            .iter()
+            .find(|a| a.street == "Amiralsgatan" && a.street_number == "83E");
+        assert!(
+            amiralsgatan.is_some(),
+            "Amiralsgatan 83E should be in debug addresses"
+        );
+        let addr = amiralsgatan.unwrap();
+        assert!(
+            addr.valid,
+            "Amiralsgatan 83E should be valid (has parking-only data)"
+        );
+        assert!(
+            addr.matched_entry.is_none(),
+            "Amiralsgatan 83E should have no miljödata (no dag/tid)",
+        );
+        assert!(
+            addr.parking_info.is_some(),
+            "Amiralsgatan 83E should have parking_info",
+        );
+        let parking = addr.parking_info.as_ref().unwrap();
+        assert!(parking.taxa.is_some(), "Should have taxa");
+        assert!(parking.antal_platser.is_some(), "Should have antal_platser");
+        assert!(
+            parking.typ_av_parkering.is_some(),
+            "Should have typ_av_parkering"
+        );
+        eprintln!("Amiralsgatan 83E parking info: {:?}", parking);
+    }
+    #[test]
     fn test_debug_addresses_have_postal_codes() {
         let addresses = load_debug_addresses();
         let with_postal = addresses

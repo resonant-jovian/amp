@@ -349,11 +349,8 @@ fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
         eprintln!("[Storage::from_local_data] Address is invalid, no match data expected",);
         None
     };
-    // Restore parking-only data when no matched_entry but parking fields present
     let parking_info = if matched_entry.is_none()
-        && (data.taxa.is_some()
-            || data.antal_platser.is_some()
-            || data.typ_av_parkering.is_some())
+        && (data.taxa.is_some() || data.antal_platser.is_some() || data.typ_av_parkering.is_some())
     {
         use crate::ui::ParkingInfo;
         Some(ParkingInfo {

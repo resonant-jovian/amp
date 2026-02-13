@@ -100,7 +100,7 @@ pub fn InfoDialog(
                             }
                         }
                     }
-                    if addr.matched_entry.as_ref().map_or(true, |e| e.taxa.is_none()) {
+                    if addr.matched_entry.as_ref().is_none_or(|e| e.taxa.is_none()) {
                         if let Some(ref parking) = addr.parking_info {
                             if let Some(ref taxa) = parking.taxa {
                                 div { class: "info-row",

@@ -49,6 +49,7 @@ fn create_test_address(id: usize, day: u8, time: &str) -> StoredAddress {
         valid: true,
         active: true,
         matched_entry: Some(db),
+        parking_info: None,
     }
 }
 #[test]
@@ -156,6 +157,7 @@ fn test_address_without_match_ignored() {
         valid: false,
         active: false,
         matched_entry: None,
+        parking_info: None,
     };
     let transitions = detect_transitions(&[addr]);
     assert_eq!(

@@ -230,7 +230,10 @@ fn feature_to_adress_clean(feature: &Feature) -> Option<AdressClean> {
         .and_then(|v| v.as_str())
         .unwrap_or_default()
         .to_string();
-    let nrlitt = props.get("ADRESSPLAT").and_then(|v| v.as_str()).unwrap_or("");
+    let nrlitt = props
+        .get("ADRESSPLAT")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
     let gatunummer = if nrlitt.is_empty() {
         nrnum.clone()
     } else {

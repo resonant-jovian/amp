@@ -148,7 +148,6 @@ pub fn time_until_next_start(restriction: &DB) -> Option<Duration> {
     if let Some(duration) = restriction.time_until_start(now) {
         return Some(duration);
     }
-    // Start has passed — look for next month's occurrence
     let current_date = now.date_naive();
     let restriction_day = restriction.start_time_swedish().day();
     let mut next_month = current_date.month() + 1;
@@ -207,7 +206,6 @@ pub fn time_until_next_start(restriction: &DB) -> Option<Duration> {
 /// ```
 pub fn format_countdown(restriction: &DB) -> Option<String> {
     let bucket = bucket_for(restriction);
-    // Active panel: countdown to end time; other panels: countdown to start time
     let remaining = match bucket {
         TimeBucket::Now => time_until_next_occurrence(restriction)?,
         TimeBucket::Invalid => return None,
@@ -277,11 +275,9 @@ pub enum TimeBucket {
 /// ```
 pub fn bucket_for(restriction: &DB) -> TimeBucket {
     let now = Utc::now();
-    // Currently active restrictions go to the Active panel
     if restriction.is_active(now) {
         return TimeBucket::Now;
     }
-    // For non-active restrictions, bucket by time until start
     let remaining = match time_until_next_start(restriction) {
         Some(d) => d,
         None => return TimeBucket::Invalid,

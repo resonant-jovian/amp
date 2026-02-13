@@ -279,14 +279,8 @@ pub fn sorting_time(mut active_addrs: Vec<StoredAddress>) -> Vec<StoredAddress> 
 /// so upcoming restrictions are sorted by when they begin.
 pub fn sorting_time_by_start(mut addrs: Vec<StoredAddress>) -> Vec<StoredAddress> {
     addrs.sort_by(|a, b| {
-        let time_a = a
-            .matched_entry
-            .as_ref()
-            .and_then(time_until_next_start);
-        let time_b = b
-            .matched_entry
-            .as_ref()
-            .and_then(time_until_next_start);
+        let time_a = a.matched_entry.as_ref().and_then(time_until_next_start);
+        let time_b = b.matched_entry.as_ref().and_then(time_until_next_start);
         match (time_a, time_b) {
             (Some(dur_a), Some(dur_b)) => dur_a.cmp(&dur_b),
             (Some(_), None) => std::cmp::Ordering::Less,
@@ -632,6 +626,66 @@ pub fn MoreThan1MonthPanel(addresses: Vec<StoredAddress>) -> Element {
         div { class: "category-container category-later",
             div { class: "category-title", "30+ dagar" }
             div { class: "category-content", id: "category-later",
+                if count == 0 {
+                    div { class: "empty-state", "Inga adresser" }
+                } else {
+                    div { class: "address-list",
+                        {
+                            addrs
+                                .into_iter()
+                                .enumerate()
+                                .map(|(i, addr)| {
+                                    rsx! {
+                                        AddressItem {
+                                            key: "{i}",
+                                            addr: addr.clone(),
+                                            index: i,
+                                            on_remove: move |_| {},
+                                        }
+                                    }
+                                })
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+/// Panel displaying addresses with only parking zone data (no street cleaning schedule).
+///
+/// Shows addresses that have parking fee/zone information (taxa, platser, typ)
+/// but no time-based restrictions (dag, tid). These addresses are valid but have
+/// no countdown timer since there's no cleaning schedule.
+///
+/// Styled in brown/sienna colors to represent parking fees.
+///
+/// # Filtering
+/// Displays addresses where:
+/// - `valid == true`
+/// - `active == true`
+/// - `matched_entry` is None (no miljödata)
+/// - `parking_info` is Some (has parking zone data)
+///
+/// # Sorting
+/// Addresses sorted by **postal code** (no time-based sorting).
+///
+/// # Update Frequency
+/// **Static** - no countdown updates.
+///
+/// # Props
+/// * `addresses` - Vector of all StoredAddress entries (automatically filtered)
+#[component]
+pub fn ParkingOnlyPanel(addresses: Vec<StoredAddress>) -> Element {
+    let mut addrs: Vec<_> = addresses
+        .into_iter()
+        .filter(|a| a.valid && a.active && a.matched_entry.is_none() && a.parking_info.is_some())
+        .collect();
+    addrs.sort_by(|a, b| a.postal_code.cmp(&b.postal_code));
+    let count = addrs.len();
+    rsx! {
+        div { class: "category-container category-parking-only",
+            div { class: "category-title", "Endast parkeringsavgift" }
+            div { class: "category-content", id: "categoryParkingOnly",
                 if count == 0 {
                     div { class: "empty-state", "Inga adresser" }
                 } else {
