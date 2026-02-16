@@ -95,10 +95,52 @@ verify_package_structure() {
         ISSUES=$((ISSUES + 1))
     fi
     
+    # Check DormantService
+    if [ -f "$KOTLIN_SRC/DormantService.kt" ]; then
+        local PACKAGE=$(grep "^package " "$KOTLIN_SRC/DormantService.kt" | awk '{print $2}' | tr -d ';')
+        if [ "$PACKAGE" = "se.malmo.skaggbyran.amp" ]; then
+            echo "  ✅ DormantService.kt: package=$PACKAGE"
+        else
+            echo "  ❌ DormantService.kt: WRONG PACKAGE ($PACKAGE != se.malmo.skaggbyran.amp)"
+            ISSUES=$((ISSUES + 1))
+        fi
+    else
+        echo "  ❌ DormantService.kt not found"
+        ISSUES=$((ISSUES + 1))
+    fi
+
+    # Check BootReceiver
+    if [ -f "$KOTLIN_SRC/BootReceiver.kt" ]; then
+        local PACKAGE=$(grep "^package " "$KOTLIN_SRC/BootReceiver.kt" | awk '{print $2}' | tr -d ';')
+        if [ "$PACKAGE" = "se.malmo.skaggbyran.amp" ]; then
+            echo "  ✅ BootReceiver.kt: package=$PACKAGE"
+        else
+            echo "  ❌ BootReceiver.kt: WRONG PACKAGE ($PACKAGE != se.malmo.skaggbyran.amp)"
+            ISSUES=$((ISSUES + 1))
+        fi
+    else
+        echo "  ❌ BootReceiver.kt not found"
+        ISSUES=$((ISSUES + 1))
+    fi
+
+    # Check DormantBridge
+    if [ -f "$KOTLIN_SRC/DormantBridge.kt" ]; then
+        local PACKAGE=$(grep "^package " "$KOTLIN_SRC/DormantBridge.kt" | awk '{print $2}' | tr -d ';')
+        if [ "$PACKAGE" = "se.malmo.skaggbyran.amp" ]; then
+            echo "  ✅ DormantBridge.kt: package=$PACKAGE"
+        else
+            echo "  ❌ DormantBridge.kt: WRONG PACKAGE ($PACKAGE != se.malmo.skaggbyran.amp)"
+            ISSUES=$((ISSUES + 1))
+        fi
+    else
+        echo "  ❌ DormantBridge.kt not found"
+        ISSUES=$((ISSUES + 1))
+    fi
+
     # Check ProGuard rules file exists
     if [ -f "$REPO_ROOT/android/proguard/proguard-rules.pro" ]; then
         echo "  ✅ ProGuard rules file found"
-        
+
         # Verify it contains -dontobfuscate
         if grep -q "^-dontobfuscate" "$REPO_ROOT/android/proguard/proguard-rules.pro"; then
             echo "  ✅ ProGuard rules contain -dontobfuscate flag"
@@ -234,6 +276,9 @@ setup_notifications() {
     PROGUARD_RULES="$ANDROID_DIR/proguard-rules.pro"
     KOTLIN_SOURCE="$REPO_ROOT/android/kotlin/NotificationHelper.kt"
     WEBVIEW_SOURCE="$REPO_ROOT/android/kotlin/WebViewConfigurator.kt"
+    DORMANT_SERVICE_SOURCE="$REPO_ROOT/android/kotlin/DormantService.kt"
+    BOOT_RECEIVER_SOURCE="$REPO_ROOT/android/kotlin/BootReceiver.kt"
+    DORMANT_BRIDGE_SOURCE="$REPO_ROOT/android/kotlin/DormantBridge.kt"
     
     # Create Kotlin directory matching package structure
     if [ ! -d "$KOTLIN_DIR" ]; then
@@ -259,6 +304,36 @@ setup_notifications() {
     else
         echo "  ⚠️  WebViewConfigurator.kt not found at $WEBVIEW_SOURCE"
         echo "     App may show blank screen without DOM storage enabled"
+    fi
+
+    # Copy DormantService.kt
+    if [ -f "$DORMANT_SERVICE_SOURCE" ]; then
+        echo "  📄 Copying DormantService.kt to kotlin/ directory..."
+        cp "$DORMANT_SERVICE_SOURCE" "$KOTLIN_DIR/DormantService.kt"
+        echo "  ✓ DormantService.kt copied (background monitoring)"
+    else
+        echo "  ❌ DormantService.kt not found at $DORMANT_SERVICE_SOURCE"
+        exit 1
+    fi
+
+    # Copy BootReceiver.kt
+    if [ -f "$BOOT_RECEIVER_SOURCE" ]; then
+        echo "  📄 Copying BootReceiver.kt to kotlin/ directory..."
+        cp "$BOOT_RECEIVER_SOURCE" "$KOTLIN_DIR/BootReceiver.kt"
+        echo "  ✓ BootReceiver.kt copied (auto-start on boot)"
+    else
+        echo "  ❌ BootReceiver.kt not found at $BOOT_RECEIVER_SOURCE"
+        exit 1
+    fi
+
+    # Copy DormantBridge.kt
+    if [ -f "$DORMANT_BRIDGE_SOURCE" ]; then
+        echo "  📄 Copying DormantBridge.kt to kotlin/ directory..."
+        cp "$DORMANT_BRIDGE_SOURCE" "$KOTLIN_DIR/DormantBridge.kt"
+        echo "  ✓ DormantBridge.kt copied (JNI bridge to Rust)"
+    else
+        echo "  ❌ DormantBridge.kt not found at $DORMANT_BRIDGE_SOURCE"
+        exit 1
     fi
     
     # ========== CRITICAL: Replace auto-generated MainActivity ==========
@@ -391,7 +466,7 @@ tasks.register<Copy>("syncKotlinSources") {
     }
     
     doLast {
-        println("✅ Kotlin sources synced - NotificationHelper, WebViewConfigurator, MainActivity")
+        println("✅ Kotlin sources synced - NotificationHelper, WebViewConfigurator, MainActivity, DormantService, DormantBridge, BootReceiver")
     }
 }
 
@@ -498,6 +573,26 @@ GRADLE_TASK
             echo "  ✓ FOREGROUND_SERVICE permissions added"
         else
             echo "  ✓ FOREGROUND_SERVICE permissions already present"
+        fi
+
+        # Add RECEIVE_BOOT_COMPLETED permission
+        HAS_BOOT=$(grep -c "android.permission.RECEIVE_BOOT_COMPLETED" "$MANIFEST" || true)
+        if [ "$HAS_BOOT" -eq 0 ]; then
+            echo "  📝 Adding RECEIVE_BOOT_COMPLETED permission..."
+            sed -i '/<uses-permission.*FOREGROUND_SERVICE_DATA_SYNC/a\    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />' "$MANIFEST"
+            echo "  ✓ RECEIVE_BOOT_COMPLETED added"
+        else
+            echo "  ✓ RECEIVE_BOOT_COMPLETED already present"
+        fi
+
+        # Register DormantService and BootReceiver in manifest
+        HAS_DORMANT_SERVICE=$(grep -c "DormantService" "$MANIFEST" || true)
+        if [ "$HAS_DORMANT_SERVICE" -eq 0 ]; then
+            echo "  📝 Registering DormantService and BootReceiver in manifest..."
+            sed -i '/<\/application>/i\        <service\n            android:name="se.malmo.skaggbyran.amp.DormantService"\n            android:foregroundServiceType="dataSync"\n            android:exported="false" />\n\n        <receiver\n            android:name="se.malmo.skaggbyran.amp.BootReceiver"\n            android:exported="true">\n            <intent-filter>\n                <action android:name="android.intent.action.BOOT_COMPLETED" />\n            </intent-filter>\n        </receiver>' "$MANIFEST"
+            echo "  ✓ DormantService and BootReceiver registered"
+        else
+            echo "  ✓ DormantService already registered"
         fi
         
 #        # ========== CRITICAL: REMOVE INTERNET PERMISSION ==========
@@ -771,6 +866,16 @@ analyze_r8_output() {
             echo "  ⚠️  WebViewConfigurator appears in mapping.txt (may be obfuscated)"
             OBFUSCATED=$((OBFUSCATED + 1))
         fi
+
+        if grep -q "se.malmo.skaggbyran.amp.DormantService" "$MAPPING_FILE"; then
+            echo "  ⚠️  DormantService appears in mapping.txt (may be obfuscated)"
+            OBFUSCATED=$((OBFUSCATED + 1))
+        fi
+
+        if grep -q "se.malmo.skaggbyran.amp.DormantBridge" "$MAPPING_FILE"; then
+            echo "  ⚠️  DormantBridge appears in mapping.txt (may be obfuscated)"
+            OBFUSCATED=$((OBFUSCATED + 1))
+        fi
         
         if grep -q "dev.dioxus.main.MainActivity" "$MAPPING_FILE"; then
             echo "  ⚠️  MainActivity appears in mapping.txt (may be obfuscated)"
@@ -894,15 +999,42 @@ if [ -n "$APK_PATH" ]; then
             echo "  ❌ Custom MainActivity NOT found in classes.dex"
             echo "  ⚠️  WebView configuration will not run"
         fi
-        
-        if [ "$CLASSES_FOUND" -eq 3 ]; then
+
+        # Check DormantService
+        if dexdump -l plain "$APK_PATH" 2>/dev/null | grep -q "DormantService"; then
+            echo "  ✅ DormantService found in classes.dex"
+            CLASSES_FOUND=$((CLASSES_FOUND + 1))
+        else
+            echo "  ❌ DormantService NOT found in classes.dex"
+            echo "  ⚠️  Background monitoring will not work"
+        fi
+
+        # Check DormantBridge
+        if dexdump -l plain "$APK_PATH" 2>/dev/null | grep -q "DormantBridge"; then
+            echo "  ✅ DormantBridge found in classes.dex"
+            CLASSES_FOUND=$((CLASSES_FOUND + 1))
+        else
+            echo "  ❌ DormantBridge NOT found in classes.dex"
+            echo "  ⚠️  Dormant JNI bridge missing"
+        fi
+
+        # Check BootReceiver
+        if dexdump -l plain "$APK_PATH" 2>/dev/null | grep -q "BootReceiver"; then
+            echo "  ✅ BootReceiver found in classes.dex"
+            CLASSES_FOUND=$((CLASSES_FOUND + 1))
+        else
+            echo "  ❌ BootReceiver NOT found in classes.dex"
+            echo "  ⚠️  Auto-start on boot will not work"
+        fi
+
+        if [ "$CLASSES_FOUND" -eq 6 ]; then
             echo ""
-            echo "  ✅ SUCCESS: All Kotlin classes compiled successfully!"
-            
+            echo "  ✅ SUCCESS: All 6 Kotlin classes compiled successfully!"
+
             # Show class details for confirmation
             echo ""
             echo "  📋 Class details:"
-            dexdump -l plain "$APK_PATH" 2>/dev/null | grep -E "(NotificationHelper|WebViewConfigurator|dev/dioxus/main/MainActivity)" | head -n 10
+            dexdump -l plain "$APK_PATH" 2>/dev/null | grep -E "(NotificationHelper|WebViewConfigurator|dev/dioxus/main/MainActivity|DormantService|DormantBridge|BootReceiver)" | head -n 16
             
             # Verify methods exist
             echo ""

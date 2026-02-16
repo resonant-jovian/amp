@@ -28,6 +28,28 @@
 # Prevent obfuscation of WebViewConfigurator class name
 -keepnames class se.malmo.skaggbyran.amp.WebViewConfigurator
 
+# Keep DormantService - foreground service for background monitoring
+-keep public class se.malmo.skaggbyran.amp.DormantService {
+    public <methods>;
+    public <fields>;
+}
+-keepnames class se.malmo.skaggbyran.amp.DormantService
+
+# Keep BootReceiver - starts DormantService on device boot
+-keep public class se.malmo.skaggbyran.amp.BootReceiver {
+    public <methods>;
+    public <fields>;
+}
+-keepnames class se.malmo.skaggbyran.amp.BootReceiver
+
+# Keep DormantBridge - JNI bridge to Rust dormant check
+-keep public class se.malmo.skaggbyran.amp.DormantBridge {
+    public <methods>;
+    public <fields>;
+    native <methods>;
+}
+-keepnames class se.malmo.skaggbyran.amp.DormantBridge
+
 # Keep custom MainActivity - extends WryActivity
 -keep public class dev.dioxus.main.MainActivity {
     public <methods>;

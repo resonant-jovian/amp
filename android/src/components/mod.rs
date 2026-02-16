@@ -92,6 +92,7 @@
 pub mod address_utils;
 pub mod countdown;
 pub mod debug;
+pub mod dormant;
 pub mod geo;
 pub mod lifecycle;
 pub mod matching;

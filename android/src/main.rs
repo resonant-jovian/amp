@@ -29,6 +29,8 @@ fn main() {
     #[cfg(target_os = "android")]
     android_bridge::request_notification_permission_jni();
     #[cfg(target_os = "android")]
+    android_bridge::start_dormant_service_jni();
+    #[cfg(target_os = "android")]
     {
         use dioxus::mobile::Config;
         dioxus::LaunchBuilder::new()
