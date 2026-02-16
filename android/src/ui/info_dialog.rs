@@ -50,9 +50,11 @@ pub fn InfoDialog(
                         span { class: "info-label", "Gatunummer:" }
                         span { class: "info-value", "{addr.street_number}" }
                     }
-                    div { class: "info-row",
-                        span { class: "info-label", "Postnummer:" }
-                        span { class: "info-value", "{addr.postal_code}" }
+                    if !addr.postal_code.is_empty() {
+                        div { class: "info-row",
+                            span { class: "info-label", "Postnummer:" }
+                            span { class: "info-value", "{addr.postal_code}" }
+                        }
                     }
                     div { class: "info-row",
                         span { class: "info-label", "Status:" }

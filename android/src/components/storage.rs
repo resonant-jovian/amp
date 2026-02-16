@@ -226,7 +226,11 @@ fn to_local_data(addr: &StoredAddress) -> LocalData {
     LocalData {
         valid: addr.valid,
         active: addr.active,
-        postnummer: Some(addr.postal_code.clone()),
+        postnummer: if addr.postal_code.is_empty() {
+            None
+        } else {
+            Some(addr.postal_code.clone())
+        },
         adress: format!("{} {}", addr.street, addr.street_number)
             .trim()
             .to_string(),

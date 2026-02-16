@@ -185,9 +185,6 @@ pub fn validate_input(
     if street_number.trim().is_empty() {
         return Err(ValidationError::EmptyStreetNumber);
     }
-    if postal_code.trim().is_empty() {
-        return Err(ValidationError::EmptyPostalCode);
-    }
     if street.trim().len() > MAX_STREET_LENGTH {
         return Err(ValidationError::StreetTooLong(street.trim().len()));
     }
@@ -196,7 +193,9 @@ pub fn validate_input(
             street_number.trim().len(),
         ));
     }
-    validate_postal_code(postal_code)?;
+    if !postal_code.trim().is_empty() {
+        validate_postal_code(postal_code)?;
+    }
     Ok(())
 }
 /// Match user input address against static correlations from server
@@ -291,10 +290,7 @@ mod tests {
             Err(ValidationError::EmptyStreetNumber) => {}
             _ => panic!("Expected EmptyStreetNumber error"),
         }
-        match validate_input("Storgatan", "10", "") {
-            Err(ValidationError::EmptyPostalCode) => {}
-            _ => panic!("Expected EmptyPostalCode error"),
-        }
+        assert!(validate_input("Storgatan", "10", "").is_ok());
         match validate_input("Storgatan", "10", "1234") {
             Err(ValidationError::InvalidPostalCodeFormat(_)) => {}
             _ => panic!("Expected InvalidPostalCodeFormat error"),

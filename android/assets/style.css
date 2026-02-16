@@ -6,7 +6,9 @@
     --shadow-lg: 6px 6px 12px #a3b1c6, -6px -6px 12px #ffffff;
     --shadow-xl: 9px 9px 16px #a3b1c6, -9px -9px 16px #ffffff;
     --shadow-inset: inset 2px 2px 5px #a3b1c6, inset -2px -2px 5px #ffffff;
+    --shadow-default: 4px 4px 8px #a3b1c6, -4px -4px 8px #ffffff;
     --shadow-active: inset 1px 1px 5px #bb4ea0, inset -1px -1px 5px #bb4ea0;
+    --color-gradient: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
     --color-bg: #e0e0e0;
     --color-text: #3d5a80;
     --color-text-secondary: #556b82;
@@ -139,15 +141,16 @@ input[type=number] {
     -webkit-tap-highlight-color: transparent;
     position: relative;
     z-index: 3;
+    box-shadow: inset 1px 1px 3px #a3b1c6, inset -1px -1px 20px #ffffff;
+    border-radius: 50%;
 }
 
 .topbar-settings-btn:hover {
-    opacity: 0.8;
-    transform: scale(1.1);
+    box-shadow: inset 1px 1px 3px #a3b1c6, inset -1px -1px 20px #ffffff !important;
 }
 
 .topbar-settings-btn:active {
-    transform: scale(0.95);
+    box-shadow: inset 1px 1px 3px #a3b1c6, inset -1px -1px 20px #ffffff !important;
 }
 
 .topbar-settings-btn svg {
@@ -159,11 +162,15 @@ input[type=number] {
 }
 
 .topbar-content {
-    background: rgba(255, 184, 11, 0.08);
+    background: var(--color-bg);
     padding: 16px;
     display: flex;
     flex-direction: column;
     gap: 8px;
+    /* Override collapsible defaults — topbar is always open */
+    max-height: none;
+    min-height: 60px;
+    overflow: visible;
 }
 
 .topbar-inputs-row {
@@ -383,6 +390,32 @@ input[type=number] {
 .btn:active {
     box-shadow: var(--shadow-active);
     transform: translateY(0);
+}
+
+/* Collapsible category title button - inherits gradient from category-title */
+button.category-title {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: none;
+    cursor: pointer;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+button.category-title:active {
+    opacity: 0.85;
+}
+
+.category-toggle-arrow {
+    color: rgba(255, 255, 255, 0.8);
+    flex-shrink: 0;
+    transition: transform 0.3s ease;
+}
+
+button.category-title[aria-expanded="true"] .category-toggle-arrow {
+    transform: rotate(180deg);
 }
 
 /* Address Item - Grid layout with proper vertical centering */
@@ -671,6 +704,29 @@ input[type=number] {
     box-shadow: var(--shadow-active);
 }
 
+.settings-report-btn {
+    display: block;
+    margin: 16px auto 8px;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 50%;
+    aspect-ratio: 1;
+    width: 80px;
+    background: var(--color-gradient);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: var(--shadow-default);
+    text-align: center;
+    line-height: 1.2;
+}
+
+.settings-report-btn:active {
+    box-shadow: var(--shadow-active);
+    transform: scale(0.95);
+}
+
 .category-container {
     margin-bottom: 16px;
     border-radius: 16px;
@@ -686,14 +742,38 @@ input[type=number] {
     font-weight: 800;
     color: white;
     text-shadow: 0 0 0.5rem #bb4ea0;
-    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: background 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+                color 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .category-content {
+    padding: 0 16px;
+    min-height: 0;
+    background: var(--color-bg);
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.15s ease-out,
+                padding 0.15s ease-out;
+}
+
+.category-content[aria-hidden="false"] {
+    max-height: 2000px;
     padding: 16px;
     min-height: 60px;
-    background: var(--color-bg);
-    transition: background 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: max-height 0.3s ease-in,
+                padding 0.15s ease-in;
+}
+
+/* Rounded all around when closed, only top when open.
+   Border-radius changes after content collapses (0.2s delay on close). */
+button.category-title[aria-expanded="false"] {
+    border-radius: 16px;
+    transition: border-radius 0s 0.15s;
+}
+
+button.category-title[aria-expanded="true"] {
+    border-radius: 16px 16px 0 0;
+    transition: border-radius 0s;
 }
 
 .empty-state {
@@ -706,7 +786,7 @@ input[type=number] {
 }
 
 .category-active .category-title {
-    background: linear-gradient(135deg, #f32c25 0%, #d32f2f 100%);
+    background: #f32c25;
     box-shadow: 0 8px 16px rgba(243, 44, 37, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2);
 }
 
@@ -715,7 +795,7 @@ input[type=number] {
 }
 
 .category-6h .category-title {
-    background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
+    background: #FF9800;
     box-shadow: 0 8px 16px rgba(255, 152, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2);
 }
 
@@ -724,7 +804,7 @@ input[type=number] {
 }
 
 .category-24h .category-title {
-    background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+    background: #2196F3;
     box-shadow: 0 8px 16px rgba(33, 150, 243, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2);
 }
 
@@ -733,7 +813,7 @@ input[type=number] {
 }
 
 .category-month .category-title {
-    background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%);
+    background: #9C27B0;
     box-shadow: 0 8px 16px rgba(156, 39, 176, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2);
 }
 
@@ -742,7 +822,7 @@ input[type=number] {
 }
 
 .category-parking-only .category-title {
-    background: linear-gradient(135deg, #8D6E63 0%, #5D4037 100%);
+    background: #8D6E63;
     box-shadow: 0 8px 16px rgba(141, 110, 99, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2);
 }
 
@@ -751,7 +831,7 @@ input[type=number] {
 }
 
 .category-invalid .category-title {
-    background: linear-gradient(135deg, #757575 0%, #424242 100%);
+    background: #757575;
     box-shadow: 0 8px 16px rgba(117, 117, 117, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2);
 }
 
@@ -760,7 +840,7 @@ input[type=number] {
 }
 
 .category-addresses .category-title {
-    background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+    background: #000000;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.1);
 }
 
@@ -769,7 +849,7 @@ input[type=number] {
 }
 
 .category-later .category-title {
-    background: linear-gradient(135deg, #00897B 0%, #00695C 100%);
+    background: #00897B;
     box-shadow: 0 8px 16px rgba(0, 137, 123, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2);
 }
 
@@ -1209,7 +1289,7 @@ input[type=number] {
 }
 
 .settings-section-content[aria-hidden="false"] {
-    max-height: 600px;
+    max-height: 1200px;
 }
 
 .settings-section-body {
@@ -1392,7 +1472,7 @@ input[type=number] {
 }
 
 .info-text {
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1.5;
     color: var(--color-text-secondary);
 }

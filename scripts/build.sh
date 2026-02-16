@@ -618,6 +618,13 @@ GRADLE_TASK
     else
         echo "  ⚠️  Manifest not found at $MANIFEST"
     fi
+
+    # Fix app name to lowercase "amp" (Dioxus auto-capitalizes to "Amp")
+    local STRINGS_XML="$ANDROID_DIR/src/main/res/values/strings.xml"
+    if [ -f "$STRINGS_XML" ]; then
+        sed -i 's/<string name="app_name">.*<\/string>/<string name="app_name">amp<\/string>/g' "$STRINGS_XML"
+        echo "  ✅ App name set to lowercase 'amp'"
+    fi
 }
 # ========== END NOTIFICATION SETUP ==========
 

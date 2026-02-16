@@ -141,6 +141,8 @@ use crate::components::countdown::{
 };
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
+use dioxus_free_icons::Icon;
+use dioxus_free_icons::icons::md_navigation_icons::{MdExpandLess, MdExpandMore};
 use tokio::time::Duration;
 /// Display an address with countdown timer in appropriate category.
 ///
@@ -213,10 +215,7 @@ fn AddressItem(addr: StoredAddress, index: usize, on_remove: EventHandler<usize>
             }
         }
     });
-    let address_display = format!(
-        "{} {}, {}",
-        addr.street, addr.street_number, addr.postal_code,
-    );
+    let address_display = addr.display_name();
     rsx! {
         div { class: "address-item",
             div { class: "address-text", "{address_display}" }
@@ -334,10 +333,26 @@ pub fn ActivePanel(addresses: Vec<StoredAddress>) -> Element {
         .collect();
     active_addrs = sorting_time(active_addrs);
     let active_count = active_addrs.len();
+    let mut is_open = use_signal(|| false);
     rsx! {
         div { class: "category-container category-active",
-            div { class: "category-title", "Städas nu" }
-            div { class: "category-content", id: "categoryActive",
+            button {
+                class: "category-title",
+                onclick: move |_| is_open.set(!is_open()),
+                "aria-expanded": if is_open() { "true" } else { "false" },
+                span { "Städas nu" }
+                span { class: "category-toggle-arrow",
+                    if is_open() {
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
+                    } else {
+                        Icon { icon: MdExpandMore, width: 16, height: 16 }
+                    }
+                }
+            }
+            div {
+                class: "category-content",
+                id: "categoryActive",
+                "aria-hidden": if is_open() { "false" } else { "true" },
                 if active_count == 0 {
                     div { class: "empty-state", "Inga adresser" }
                 } else {
@@ -406,10 +421,26 @@ pub fn SixHoursPanel(addresses: Vec<StoredAddress>) -> Element {
         .collect();
     addrs = sorting_time_by_start(addrs);
     let count = addrs.len();
+    let mut is_open = use_signal(|| false);
     rsx! {
         div { class: "category-container category-6h",
-            div { class: "category-title", "Inom 6 timmar" }
-            div { class: "category-content", id: "category6h",
+            button {
+                class: "category-title",
+                onclick: move |_| is_open.set(!is_open()),
+                "aria-expanded": if is_open() { "true" } else { "false" },
+                span { "Inom 6 timmar" }
+                span { class: "category-toggle-arrow",
+                    if is_open() {
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
+                    } else {
+                        Icon { icon: MdExpandMore, width: 16, height: 16 }
+                    }
+                }
+            }
+            div {
+                class: "category-content",
+                id: "category6h",
+                "aria-hidden": if is_open() { "false" } else { "true" },
                 if count == 0 {
                     div { class: "empty-state", "Inga adresser" }
                 } else {
@@ -478,10 +509,26 @@ pub fn OneDayPanel(addresses: Vec<StoredAddress>) -> Element {
         .collect();
     addrs = sorting_time_by_start(addrs);
     let count = addrs.len();
+    let mut is_open = use_signal(|| false);
     rsx! {
         div { class: "category-container category-24h",
-            div { class: "category-title", "Inom 1 dag" }
-            div { class: "category-content", id: "category24h",
+            button {
+                class: "category-title",
+                onclick: move |_| is_open.set(!is_open()),
+                "aria-expanded": if is_open() { "true" } else { "false" },
+                span { "Inom 1 dag" }
+                span { class: "category-toggle-arrow",
+                    if is_open() {
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
+                    } else {
+                        Icon { icon: MdExpandMore, width: 16, height: 16 }
+                    }
+                }
+            }
+            div {
+                class: "category-content",
+                id: "category24h",
+                "aria-hidden": if is_open() { "false" } else { "true" },
                 if count == 0 {
                     div { class: "empty-state", "Inga adresser" }
                 } else {
@@ -550,10 +597,26 @@ pub fn OneMonthPanel(addresses: Vec<StoredAddress>) -> Element {
         .collect();
     addrs = sorting_time_by_start(addrs);
     let count = addrs.len();
+    let mut is_open = use_signal(|| false);
     rsx! {
         div { class: "category-container category-month",
-            div { class: "category-title", "Inom 1 månad" }
-            div { class: "category-content", id: "categoryMonth",
+            button {
+                class: "category-title",
+                onclick: move |_| is_open.set(!is_open()),
+                "aria-expanded": if is_open() { "true" } else { "false" },
+                span { "Inom 1 månad" }
+                span { class: "category-toggle-arrow",
+                    if is_open() {
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
+                    } else {
+                        Icon { icon: MdExpandMore, width: 16, height: 16 }
+                    }
+                }
+            }
+            div {
+                class: "category-content",
+                id: "categoryMonth",
+                "aria-hidden": if is_open() { "false" } else { "true" },
                 if count == 0 {
                     div { class: "empty-state", "Inga adresser" }
                 } else {
@@ -622,10 +685,26 @@ pub fn MoreThan1MonthPanel(addresses: Vec<StoredAddress>) -> Element {
         .collect();
     addrs = sorting_time_by_start(addrs);
     let count = addrs.len();
+    let mut is_open = use_signal(|| false);
     rsx! {
         div { class: "category-container category-later",
-            div { class: "category-title", "30+ dagar" }
-            div { class: "category-content", id: "category-later",
+            button {
+                class: "category-title",
+                onclick: move |_| is_open.set(!is_open()),
+                "aria-expanded": if is_open() { "true" } else { "false" },
+                span { "30+ dagar" }
+                span { class: "category-toggle-arrow",
+                    if is_open() {
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
+                    } else {
+                        Icon { icon: MdExpandMore, width: 16, height: 16 }
+                    }
+                }
+            }
+            div {
+                class: "category-content",
+                id: "category-later",
+                "aria-hidden": if is_open() { "false" } else { "true" },
                 if count == 0 {
                     div { class: "empty-state", "Inga adresser" }
                 } else {
@@ -680,12 +759,34 @@ pub fn ParkingOnlyPanel(addresses: Vec<StoredAddress>) -> Element {
         .into_iter()
         .filter(|a| a.valid && a.active && a.matched_entry.is_none() && a.parking_info.is_some())
         .collect();
-    addrs.sort_by(|a, b| a.postal_code.cmp(&b.postal_code));
+    addrs.sort_by(
+        |a, b| match (a.postal_code.is_empty(), b.postal_code.is_empty()) {
+            (true, false) => std::cmp::Ordering::Greater,
+            (false, true) => std::cmp::Ordering::Less,
+            _ => a.postal_code.cmp(&b.postal_code),
+        },
+    );
     let count = addrs.len();
+    let mut is_open = use_signal(|| false);
     rsx! {
         div { class: "category-container category-parking-only",
-            div { class: "category-title", "Endast parkeringsavgift" }
-            div { class: "category-content", id: "categoryParkingOnly",
+            button {
+                class: "category-title",
+                onclick: move |_| is_open.set(!is_open()),
+                "aria-expanded": if is_open() { "true" } else { "false" },
+                span { "Endast parkeringsavgift" }
+                span { class: "category-toggle-arrow",
+                    if is_open() {
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
+                    } else {
+                        Icon { icon: MdExpandMore, width: 16, height: 16 }
+                    }
+                }
+            }
+            div {
+                class: "category-content",
+                id: "categoryParkingOnly",
+                "aria-hidden": if is_open() { "false" } else { "true" },
                 if count == 0 {
                     div { class: "empty-state", "Inga adresser" }
                 } else {
@@ -749,12 +850,34 @@ pub fn InvalidPanel(addresses: Vec<StoredAddress>) -> Element {
         .into_iter()
         .filter(|a| a.active && !a.valid)
         .collect();
-    addrs.sort_by(|a, b| a.postal_code.cmp(&b.postal_code));
+    addrs.sort_by(
+        |a, b| match (a.postal_code.is_empty(), b.postal_code.is_empty()) {
+            (true, false) => std::cmp::Ordering::Greater,
+            (false, true) => std::cmp::Ordering::Less,
+            _ => a.postal_code.cmp(&b.postal_code),
+        },
+    );
     let count = addrs.len();
+    let mut is_open = use_signal(|| false);
     rsx! {
         div { class: "category-container category-invalid",
-            div { class: "category-title", "Ingen städning" }
-            div { class: "category-content", id: "categoryInvalid",
+            button {
+                class: "category-title",
+                onclick: move |_| is_open.set(!is_open()),
+                "aria-expanded": if is_open() { "true" } else { "false" },
+                span { "Ingen städning" }
+                span { class: "category-toggle-arrow",
+                    if is_open() {
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
+                    } else {
+                        Icon { icon: MdExpandMore, width: 16, height: 16 }
+                    }
+                }
+            }
+            div {
+                class: "category-content",
+                id: "categoryInvalid",
+                "aria-hidden": if is_open() { "false" } else { "true" },
                 if count == 0 {
                     div { class: "empty-state", "Inga adresser" }
                 } else {

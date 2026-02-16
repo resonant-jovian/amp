@@ -250,6 +250,20 @@ pub struct StoredAddress {
     pub parking_info: Option<ParkingInfo>,
 }
 impl StoredAddress {
+    /// Format the address for display.
+    ///
+    /// When postal code is empty: "Street Number"
+    /// When postal code is present: "Street Number, PostalCode"
+    pub fn display_name(&self) -> String {
+        if self.postal_code.is_empty() {
+            format!("{} {}", self.street, self.street_number)
+        } else {
+            format!(
+                "{} {}, {}",
+                self.street, self.street_number, self.postal_code
+            )
+        }
+    }
     /// Create a new stored address and attempt to match against database
     ///
     /// Generates a new UUID v4 for the address ID and performs fuzzy matching
@@ -402,7 +416,7 @@ fn fuzzy_match_address(street: &str, street_number: &str, postal_code: &str) -> 
             entry_street_norm.contains(&street_norm) || street_norm.contains(&entry_street_norm)
         };
         let number_match = entry_number_norm == street_number_norm;
-        let postal_match = entry_postal_norm == postal_code_norm;
+        let postal_match = postal_code_norm.is_empty() || entry_postal_norm == postal_code_norm;
         if street_match && number_match && postal_match {
             eprintln!(
                 "[FuzzyMatch] Found match: '{}' matches '{}' (distance: {})",
@@ -533,10 +547,16 @@ pub fn App() -> Element {
         let new_addr = StoredAddress::new(street, street_number, postal_code);
         let mut addrs = stored_addresses.write();
         let is_duplicate = addrs.iter().any(|a| {
-            normalize_string(&a.street) == normalize_string(&new_addr.street)
-                && normalize_string(&a.street_number) == normalize_string(&new_addr.street_number)
-                && a.postal_code.trim().replace(' ', "")
+            let street_match = normalize_string(&a.street) == normalize_string(&new_addr.street);
+            let number_match =
+                normalize_string(&a.street_number) == normalize_string(&new_addr.street_number);
+            let postal_match = if a.postal_code.is_empty() || new_addr.postal_code.is_empty() {
+                true
+            } else {
+                a.postal_code.trim().replace(' ', "")
                     == new_addr.postal_code.trim().replace(' ', "")
+            };
+            street_match && number_match && postal_match
         });
         if !is_duplicate {
             info!("Adding new address, total now: {}", addrs.len() + 1);

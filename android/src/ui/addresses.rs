@@ -98,6 +98,7 @@ use crate::ui::info_dialog::InfoDialog;
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::md_action_icons::MdInfo;
+use dioxus_free_icons::icons::md_navigation_icons::{MdExpandLess, MdExpandMore};
 /// Address list component displaying all stored addresses with toggle and remove controls.
 ///
 /// This component provides a comprehensive interface for managing saved addresses:
@@ -184,7 +185,13 @@ pub fn Addresses(
     let mut show_info = use_signal(|| false);
     let mut selected_address = use_signal(|| None::<StoredAddress>);
     let mut sorted_addresses = stored_addresses.clone();
-    sorted_addresses.sort_by(|a, b| a.postal_code.cmp(&b.postal_code));
+    sorted_addresses.sort_by(
+        |a, b| match (a.postal_code.is_empty(), b.postal_code.is_empty()) {
+            (true, false) => std::cmp::Ordering::Greater,
+            (false, true) => std::cmp::Ordering::Less,
+            _ => a.postal_code.cmp(&b.postal_code),
+        },
+    );
     let mut handle_remove_click = move |addr_id: usize| {
         info!("Remove button clicked for address id: {}", addr_id);
         pending_remove_id.set(Some(addr_id));
@@ -216,10 +223,25 @@ pub fn Addresses(
         show_info.set(false);
         selected_address.set(None);
     };
+    let mut is_open = use_signal(|| false);
     rsx! {
         div { class: "category-container category-addresses",
-            div { class: "category-title", "Adresser" }
-            div { class: "category-content",
+            button {
+                class: "category-title",
+                onclick: move |_| is_open.set(!is_open()),
+                "aria-expanded": if is_open() { "true" } else { "false" },
+                span { "Adresser" }
+                span { class: "category-toggle-arrow",
+                    if is_open() {
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
+                    } else {
+                        Icon { icon: MdExpandMore, width: 16, height: 16 }
+                    }
+                }
+            }
+            div {
+                class: "category-content",
+                "aria-hidden": if is_open() { "false" } else { "true" },
                 if sorted_addresses.is_empty() {
                     div { class: "empty-state", "Inga adresser tillagda" }
                 } else {
@@ -228,12 +250,7 @@ pub fn Addresses(
                             sorted_addresses
                                 .iter()
                                 .map(|addr| {
-                                    let address_display = format!(
-                                        "{} {}, {}",
-                                        addr.street,
-                                        addr.street_number,
-                                        addr.postal_code,
-                                    );
+                                    let address_display = addr.display_name();
                                     let is_active = addr.active;
                                     let addr_id = addr.id;
                                     let addr_clone = addr.clone();

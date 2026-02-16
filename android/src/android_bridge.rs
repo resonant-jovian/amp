@@ -494,6 +494,61 @@ pub fn get_device_info() -> String {
         "Mock Device (Testing)".to_string()
     }
 }
+/// Open a URL in the device's default browser.
+///
+/// # Platform Behavior
+/// - **Android**: Uses an ACTION_VIEW Intent to launch the browser
+/// - **Other platforms**: No-op (logs the URL)
+pub fn open_url(url: &str) {
+    #[cfg(target_os = "android")]
+    {
+        /*
+        use dioxus::mobile::wry::prelude::WryActivity;
+        use jni::objects::{JObject, JValue};
+        let jvm = WryActivity::class_loader_jvm().expect("Failed to get JVM");
+        let mut env = jvm
+            .attach_current_thread()
+            .expect("Failed to attach thread");
+        let url_string = env
+            .new_string(url)
+            .expect("Failed to create Java string for URL");
+        let uri = env
+            .call_static_method(
+                "android/net/Uri",
+                "parse",
+                "(Ljava/lang/String;)Landroid/net/Uri;",
+                &[JValue::Object(&url_string.into())],
+            )
+            .expect("Uri.parse failed")
+            .l()
+            .expect("Uri.parse did not return object");
+        let action_view = env
+            .new_string("android.intent.action.VIEW")
+            .expect("Failed to create ACTION_VIEW string");
+        let intent = env
+            .new_object(
+                "android/content/Intent",
+                "(Ljava/lang/String;Landroid/net/Uri;)V",
+                &[JValue::Object(&action_view.into()), JValue::Object(&uri)],
+            )
+            .expect("Intent creation failed");
+        let context = WryActivity::class_init_activity();
+        let context: JObject = context.into();
+        let _ = env.call_method(
+            &context,
+            "startActivity",
+            "(Landroid/content/Intent;)V",
+            &[JValue::Object(&intent)],
+        );
+
+         */
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        eprintln!("[Mock Android Bridge] open_url: {}", url);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -252,8 +252,8 @@ pub fn TopBar(
             "Add button clicked: address='{}', postal_code='{}'",
             address_str, postal_code
         );
-        if address_str.trim().is_empty() || postal_code.trim().is_empty() {
-            warn!("Validation failed: empty fields");
+        if address_str.trim().is_empty() {
+            warn!("Validation failed: empty address field");
             return;
         }
         let street_words: Vec<&str> = address_str.split_whitespace().collect();
@@ -290,12 +290,7 @@ pub fn TopBar(
                 );
                 let full_address = format!("{:?} {:?}", entry.gata, entry.gatunummer);
                 address_input.set(full_address);
-                postal_code_input.set(
-                    entry
-                        .postnummer
-                        .clone()
-                        .expect("failed to set postal code input"),
-                );
+                postal_code_input.set(entry.postnummer.clone().unwrap_or_default());
                 info!("Address fields auto-populated from GPS");
             } else {
                 warn!("No address found near GPS location");
@@ -329,7 +324,7 @@ pub fn TopBar(
                     }
                 }
             }
-            div { class: "category-content topbar-content",
+            div { class: "topbar-content",
                 div { class: "topbar-inputs-row",
                     div { class: "address-item topbar-input-item",
                         input {
@@ -346,7 +341,8 @@ pub fn TopBar(
                     div { class: "address-item topbar-input-item",
                         input {
                             id: "postalInput",
-                            placeholder: "Postnummer",
+                            placeholder: "Postnummer (valfritt)",
+                            inputmode: "numeric",
                             r#type: "text",
                             class: "topbar-input",
                             value: "{postal_code_input}",

@@ -409,6 +409,26 @@ pub fn get_address_data<'a>(
     postal_code: &str,
 ) -> Option<&'a DB> {
     let data = get_static_data();
+    if postal_code.is_empty() {
+        let street_lower = street.to_lowercase();
+        let number_lower = street_number.to_lowercase();
+        for entry in data.values() {
+            let entry_street = entry
+                .gata
+                .as_ref()
+                .map(|s| s.to_lowercase())
+                .unwrap_or_default();
+            let entry_number = entry
+                .gatunummer
+                .as_ref()
+                .map(|s| s.to_lowercase())
+                .unwrap_or_default();
+            if entry_street == street_lower && entry_number == number_lower {
+                return Some(entry);
+            }
+        }
+        return None;
+    }
     for day in 1..=31 {
         let key = format!(
             "{}_{}_{}_{}",
@@ -434,6 +454,19 @@ pub fn get_parking_only_entry(
 ) -> Option<&'static ParkingInfo> {
     ensure_data_loaded();
     let data = PARKING_ONLY_DATA.get()?;
+    if postal_code.is_empty() {
+        let suffix = format!(
+            "_{}_{}_parking",
+            street.to_lowercase(),
+            street_number.to_lowercase(),
+        );
+        for (key, info) in data.iter() {
+            if key.ends_with(&suffix) {
+                return Some(info);
+            }
+        }
+        return None;
+    }
     let key = format!(
         "{}_{}_{}_parking",
         postal_code,
