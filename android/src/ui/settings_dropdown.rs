@@ -6,7 +6,7 @@ use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::fa_brands_icons::FaDev;
 use dioxus_free_icons::icons::md_action_icons::{MdInfo, MdSettings};
-use dioxus_free_icons::icons::md_navigation_icons::{MdExpandLess, MdExpandMore};
+use dioxus_free_icons::icons::md_navigation_icons::{MdExpandLess};
 use dioxus_free_icons::icons::md_social_icons::MdNotificationsActive;
 use std::time::Duration;
 /// Represents which settings section is currently open
@@ -169,7 +169,7 @@ pub fn SettingsDropdown(
                                     }
                                 } else {
                                     Icon {
-                                        icon: MdExpandMore,
+                                        icon: MdExpandLess,
                                         width: 16,
                                         height: 16,
                                     }
@@ -267,7 +267,7 @@ pub fn SettingsDropdown(
                                     }
                                 } else {
                                     Icon {
-                                        icon: MdExpandMore,
+                                        icon: MdExpandLess,
                                         width: 16,
                                         height: 16,
                                     }
@@ -302,7 +302,7 @@ pub fn SettingsDropdown(
                                     }
                                 } else {
                                     Icon {
-                                        icon: MdExpandMore,
+                                        icon: MdExpandLess,
                                         width: 16,
                                         height: 16,
                                     }
@@ -358,7 +358,7 @@ pub fn SettingsDropdown(
                                     }
                                 } else {
                                     Icon {
-                                        icon: MdExpandMore,
+                                        icon: MdExpandLess,
                                         width: 16,
                                         height: 16,
                                     }

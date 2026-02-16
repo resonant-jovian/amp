@@ -142,7 +142,7 @@ use crate::components::countdown::{
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
-use dioxus_free_icons::icons::md_navigation_icons::{MdExpandLess, MdExpandMore};
+use dioxus_free_icons::icons::md_navigation_icons::{MdExpandLess};
 use tokio::time::Duration;
 /// Display an address with countdown timer in appropriate category.
 ///
@@ -341,12 +341,15 @@ pub fn ActivePanel(addresses: Vec<StoredAddress>) -> Element {
                 onclick: move |_| is_open.set(!is_open()),
                 "aria-expanded": if is_open() { "true" } else { "false" },
                 span { "Städas nu" }
-                span { class: "category-toggle-arrow",
+                span { class: "category-count",
+                    span { class: "category-toggle-arrow",
                     if is_open() {
                         Icon { icon: MdExpandLess, width: 16, height: 16 }
                     } else {
-                        Icon { icon: MdExpandMore, width: 16, height: 16 }
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
                     }
+                    }
+                    "{ active_count }"
                 }
             }
             div {
@@ -429,12 +432,15 @@ pub fn SixHoursPanel(addresses: Vec<StoredAddress>) -> Element {
                 onclick: move |_| is_open.set(!is_open()),
                 "aria-expanded": if is_open() { "true" } else { "false" },
                 span { "Inom 6 timmar" }
-                span { class: "category-toggle-arrow",
+                span { class: "category-count",
+                    span { class: "category-toggle-arrow",
                     if is_open() {
                         Icon { icon: MdExpandLess, width: 16, height: 16 }
                     } else {
-                        Icon { icon: MdExpandMore, width: 16, height: 16 }
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
                     }
+                    }
+                    "{ count }"
                 }
             }
             div {
@@ -517,12 +523,15 @@ pub fn OneDayPanel(addresses: Vec<StoredAddress>) -> Element {
                 onclick: move |_| is_open.set(!is_open()),
                 "aria-expanded": if is_open() { "true" } else { "false" },
                 span { "Inom 1 dag" }
-                span { class: "category-toggle-arrow",
+                span { class: "category-count",
+                    span { class: "category-toggle-arrow",
                     if is_open() {
                         Icon { icon: MdExpandLess, width: 16, height: 16 }
                     } else {
-                        Icon { icon: MdExpandMore, width: 16, height: 16 }
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
                     }
+                    }
+                    "{ count }"
                 }
             }
             div {
@@ -605,12 +614,15 @@ pub fn OneMonthPanel(addresses: Vec<StoredAddress>) -> Element {
                 onclick: move |_| is_open.set(!is_open()),
                 "aria-expanded": if is_open() { "true" } else { "false" },
                 span { "Inom 1 månad" }
-                span { class: "category-toggle-arrow",
+                span { class: "category-count",
+                    span { class: "category-toggle-arrow",
                     if is_open() {
                         Icon { icon: MdExpandLess, width: 16, height: 16 }
                     } else {
-                        Icon { icon: MdExpandMore, width: 16, height: 16 }
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
                     }
+                    }
+                    "{ count }"
                 }
             }
             div {
@@ -693,12 +705,15 @@ pub fn MoreThan1MonthPanel(addresses: Vec<StoredAddress>) -> Element {
                 onclick: move |_| is_open.set(!is_open()),
                 "aria-expanded": if is_open() { "true" } else { "false" },
                 span { "30+ dagar" }
-                span { class: "category-toggle-arrow",
+                span { class: "category-count",
+                    span { class: "category-toggle-arrow",
                     if is_open() {
                         Icon { icon: MdExpandLess, width: 16, height: 16 }
                     } else {
-                        Icon { icon: MdExpandMore, width: 16, height: 16 }
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
                     }
+                    }
+                    "{ count }"
                 }
             }
             div {
@@ -775,12 +790,15 @@ pub fn ParkingOnlyPanel(addresses: Vec<StoredAddress>) -> Element {
                 onclick: move |_| is_open.set(!is_open()),
                 "aria-expanded": if is_open() { "true" } else { "false" },
                 span { "Endast parkeringsavgift" }
-                span { class: "category-toggle-arrow",
+                span { class: "category-count",
+                    span { class: "category-toggle-arrow",
                     if is_open() {
                         Icon { icon: MdExpandLess, width: 16, height: 16 }
                     } else {
-                        Icon { icon: MdExpandMore, width: 16, height: 16 }
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
                     }
+                    }
+                    "{ count }"
                 }
             }
             div {
@@ -866,12 +884,15 @@ pub fn InvalidPanel(addresses: Vec<StoredAddress>) -> Element {
                 onclick: move |_| is_open.set(!is_open()),
                 "aria-expanded": if is_open() { "true" } else { "false" },
                 span { "Ingen städning" }
-                span { class: "category-toggle-arrow",
+                span { class: "category-count",
+                    span { class: "category-toggle-arrow",
                     if is_open() {
                         Icon { icon: MdExpandLess, width: 16, height: 16 }
                     } else {
-                        Icon { icon: MdExpandMore, width: 16, height: 16 }
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
                     }
+                    }
+                    "{ count }"
                 }
             }
             div {

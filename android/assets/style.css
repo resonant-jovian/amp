@@ -414,6 +414,17 @@ button.category-title:active {
     transition: transform 0.3s ease;
 }
 
+.category-count {
+    font-size: 14px;
+    font-weight: 700;
+    color: #ffffff;
+    min-width: 0;
+    align-self: self-end;
+    display: inline-flex;
+    align-items: self-end;
+    gap: 4px;
+}
+
 button.category-title[aria-expanded="true"] .category-toggle-arrow {
     transform: rotate(180deg);
 }
