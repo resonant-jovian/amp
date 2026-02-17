@@ -1166,7 +1166,6 @@ button.category-title[aria-expanded="true"] {
     top: 21px;
     margin-right: 13px;
     width: 280px;
-    max-height: 70vh;
     background: var(--color-bg);
     border-radius: 16px;
     box-shadow: 6px 6px 12px #a3b1c6, -6px -6px 12px #ffffff;
@@ -1236,7 +1235,6 @@ button.category-title[aria-expanded="true"] {
 /* Settings Content - Vertical column of expandable sections */
 .settings-content {
     padding: 8px;
-    max-height: calc(70vh - 60px);
     overflow-y: auto;
     background: var(--color-bg);
     display: flex;
