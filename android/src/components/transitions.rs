@@ -5,8 +5,8 @@
 //!
 //! # State Management
 //! Uses a global Mutex-protected HashMap to track the last known TimeBucket
-//! for each address ID. This ensures notifications only fire when an address
-//! enters a new, more urgent panel.
+//! for each address ID. State is persisted to `notification_state.parquet`
+//! so that notifications are not re-fired after app restart.
 //!
 //! # Transition Rules
 //! Notifications are sent when addresses move to more urgent panels:
@@ -33,18 +33,172 @@
 //! ```
 use crate::components::countdown::{TimeBucket, bucket_for};
 use crate::ui::StoredAddress;
-use amp_core::structs::DB;
+use amp_core::parquet::{build_notification_state_parquet, read_notification_state_from_bytes};
+use amp_core::structs::{NotificationStateEntry, DB};
+use chrono::{Datelike, Utc};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Mutex;
 /// Global state tracking last known panel for each address
 ///
 /// Maps address ID to its most recently observed TimeBucket.
 /// Protected by Mutex for thread-safe access from UI and background tasks.
 static PANEL_STATE: Mutex<Option<HashMap<usize, TimeBucket>>> = Mutex::new(None);
+const NOTIFICATION_STATE_FILE_NAME: &str = "notification_state.parquet";
+/// Convert a TimeBucket to its string representation for persistence
+fn bucket_to_string(bucket: &TimeBucket) -> &'static str {
+    match bucket {
+        TimeBucket::Now => "Now",
+        TimeBucket::Within6Hours => "Within6Hours",
+        TimeBucket::Within1Day => "Within1Day",
+        TimeBucket::Within1Month => "Within1Month",
+        TimeBucket::MoreThan1Month => "MoreThan1Month",
+        TimeBucket::Invalid => "Invalid",
+    }
+}
+/// Convert a string back to a TimeBucket
+fn bucket_from_string(s: &str) -> TimeBucket {
+    match s {
+        "Now" => TimeBucket::Now,
+        "Within6Hours" => TimeBucket::Within6Hours,
+        "Within1Day" => TimeBucket::Within1Day,
+        "Within1Month" => TimeBucket::Within1Month,
+        "MoreThan1Month" => TimeBucket::MoreThan1Month,
+        _ => TimeBucket::Invalid,
+    }
+}
+/// Get app-specific storage directory (same logic as settings.rs)
+#[cfg(target_os = "android")]
+fn get_storage_dir() -> Result<PathBuf, String> {
+    if let Ok(dir) = std::env::var("APP_FILES_DIR") {
+        let path = PathBuf::from(dir);
+        return Ok(path);
+    }
+    let app_dir = PathBuf::from("/data/local/tmp/amp_storage");
+    if !app_dir.exists() {
+        std::fs::create_dir_all(&app_dir).map_err(|e| {
+            format!(
+                "[PanelTracker] Failed to create storage dir {:?}: {}",
+                app_dir, e
+            )
+        })?;
+    }
+    Ok(app_dir)
+}
+#[cfg(not(target_os = "android"))]
+fn get_storage_dir() -> Result<PathBuf, String> {
+    std::env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))
+}
+/// Get the notification state file path
+fn get_state_file_path() -> Result<PathBuf, String> {
+    let mut path = get_storage_dir()?;
+    path.push(NOTIFICATION_STATE_FILE_NAME);
+    Ok(path)
+}
+/// Get current year-month as u32, e.g. 202602
+fn current_year_month() -> u32 {
+    let now = Utc::now();
+    let swedish = now.with_timezone(&amp_core::structs::SWEDISH_TZ);
+    (swedish.year() as u32) * 100 + swedish.month()
+}
+/// Load panel state from the persisted parquet file
+///
+/// Only loads entries matching the current year_month, so state
+/// auto-resets each month.
+fn load_panel_state_from_file() -> HashMap<usize, TimeBucket> {
+    let path = match get_state_file_path() {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("[PanelTracker] Failed to get state file path: {}", e);
+            return HashMap::new();
+        }
+    };
+    if !path.exists() {
+        eprintln!("[PanelTracker] No state file at {:?}, starting fresh", path);
+        return HashMap::new();
+    }
+    let bytes = match std::fs::read(&path) {
+        Ok(b) => b,
+        Err(e) => {
+            eprintln!("[PanelTracker] Failed to read state file {:?}: {}", path, e);
+            return HashMap::new();
+        }
+    };
+    let entries = match read_notification_state_from_bytes(&bytes) {
+        Ok(e) => e,
+        Err(e) => {
+            eprintln!("[PanelTracker] Failed to parse state parquet: {}", e);
+            return HashMap::new();
+        }
+    };
+    let ym = current_year_month();
+    let mut map = HashMap::new();
+    for entry in entries {
+        if entry.year_month == ym {
+            map.insert(entry.address_id as usize, bucket_from_string(&entry.bucket));
+        }
+    }
+    eprintln!(
+        "[PanelTracker] Loaded {} entries from file (year_month={})",
+        map.len(),
+        ym,
+    );
+    map
+}
+/// Save current panel state to parquet file
+fn save_panel_state_to_file(state: &HashMap<usize, TimeBucket>) {
+    if state.is_empty() {
+        // Delete the file if state is empty
+        if let Ok(path) = get_state_file_path()
+            && path.exists()
+        {
+            let _ = std::fs::remove_file(&path);
+        }
+        return;
+    }
+    let ym = current_year_month();
+    let entries: Vec<NotificationStateEntry> = state
+        .iter()
+        .map(|(id, bucket)| NotificationStateEntry {
+            address_id: *id as u64,
+            bucket: bucket_to_string(bucket).to_string(),
+            year_month: ym,
+        })
+        .collect();
+    let parquet_bytes = match build_notification_state_parquet(entries) {
+        Ok(b) => b,
+        Err(e) => {
+            eprintln!("[PanelTracker] Failed to build state parquet: {}", e);
+            return;
+        }
+    };
+    let path = match get_state_file_path() {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("[PanelTracker] Failed to get state file path: {}", e);
+            return;
+        }
+    };
+    if let Some(parent) = path.parent()
+        && !parent.exists()
+        && let Err(e) = std::fs::create_dir_all(parent)
+    {
+        eprintln!(
+            "[PanelTracker] Failed to create directory {:?}: {}",
+            parent, e
+        );
+        return;
+    }
+    if let Err(e) = std::fs::write(&path, parquet_bytes) {
+        eprintln!("[PanelTracker] Failed to write state file {:?}: {}", path, e);
+    } else {
+        eprintln!("[PanelTracker] Saved {} entries to {:?}", state.len(), path);
+    }
+}
 /// Initialize the panel state tracker
 ///
-/// Call this once during app initialization to set up the state HashMap.
-/// Safe to call multiple times (subsequent calls are no-ops).
+/// Loads persisted state from disk so that previously-seen transitions
+/// are not re-fired. Safe to call multiple times (subsequent calls are no-ops).
 ///
 /// # Examples
 /// ```no_run
@@ -56,8 +210,12 @@ static PANEL_STATE: Mutex<Option<HashMap<usize, TimeBucket>>> = Mutex::new(None)
 pub fn initialize_panel_tracker() {
     let mut state = PANEL_STATE.lock().expect("Panel state poisoned");
     if state.is_none() {
-        *state = Some(HashMap::new());
-        eprintln!("[PanelTracker] Initialized state tracking");
+        let loaded = load_panel_state_from_file();
+        eprintln!(
+            "[PanelTracker] Initialized with {} persisted entries",
+            loaded.len(),
+        );
+        *state = Some(loaded);
     } else {
         eprintln!("[PanelTracker] Already initialized, skipping {:?}", state);
     }
@@ -68,11 +226,8 @@ pub fn initialize_panel_tracker() {
 /// its previously recorded state. When an address moves to a more urgent
 /// bucket, it's included in the returned transitions list.
 ///
-/// This should be called:
-/// - On app startup (to detect any addresses that became urgent while app was closed)
-/// - Periodically (e.g., every 60 seconds) to catch time-based transitions
-/// - After loading addresses from storage
-/// - After updating address data
+/// State is automatically saved to disk after detection so that
+/// the same transitions are not re-fired on app restart.
 ///
 /// # Arguments
 /// * `addresses` - Current list of addresses with their matched parking data
@@ -106,8 +261,8 @@ pub fn detect_transitions(
 ) -> Vec<(StoredAddress, Option<TimeBucket>, TimeBucket)> {
     let mut state_guard = PANEL_STATE.lock().unwrap();
     if state_guard.is_none() {
-        eprintln!("[PanelTracker] State not initialized, initializing now");
-        *state_guard = Some(HashMap::new());
+        eprintln!("[PanelTracker] State not initialized, loading from file");
+        *state_guard = Some(load_panel_state_from_file());
     }
     let state = state_guard.as_mut().unwrap();
     let mut transitions = Vec::new();
@@ -151,12 +306,15 @@ pub fn detect_transitions(
             transitions.len(),
         );
     }
+    // Persist state after every detection pass
+    save_panel_state_to_file(state);
     transitions
 }
 /// Clear the panel state (useful for testing or reset)
 ///
-/// Removes all tracked address states. After calling this, the next
-/// call to `detect_transitions` will treat all addresses as new.
+/// Removes all tracked address states and deletes the persisted file.
+/// After calling this, the next call to `detect_transitions` will
+/// treat all addresses as new.
 ///
 /// # Examples
 /// ```no_run
@@ -174,6 +332,19 @@ pub fn clear_panel_state() {
         eprintln!("[PanelTracker] Cleared {} tracked address(es)", count);
     } else {
         eprintln!("[PanelTracker] State not initialized, nothing to clear");
+    }
+    // Also delete the persisted file
+    if let Ok(path) = get_state_file_path()
+        && path.exists()
+    {
+        if let Err(e) = std::fs::remove_file(&path) {
+            eprintln!(
+                "[PanelTracker] Failed to delete state file {:?}: {}",
+                path, e
+            );
+        } else {
+            eprintln!("[PanelTracker] Deleted state file {:?}", path);
+        }
     }
 }
 /// Get the number of currently tracked addresses
@@ -342,5 +513,54 @@ mod tests {
         assert!(tracked_address_count() > 0);
         clear_panel_state();
         assert_eq!(tracked_address_count(), 0);
+    }
+    #[test]
+    fn test_bucket_string_roundtrip() {
+        let buckets = vec![
+            TimeBucket::Now,
+            TimeBucket::Within6Hours,
+            TimeBucket::Within1Day,
+            TimeBucket::Within1Month,
+            TimeBucket::MoreThan1Month,
+            TimeBucket::Invalid,
+        ];
+        for bucket in buckets {
+            let s = bucket_to_string(&bucket);
+            let restored = bucket_from_string(s);
+            assert_eq!(bucket, restored, "Roundtrip failed for {:?}", bucket);
+        }
+    }
+    #[test]
+    fn test_state_persists_across_restart() {
+        // Clear everything
+        clear_panel_state();
+        initialize_panel_tracker();
+        let addr = create_test_address(1, 1, "0800-1200");
+        // First detection — may trigger transition
+        let first = detect_transitions(&[addr.clone()]);
+        let had_transition = !first.is_empty();
+        // Simulate app restart: clear in-memory state but keep the file
+        {
+            let mut state = PANEL_STATE.lock().unwrap();
+            *state = None;
+        }
+        // Re-initialize (should load from file)
+        initialize_panel_tracker();
+        // Second detection — should NOT re-fire the same transition
+        let second = detect_transitions(&[addr]);
+        if had_transition {
+            assert!(
+                second.is_empty(),
+                "After restart, same bucket should not re-fire notification",
+            );
+        }
+        // Cleanup
+        clear_panel_state();
+    }
+    #[test]
+    fn test_current_year_month() {
+        let ym = current_year_month();
+        assert!(ym >= 202001, "year_month should be >= 202001, got {}", ym);
+        assert!(ym <= 210012, "year_month should be <= 210012, got {}", ym);
     }
 }

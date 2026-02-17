@@ -73,7 +73,8 @@
 use crate::structs::*;
 use anyhow;
 use arrow::array::{
-    Array, BooleanArray, BooleanBuilder, UInt8Array, UInt8Builder, UInt64Array, UInt64Builder,
+    Array, BooleanArray, BooleanBuilder, UInt8Array, UInt8Builder, UInt32Array, UInt32Builder,
+    UInt64Array, UInt64Builder,
 };
 use arrow::{
     array::{StringArray, StringBuilder},
@@ -207,6 +208,17 @@ fn get_u8_column<'a>(batch: &'a RecordBatch, column_name: &str) -> anyhow::Resul
         .column(batch.schema().index_of(column_name)?)
         .as_any()
         .downcast_ref::<UInt8Array>()
+        .ok_or_else(|| anyhow::anyhow!("{} column missing or wrong type", column_name))
+}
+/// Extract a UInt32Array column from a RecordBatch.
+fn get_u32_column<'a>(
+    batch: &'a RecordBatch,
+    column_name: &str,
+) -> anyhow::Result<&'a UInt32Array> {
+    batch
+        .column(batch.schema().index_of(column_name)?)
+        .as_any()
+        .downcast_ref::<UInt32Array>()
         .ok_or_else(|| anyhow::anyhow!("{} column missing or wrong type", column_name))
 }
 /// Extract a UInt64Array column from a RecordBatch.
@@ -1083,4 +1095,123 @@ pub fn read_settings_parquet_from_bytes(bytes: &[u8]) -> anyhow::Result<Vec<Sett
         }
     }
     Ok(result)
+}
+/// Schema for [`NotificationStateEntry`] parquet format.
+///
+/// Defines 3 non-nullable columns:
+/// - `address_id`: UInt64
+/// - `bucket`: Utf8 — TimeBucket as string (e.g., "Now", "Within6Hours")
+/// - `year_month`: UInt32 — e.g., 202602 for auto-reset each month
+///
+/// [`NotificationStateEntry`]: crate::structs::NotificationStateEntry
+pub fn notification_state_schema() -> Arc<Schema> {
+    Arc::new(Schema::new(vec![
+        Field::new("address_id", DataType::UInt64, false),
+        Field::new("bucket", DataType::Utf8, false),
+        Field::new("year_month", DataType::UInt32, false),
+    ]))
+}
+/// Build [`NotificationStateEntry`] into an in-memory Parquet buffer.
+///
+/// [`NotificationStateEntry`]: crate::structs::NotificationStateEntry
+pub fn build_notification_state_parquet(
+    data: Vec<NotificationStateEntry>,
+) -> anyhow::Result<Vec<u8>> {
+    if data.is_empty() {
+        return Err(anyhow::anyhow!("Empty notification state data"));
+    }
+    let schema = notification_state_schema();
+    let mut buffer = Vec::new();
+    let props = WriterProperties::builder()
+        .set_statistics_enabled(EnabledStatistics::None)
+        .build();
+    let mut writer = ArrowWriter::try_new(&mut buffer, schema.clone(), Some(props))
+        .map_err(|e| anyhow::anyhow!("Failed to create ArrowWriter: {}", e))?;
+    let mut address_id_builder = UInt64Builder::new();
+    let mut bucket_builder = StringBuilder::new();
+    let mut year_month_builder = UInt32Builder::new();
+    for row in data {
+        address_id_builder.append_value(row.address_id);
+        bucket_builder.append_value(&row.bucket);
+        year_month_builder.append_value(row.year_month);
+    }
+    let batch = RecordBatch::try_new(
+        schema.clone(),
+        vec![
+            Arc::new(address_id_builder.finish()),
+            Arc::new(bucket_builder.finish()),
+            Arc::new(year_month_builder.finish()),
+        ],
+    )
+    .map_err(|e| anyhow::anyhow!("Failed to create record batch: {}", e))?;
+    writer
+        .write(&batch)
+        .map_err(|e| anyhow::anyhow!("Failed to write batch: {}", e))?;
+    writer
+        .close()
+        .map_err(|e| anyhow::anyhow!("Failed to close writer: {}", e))?;
+    Ok(buffer)
+}
+/// Read [`NotificationStateEntry`] from embedded bytes.
+///
+/// [`NotificationStateEntry`]: crate::structs::NotificationStateEntry
+pub fn read_notification_state_from_bytes(
+    bytes: &[u8],
+) -> anyhow::Result<Vec<NotificationStateEntry>> {
+    let bytes_obj = Bytes::copy_from_slice(bytes);
+    let builder = ParquetRecordBatchReaderBuilder::try_new(bytes_obj)
+        .map_err(|e| anyhow::anyhow!("Failed to create Parquet reader builder: {}", e))?;
+    let reader = builder
+        .build()
+        .map_err(|e| anyhow::anyhow!("Failed to build Parquet record batch reader: {}", e))?;
+    let mut result = Vec::new();
+    for batch_result in reader {
+        let batch = batch_result.map_err(|e| anyhow::anyhow!("Failed to read batch: {}", e))?;
+        let address_id = get_u64_column(&batch, "address_id")?;
+        let bucket = get_string_column(&batch, "bucket")?;
+        let year_month = get_u32_column(&batch, "year_month")?;
+        for i in 0..batch.num_rows() {
+            result.push(NotificationStateEntry {
+                address_id: address_id.value(i),
+                bucket: get_required_string(bucket, i),
+                year_month: year_month.value(i),
+            });
+        }
+    }
+    Ok(result)
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_notification_state_roundtrip() {
+        let entries = vec![
+            NotificationStateEntry {
+                address_id: 0,
+                bucket: "Now".to_string(),
+                year_month: 202602,
+            },
+            NotificationStateEntry {
+                address_id: 1,
+                bucket: "Within6Hours".to_string(),
+                year_month: 202602,
+            },
+            NotificationStateEntry {
+                address_id: 5,
+                bucket: "Within1Day".to_string(),
+                year_month: 202602,
+            },
+        ];
+        let bytes =
+            build_notification_state_parquet(entries.clone()).expect("Failed to build parquet");
+        let loaded =
+            read_notification_state_from_bytes(&bytes).expect("Failed to read parquet bytes");
+        assert_eq!(loaded.len(), 3);
+        assert_eq!(loaded, entries);
+    }
+    #[test]
+    fn test_notification_state_empty_errors() {
+        let result = build_notification_state_parquet(vec![]);
+        assert!(result.is_err());
+    }
 }

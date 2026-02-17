@@ -836,6 +836,18 @@ impl CorrelationResult {
         }
     }
 }
+/// Persisted notification state entry for tracking which TimeBucket
+/// each address was last seen in. Used to prevent duplicate notifications
+/// after app restart.
+///
+/// The `year_month` field (e.g., 202602) allows automatic state reset
+/// each month, since parking restrictions are monthly.
+#[derive(Debug, Clone, PartialEq)]
+pub struct NotificationStateEntry {
+    pub address_id: u64,
+    pub bucket: String,
+    pub year_month: u32,
+}
 /// User preferences for notifications, theme, and language.
 ///
 /// This data is persisted in Parquet format and synced with the Android app.
