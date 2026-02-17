@@ -34,7 +34,7 @@
 use crate::components::countdown::{TimeBucket, bucket_for};
 use crate::ui::StoredAddress;
 use amp_core::parquet::{build_notification_state_parquet, read_notification_state_from_bytes};
-use amp_core::structs::{NotificationStateEntry, DB};
+use amp_core::structs::{DB, NotificationStateEntry};
 use chrono::{Datelike, Utc};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -79,7 +79,7 @@ fn get_storage_dir() -> Result<PathBuf, String> {
         std::fs::create_dir_all(&app_dir).map_err(|e| {
             format!(
                 "[PanelTracker] Failed to create storage dir {:?}: {}",
-                app_dir, e
+                app_dir, e,
             )
         })?;
     }
@@ -148,7 +148,6 @@ fn load_panel_state_from_file() -> HashMap<usize, TimeBucket> {
 /// Save current panel state to parquet file
 fn save_panel_state_to_file(state: &HashMap<usize, TimeBucket>) {
     if state.is_empty() {
-        // Delete the file if state is empty
         if let Ok(path) = get_state_file_path()
             && path.exists()
         {
@@ -190,7 +189,10 @@ fn save_panel_state_to_file(state: &HashMap<usize, TimeBucket>) {
         return;
     }
     if let Err(e) = std::fs::write(&path, parquet_bytes) {
-        eprintln!("[PanelTracker] Failed to write state file {:?}: {}", path, e);
+        eprintln!(
+            "[PanelTracker] Failed to write state file {:?}: {}",
+            path, e
+        );
     } else {
         eprintln!("[PanelTracker] Saved {} entries to {:?}", state.len(), path);
     }
@@ -213,7 +215,7 @@ pub fn initialize_panel_tracker() {
         let loaded = load_panel_state_from_file();
         eprintln!(
             "[PanelTracker] Initialized with {} persisted entries",
-            loaded.len(),
+            loaded.len()
         );
         *state = Some(loaded);
     } else {
@@ -306,7 +308,6 @@ pub fn detect_transitions(
             transitions.len(),
         );
     }
-    // Persist state after every detection pass
     save_panel_state_to_file(state);
     transitions
 }
@@ -333,7 +334,6 @@ pub fn clear_panel_state() {
     } else {
         eprintln!("[PanelTracker] State not initialized, nothing to clear");
     }
-    // Also delete the persisted file
     if let Ok(path) = get_state_file_path()
         && path.exists()
     {
@@ -394,6 +394,7 @@ pub fn create_test_address_with_bucket(
 mod tests {
     use super::*;
     use amp_core::structs::DB;
+    use std::slice::from_ref;
     /// Helper to create a test address with a specific day/time
     fn create_test_address(id: usize, day: u8, time: &str) -> StoredAddress {
         let db = DB::from_dag_tid(
@@ -532,21 +533,16 @@ mod tests {
     }
     #[test]
     fn test_state_persists_across_restart() {
-        // Clear everything
         clear_panel_state();
         initialize_panel_tracker();
         let addr = create_test_address(1, 1, "0800-1200");
-        // First detection — may trigger transition
-        let first = detect_transitions(&[addr.clone()]);
+        let first = detect_transitions(from_ref(&addr));
         let had_transition = !first.is_empty();
-        // Simulate app restart: clear in-memory state but keep the file
         {
             let mut state = PANEL_STATE.lock().unwrap();
             *state = None;
         }
-        // Re-initialize (should load from file)
         initialize_panel_tracker();
-        // Second detection — should NOT re-fire the same transition
         let second = detect_transitions(&[addr]);
         if had_transition {
             assert!(
@@ -554,7 +550,6 @@ mod tests {
                 "After restart, same bucket should not re-fire notification",
             );
         }
-        // Cleanup
         clear_panel_state();
     }
     #[test]

@@ -539,7 +539,6 @@ pub fn open_url(url: &str) {
         eprintln!("[Mock Android Bridge] open_url: {}", url);
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;

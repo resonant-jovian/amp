@@ -98,7 +98,7 @@ use crate::ui::info_dialog::InfoDialog;
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::md_action_icons::MdInfo;
-use dioxus_free_icons::icons::md_navigation_icons::{MdExpandLess};
+use dioxus_free_icons::icons::md_navigation_icons::MdExpandLess;
 /// Address list component displaying all stored addresses with toggle and remove controls.
 ///
 /// This component provides a comprehensive interface for managing saved addresses:
@@ -234,11 +234,11 @@ pub fn Addresses(
                 span { "Adresser" }
                 span { class: "category-count",
                     span { class: "category-toggle-arrow",
-                    if is_open() {
-                        Icon { icon: MdExpandLess, width: 16, height: 16 }
-                    } else {
-                        Icon { icon: MdExpandLess, width: 16, height: 16 }
-                    }
+                        if is_open() {
+                            Icon { icon: MdExpandLess, width: 16, height: 16 }
+                        } else {
+                            Icon { icon: MdExpandLess, width: 16, height: 16 }
+                        }
                     }
                     "{ count }"
                 }

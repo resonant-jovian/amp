@@ -142,7 +142,7 @@ use crate::components::countdown::{
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
-use dioxus_free_icons::icons::md_navigation_icons::{MdExpandLess};
+use dioxus_free_icons::icons::md_navigation_icons::MdExpandLess;
 use tokio::time::Duration;
 /// Display an address with countdown timer in appropriate category.
 ///
@@ -343,11 +343,11 @@ pub fn ActivePanel(addresses: Vec<StoredAddress>) -> Element {
                 span { "Städas nu" }
                 span { class: "category-count",
                     span { class: "category-toggle-arrow",
-                    if is_open() {
-                        Icon { icon: MdExpandLess, width: 16, height: 16 }
-                    } else {
-                        Icon { icon: MdExpandLess, width: 16, height: 16 }
-                    }
+                        if is_open() {
+                            Icon { icon: MdExpandLess, width: 16, height: 16 }
+                        } else {
+                            Icon { icon: MdExpandLess, width: 16, height: 16 }
+                        }
                     }
                     "{ active_count }"
                 }
@@ -434,11 +434,11 @@ pub fn SixHoursPanel(addresses: Vec<StoredAddress>) -> Element {
                 span { "Inom 6 timmar" }
                 span { class: "category-count",
                     span { class: "category-toggle-arrow",
-                    if is_open() {
-                        Icon { icon: MdExpandLess, width: 16, height: 16 }
-                    } else {
-                        Icon { icon: MdExpandLess, width: 16, height: 16 }
-                    }
+                        if is_open() {
+                            Icon { icon: MdExpandLess, width: 16, height: 16 }
+                        } else {
+                            Icon { icon: MdExpandLess, width: 16, height: 16 }
+                        }
                     }
                     "{ count }"
                 }
@@ -525,11 +525,11 @@ pub fn OneDayPanel(addresses: Vec<StoredAddress>) -> Element {
                 span { "Inom 1 dag" }
                 span { class: "category-count",
                     span { class: "category-toggle-arrow",
-                    if is_open() {
-                        Icon { icon: MdExpandLess, width: 16, height: 16 }
-                    } else {
-                        Icon { icon: MdExpandLess, width: 16, height: 16 }
-                    }
+                        if is_open() {
+                            Icon { icon: MdExpandLess, width: 16, height: 16 }
+                        } else {
+                            Icon { icon: MdExpandLess, width: 16, height: 16 }
+                        }
                     }
                     "{ count }"
                 }
@@ -616,11 +616,11 @@ pub fn OneMonthPanel(addresses: Vec<StoredAddress>) -> Element {
                 span { "Inom 1 månad" }
                 span { class: "category-count",
                     span { class: "category-toggle-arrow",
-                    if is_open() {
-                        Icon { icon: MdExpandLess, width: 16, height: 16 }
-                    } else {
-                        Icon { icon: MdExpandLess, width: 16, height: 16 }
-                    }
+                        if is_open() {
+                            Icon { icon: MdExpandLess, width: 16, height: 16 }
+                        } else {
+                            Icon { icon: MdExpandLess, width: 16, height: 16 }
+                        }
                     }
                     "{ count }"
                 }
@@ -707,11 +707,11 @@ pub fn MoreThan1MonthPanel(addresses: Vec<StoredAddress>) -> Element {
                 span { "30+ dagar" }
                 span { class: "category-count",
                     span { class: "category-toggle-arrow",
-                    if is_open() {
-                        Icon { icon: MdExpandLess, width: 16, height: 16 }
-                    } else {
-                        Icon { icon: MdExpandLess, width: 16, height: 16 }
-                    }
+                        if is_open() {
+                            Icon { icon: MdExpandLess, width: 16, height: 16 }
+                        } else {
+                            Icon { icon: MdExpandLess, width: 16, height: 16 }
+                        }
                     }
                     "{ count }"
                 }
@@ -792,11 +792,11 @@ pub fn ParkingOnlyPanel(addresses: Vec<StoredAddress>) -> Element {
                 span { "Endast parkeringsavgift" }
                 span { class: "category-count",
                     span { class: "category-toggle-arrow",
-                    if is_open() {
-                        Icon { icon: MdExpandLess, width: 16, height: 16 }
-                    } else {
-                        Icon { icon: MdExpandLess, width: 16, height: 16 }
-                    }
+                        if is_open() {
+                            Icon { icon: MdExpandLess, width: 16, height: 16 }
+                        } else {
+                            Icon { icon: MdExpandLess, width: 16, height: 16 }
+                        }
                     }
                     "{ count }"
                 }
@@ -886,11 +886,11 @@ pub fn InvalidPanel(addresses: Vec<StoredAddress>) -> Element {
                 span { "Ingen städning" }
                 span { class: "category-count",
                     span { class: "category-toggle-arrow",
-                    if is_open() {
-                        Icon { icon: MdExpandLess, width: 16, height: 16 }
-                    } else {
-                        Icon { icon: MdExpandLess, width: 16, height: 16 }
-                    }
+                        if is_open() {
+                            Icon { icon: MdExpandLess, width: 16, height: 16 }
+                        } else {
+                            Icon { icon: MdExpandLess, width: 16, height: 16 }
+                        }
                     }
                     "{ count }"
                 }
