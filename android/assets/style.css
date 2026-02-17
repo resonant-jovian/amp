@@ -41,6 +41,19 @@ body {
     transition: background 0.4s ease;
 }
 
+/* Lock scroll on body/html when any overlay is open */
+html:has(.modal-overlay),
+html:has(.settings-overlay) {
+    overflow: hidden;
+    height: 100%;
+}
+
+body:has(.modal-overlay),
+body:has(.settings-overlay) {
+    overflow: hidden;
+    height: 100%;
+}
+
 input,
 button,
 select,
