@@ -9,7 +9,7 @@
 //!
 //! ## Interactive Controls
 //! Each address has three interactive elements:
-//! 1. **Info icon** (ⓘ): Opens dialog with full parking details
+//! 1. **Info icon** (ⓘ): Opens dialogue with full parking details
 //! 2. **Toggle switch**: Enable/disable address in panels
 //! 3. **Remove button** (×): Delete address (with confirmation)
 //!
@@ -22,7 +22,7 @@
 //! ## Confirmation Flow
 //! Remove operations require confirmation:
 //! 1. User clicks × button
-//! 2. Confirmation dialog appears
+//! 2. Confirmation dialogue appears
 //! 3. User confirms or cancels
 //! 4. Action executed or dismissed
 //!
@@ -98,15 +98,16 @@ use crate::ui::info_dialog::InfoDialog;
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::md_action_icons::MdInfo;
+use dioxus_free_icons::icons::md_navigation_icons::{MdExpandLess};
 /// Address list component displaying all stored addresses with toggle and remove controls.
 ///
 /// This component provides a comprehensive interface for managing saved addresses:
 /// - **View**: Sorted list of all addresses (by postal code)
 /// - **Toggle**: Enable/disable addresses with animated switches
 /// - **Info**: View detailed parking information
-/// - **Remove**: Delete addresses with confirmation dialog
+/// - **Remove**: Delete addresses with confirmation dialogue
 ///
-/// # Props
+/// # Puerops
 /// * `stored_addresses` - Vector of StoredAddress entries to display
 /// * `on_toggle_active` - Event handler for toggling address active state
 /// * `on_remove_address` - Event handler for removing an address
@@ -114,10 +115,10 @@ use dioxus_free_icons::icons::md_action_icons::MdInfo;
 /// # State Management
 ///
 /// Manages local UI state for:
-/// - `show_confirm`: Confirmation dialog visibility
+/// - `show_confirm`: Confirmation dialogue visibility
 /// - `pending_remove_id`: ID of address pending removal
-/// - `show_info`: Info dialog visibility
-/// - `selected_address`: Address shown in info dialog
+/// - `show_info`: Info dialogue visibility
+/// - `selected_address`: Address shown in info dialogue
 ///
 /// # User Flow
 ///
@@ -129,14 +130,14 @@ use dioxus_free_icons::icons::md_action_icons::MdInfo;
 ///
 /// **Remove Address:**
 /// 1. User clicks × button
-/// 2. Confirmation dialog appears
+/// 2. Confirmation dialogue appears
 /// 3. User confirms → `on_remove_address` called
-/// 4. User cancels → dialog dismissed
+/// 4. User cancels → dialogue dismissed
 ///
 /// **View Info:**
 /// 1. User clicks info icon (ⓘ)
-/// 2. Info dialog opens with address details
-/// 3. User closes dialog
+/// 2. Info dialogue opens with address details
+/// 3. User closes dialogue
 ///
 /// # Examples
 ///
@@ -172,7 +173,7 @@ use dioxus_free_icons::icons::md_action_icons::MdInfo;
 /// With 100 addresses:
 /// - Initial render: ~20-30ms
 /// - Toggle operation: ~5ms (state update + re-render)
-/// - Dialog open: ~10ms
+/// - Dialogue open: ~10ms
 #[component]
 pub fn Addresses(
     stored_addresses: Vec<StoredAddress>,
@@ -184,7 +185,13 @@ pub fn Addresses(
     let mut show_info = use_signal(|| false);
     let mut selected_address = use_signal(|| None::<StoredAddress>);
     let mut sorted_addresses = stored_addresses.clone();
-    sorted_addresses.sort_by(|a, b| a.postal_code.cmp(&b.postal_code));
+    sorted_addresses.sort_by(
+        |a, b| match (a.postal_code.is_empty(), b.postal_code.is_empty()) {
+            (true, false) => std::cmp::Ordering::Greater,
+            (false, true) => std::cmp::Ordering::Less,
+            _ => a.postal_code.cmp(&b.postal_code),
+        },
+    );
     let mut handle_remove_click = move |addr_id: usize| {
         info!("Remove button clicked for address id: {}", addr_id);
         pending_remove_id.set(Some(addr_id));
@@ -216,10 +223,29 @@ pub fn Addresses(
         show_info.set(false);
         selected_address.set(None);
     };
+    let mut is_open = use_signal(|| false);
+    let count = stored_addresses.len();
     rsx! {
         div { class: "category-container category-addresses",
-            div { class: "category-title", "Adresser" }
-            div { class: "category-content",
+            button {
+                class: "category-title",
+                onclick: move |_| is_open.set(!is_open()),
+                "aria-expanded": if is_open() { "true" } else { "false" },
+                span { "Adresser" }
+                span { class: "category-count",
+                    span { class: "category-toggle-arrow",
+                    if is_open() {
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
+                    } else {
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
+                    }
+                    }
+                    "{ count }"
+                }
+            }
+            div {
+                class: "category-content",
+                "aria-hidden": if is_open() { "false" } else { "true" },
                 if sorted_addresses.is_empty() {
                     div { class: "empty-state", "Inga adresser tillagda" }
                 } else {
@@ -228,12 +254,7 @@ pub fn Addresses(
                             sorted_addresses
                                 .iter()
                                 .map(|addr| {
-                                    let address_display = format!(
-                                        "{} {}, {}",
-                                        addr.street,
-                                        addr.street_number,
-                                        addr.postal_code,
-                                    );
+                                    let address_display = addr.display_name();
                                     let is_active = addr.active;
                                     let addr_id = addr.id;
                                     let addr_clone = addr.clone();

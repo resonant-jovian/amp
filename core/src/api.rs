@@ -30,6 +30,7 @@
 //! let parking_zones = DataLoader::load_parkering("data/parkeringsavgifter.json")?;
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
+#![allow(unused_qualifications)]
 use crate::structs::{AdressClean, MiljoeDataClean, ParkeringsDataClean};
 use geojson::{Feature, GeoJson};
 use rust_decimal::Decimal;

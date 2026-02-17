@@ -219,6 +219,17 @@ const _MAX_LEVENSHTEIN_DISTANCE: usize = 3;
 ///     println!("Found parking data: {:?}", addr.matched_entry);
 /// }
 /// ```
+/// Parking zone data for addresses without time-based restrictions (miljödata).
+///
+/// Some addresses have only parking zone data (taxa, platser, typ) without
+/// street cleaning schedules (dag, tid). This struct holds that data so
+/// it can be displayed in the info dialog even when there's no DB entry.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ParkingInfo {
+    pub taxa: Option<String>,
+    pub antal_platser: Option<u64>,
+    pub typ_av_parkering: Option<String>,
+}
 #[derive(Clone, Debug, PartialEq)]
 pub struct StoredAddress {
     /// Unique stable identifier (UUID v4)
@@ -233,10 +244,26 @@ pub struct StoredAddress {
     pub valid: bool,
     /// Whether this address should be displayed in panels
     pub active: bool,
-    /// The matched database entry (if valid)
+    /// The matched database entry with time restrictions (if valid with miljödata)
     pub matched_entry: Option<DB>,
+    /// Parking-only data (when address has parking zone info but no street cleaning schedule)
+    pub parking_info: Option<ParkingInfo>,
 }
 impl StoredAddress {
+    /// Format the address for display.
+    ///
+    /// When postal code is empty: "Street Number"
+    /// When postal code is present: "Street Number, PostalCode"
+    pub fn display_name(&self) -> String {
+        if self.postal_code.is_empty() {
+            format!("{} {}", self.street, self.street_number)
+        } else {
+            format!(
+                "{} {}, {}",
+                self.street, self.street_number, self.postal_code
+            )
+        }
+    }
     /// Create a new stored address and attempt to match against database
     ///
     /// Generates a new UUID v4 for the address ID and performs fuzzy matching
@@ -264,10 +291,18 @@ impl StoredAddress {
     /// ```
     pub fn new(street: String, street_number: String, postal_code: String) -> Self {
         let fuzzy_match_result = fuzzy_match_address(&street, &street_number, &postal_code);
-        let (valid, matched_entry) = match fuzzy_match_result {
+        let (db_valid, matched_entry) = match fuzzy_match_result {
             Some(entry) => (true, Some(entry)),
             None => (false, None),
         };
+        let parking_info = if matched_entry.as_ref().is_none_or(|e| e.taxa.is_none()) {
+            use crate::components::static_data::get_parking_only_entry;
+            let postal_norm = postal_code.trim().replace(' ', "");
+            get_parking_only_entry(&street, &street_number, &postal_norm).cloned()
+        } else {
+            None
+        };
+        let valid = db_valid || parking_info.is_some();
         let uuid = Uuid::new_v4();
         let id = uuid_to_usize(&uuid);
         StoredAddress {
@@ -278,6 +313,7 @@ impl StoredAddress {
             valid,
             active: true,
             matched_entry,
+            parking_info,
         }
     }
 }
@@ -380,7 +416,7 @@ fn fuzzy_match_address(street: &str, street_number: &str, postal_code: &str) -> 
             entry_street_norm.contains(&street_norm) || street_norm.contains(&entry_street_norm)
         };
         let number_match = entry_number_norm == street_number_norm;
-        let postal_match = entry_postal_norm == postal_code_norm;
+        let postal_match = postal_code_norm.is_empty() || entry_postal_norm == postal_code_norm;
         if street_match && number_match && postal_match {
             eprintln!(
                 "[FuzzyMatch] Found match: '{}' matches '{}' (distance: {})",
@@ -398,7 +434,8 @@ fn fuzzy_match_address(street: &str, street_number: &str, postal_code: &str) -> 
 use crate::ui::{
     addresses::Addresses,
     panels::{
-        ActivePanel, InvalidPanel, MoreThan1MonthPanel, OneDayPanel, OneMonthPanel, SixHoursPanel,
+        ActivePanel, InvalidPanel, MoreThan1MonthPanel, OneDayPanel, OneMonthPanel,
+        ParkingOnlyPanel, SixHoursPanel,
     },
     top_bar::TopBar,
 };
@@ -510,10 +547,16 @@ pub fn App() -> Element {
         let new_addr = StoredAddress::new(street, street_number, postal_code);
         let mut addrs = stored_addresses.write();
         let is_duplicate = addrs.iter().any(|a| {
-            normalize_string(&a.street) == normalize_string(&new_addr.street)
-                && normalize_string(&a.street_number) == normalize_string(&new_addr.street_number)
-                && a.postal_code.trim().replace(' ', "")
+            let street_match = normalize_string(&a.street) == normalize_string(&new_addr.street);
+            let number_match =
+                normalize_string(&a.street_number) == normalize_string(&new_addr.street_number);
+            let postal_match = if a.postal_code.is_empty() || new_addr.postal_code.is_empty() {
+                true
+            } else {
+                a.postal_code.trim().replace(' ', "")
                     == new_addr.postal_code.trim().replace(' ', "")
+            };
+            street_match && number_match && postal_match
         });
         if !is_duplicate {
             info!("Adding new address, total now: {}", addrs.len() + 1);
@@ -583,6 +626,7 @@ pub fn App() -> Element {
             OneDayPanel { addresses: stored_addresses.read().clone() }
             OneMonthPanel { addresses: stored_addresses.read().clone() }
             MoreThan1MonthPanel { addresses: stored_addresses.read().clone() }
+            ParkingOnlyPanel { addresses: stored_addresses.read().clone() }
             InvalidPanel { addresses: stored_addresses.read().clone() }
         }
         script {}

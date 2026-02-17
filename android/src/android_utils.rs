@@ -36,7 +36,7 @@ pub fn get_android_files_dir() -> anyhow::Result<PathBuf> {
     dioxus::mobile::wry::prelude::dispatch(move |env, activity, _webview| {
         tx.send(run(env, activity)).unwrap()
     });
-    rx.recv().unwrap()
+    rx.recv()?
 }
 #[cfg(not(target_os = "android"))]
 pub fn get_android_files_dir() -> anyhow::Result<PathBuf> {

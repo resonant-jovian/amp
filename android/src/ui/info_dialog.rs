@@ -50,9 +50,11 @@ pub fn InfoDialog(
                         span { class: "info-label", "Gatunummer:" }
                         span { class: "info-value", "{addr.street_number}" }
                     }
-                    div { class: "info-row",
-                        span { class: "info-label", "Postnummer:" }
-                        span { class: "info-value", "{addr.postal_code}" }
+                    if !addr.postal_code.is_empty() {
+                        div { class: "info-row",
+                            span { class: "info-label", "Postnummer:" }
+                            span { class: "info-value", "{addr.postal_code}" }
+                        }
                     }
                     div { class: "info-row",
                         span { class: "info-label", "Status:" }
@@ -97,6 +99,28 @@ pub fn InfoDialog(
                             div { class: "info-row",
                                 span { class: "info-label", "Platser:" }
                                 span { class: "info-value", "{platser}" }
+                            }
+                        }
+                    }
+                    if addr.matched_entry.as_ref().is_none_or(|e| e.taxa.is_none()) {
+                        if let Some(ref parking) = addr.parking_info {
+                            if let Some(ref taxa) = parking.taxa {
+                                div { class: "info-row",
+                                    span { class: "info-label", "Taxa:" }
+                                    span { class: "info-value", "{taxa}" }
+                                }
+                            }
+                            if let Some(ref typ) = parking.typ_av_parkering {
+                                div { class: "info-row",
+                                    span { class: "info-label", "Typ:" }
+                                    span { class: "info-value", "{typ}" }
+                                }
+                            }
+                            if let Some(platser) = parking.antal_platser {
+                                div { class: "info-row",
+                                    span { class: "info-label", "Platser:" }
+                                    span { class: "info-value", "{platser}" }
+                                }
                             }
                         }
                     }

@@ -136,9 +136,13 @@
 //! - [`crate::components::countdown`]: Countdown calculation logic
 //! - [`crate::ui::StoredAddress`]: Address data structure
 //! - [`crate::ui::App`]: Root component using panels
-use crate::components::countdown::{TimeBucket, bucket_for, format_countdown, remaining_duration};
+use crate::components::countdown::{
+    TimeBucket, bucket_for, format_countdown, time_until_next_occurrence, time_until_next_start,
+};
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
+use dioxus_free_icons::Icon;
+use dioxus_free_icons::icons::md_navigation_icons::{MdExpandLess};
 use tokio::time::Duration;
 /// Display an address with countdown timer in appropriate category.
 ///
@@ -211,10 +215,7 @@ fn AddressItem(addr: StoredAddress, index: usize, on_remove: EventHandler<usize>
             }
         }
     });
-    let address_display = format!(
-        "{} {}, {}",
-        addr.street, addr.street_number, addr.postal_code,
-    );
+    let address_display = addr.display_name();
     rsx! {
         div { class: "address-item",
             div { class: "address-text", "{address_display}" }
@@ -222,10 +223,11 @@ fn AddressItem(addr: StoredAddress, index: usize, on_remove: EventHandler<usize>
         }
     }
 }
-/// Sort addresses by remaining time until restriction becomes active.
+/// Sort addresses by time until next restriction occurrence.
 ///
-/// Addresses with earlier restrictions are sorted first. Addresses without
-/// valid matched entries are sorted last.
+/// Addresses with earlier restrictions are sorted first. This function uses
+/// [`time_until_next_occurrence`] which handles both current month and next
+/// month occurrences, ensuring proper sorting even for expired restrictions.
 ///
 /// # Arguments
 /// * `active_addrs` - Vector of addresses to sort (consumed)
@@ -234,7 +236,7 @@ fn AddressItem(addr: StoredAddress, index: usize, on_remove: EventHandler<usize>
 /// Sorted vector with earliest restrictions first
 ///
 /// # Algorithm
-/// Uses [`remaining_duration`] to calculate time until active, then:
+/// Uses [`time_until_next_occurrence`] to calculate time until next occurrence, then:
 /// - Compares durations (shorter = earlier in list)
 /// - Addresses with data come before those without
 /// - Addresses without data maintain relative order
@@ -253,8 +255,14 @@ fn AddressItem(addr: StoredAddress, index: usize, on_remove: EventHandler<usize>
 /// ```
 pub fn sorting_time(mut active_addrs: Vec<StoredAddress>) -> Vec<StoredAddress> {
     active_addrs.sort_by(|a, b| {
-        let time_a = a.matched_entry.as_ref().and_then(remaining_duration);
-        let time_b = b.matched_entry.as_ref().and_then(remaining_duration);
+        let time_a = a
+            .matched_entry
+            .as_ref()
+            .and_then(time_until_next_occurrence);
+        let time_b = b
+            .matched_entry
+            .as_ref()
+            .and_then(time_until_next_occurrence);
         match (time_a, time_b) {
             (Some(dur_a), Some(dur_b)) => dur_a.cmp(&dur_b),
             (Some(_), None) => std::cmp::Ordering::Less,
@@ -263,6 +271,23 @@ pub fn sorting_time(mut active_addrs: Vec<StoredAddress>) -> Vec<StoredAddress> 
         }
     });
     active_addrs
+}
+/// Sort addresses by time until next restriction start (for non-Active panels).
+///
+/// Like [`sorting_time`] but uses start time instead of end time,
+/// so upcoming restrictions are sorted by when they begin.
+pub fn sorting_time_by_start(mut addrs: Vec<StoredAddress>) -> Vec<StoredAddress> {
+    addrs.sort_by(|a, b| {
+        let time_a = a.matched_entry.as_ref().and_then(time_until_next_start);
+        let time_b = b.matched_entry.as_ref().and_then(time_until_next_start);
+        match (time_a, time_b) {
+            (Some(dur_a), Some(dur_b)) => dur_a.cmp(&dur_b),
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            (None, None) => std::cmp::Ordering::Equal,
+        }
+    });
+    addrs
 }
 /// Panel displaying addresses with parking restrictions currently active.
 ///
@@ -308,10 +333,29 @@ pub fn ActivePanel(addresses: Vec<StoredAddress>) -> Element {
         .collect();
     active_addrs = sorting_time(active_addrs);
     let active_count = active_addrs.len();
+    let mut is_open = use_signal(|| false);
     rsx! {
         div { class: "category-container category-active",
-            div { class: "category-title", "Städas nu" }
-            div { class: "category-content", id: "categoryActive",
+            button {
+                class: "category-title",
+                onclick: move |_| is_open.set(!is_open()),
+                "aria-expanded": if is_open() { "true" } else { "false" },
+                span { "Städas nu" }
+                span { class: "category-count",
+                    span { class: "category-toggle-arrow",
+                    if is_open() {
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
+                    } else {
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
+                    }
+                    }
+                    "{ active_count }"
+                }
+            }
+            div {
+                class: "category-content",
+                id: "categoryActive",
+                "aria-hidden": if is_open() { "false" } else { "true" },
                 if active_count == 0 {
                     div { class: "empty-state", "Inga adresser" }
                 } else {
@@ -378,12 +422,31 @@ pub fn SixHoursPanel(addresses: Vec<StoredAddress>) -> Element {
             }
         })
         .collect();
-    addrs = sorting_time(addrs);
+    addrs = sorting_time_by_start(addrs);
     let count = addrs.len();
+    let mut is_open = use_signal(|| false);
     rsx! {
         div { class: "category-container category-6h",
-            div { class: "category-title", "Inom 6 timmar" }
-            div { class: "category-content", id: "category6h",
+            button {
+                class: "category-title",
+                onclick: move |_| is_open.set(!is_open()),
+                "aria-expanded": if is_open() { "true" } else { "false" },
+                span { "Inom 6 timmar" }
+                span { class: "category-count",
+                    span { class: "category-toggle-arrow",
+                    if is_open() {
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
+                    } else {
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
+                    }
+                    }
+                    "{ count }"
+                }
+            }
+            div {
+                class: "category-content",
+                id: "category6h",
+                "aria-hidden": if is_open() { "false" } else { "true" },
                 if count == 0 {
                     div { class: "empty-state", "Inga adresser" }
                 } else {
@@ -450,12 +513,31 @@ pub fn OneDayPanel(addresses: Vec<StoredAddress>) -> Element {
             }
         })
         .collect();
-    addrs = sorting_time(addrs);
+    addrs = sorting_time_by_start(addrs);
     let count = addrs.len();
+    let mut is_open = use_signal(|| false);
     rsx! {
         div { class: "category-container category-24h",
-            div { class: "category-title", "Inom 1 dag" }
-            div { class: "category-content", id: "category24h",
+            button {
+                class: "category-title",
+                onclick: move |_| is_open.set(!is_open()),
+                "aria-expanded": if is_open() { "true" } else { "false" },
+                span { "Inom 1 dag" }
+                span { class: "category-count",
+                    span { class: "category-toggle-arrow",
+                    if is_open() {
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
+                    } else {
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
+                    }
+                    }
+                    "{ count }"
+                }
+            }
+            div {
+                class: "category-content",
+                id: "category24h",
+                "aria-hidden": if is_open() { "false" } else { "true" },
                 if count == 0 {
                     div { class: "empty-state", "Inga adresser" }
                 } else {
@@ -522,12 +604,31 @@ pub fn OneMonthPanel(addresses: Vec<StoredAddress>) -> Element {
             }
         })
         .collect();
-    addrs = sorting_time(addrs);
+    addrs = sorting_time_by_start(addrs);
     let count = addrs.len();
+    let mut is_open = use_signal(|| false);
     rsx! {
         div { class: "category-container category-month",
-            div { class: "category-title", "Inom 1 månad" }
-            div { class: "category-content", id: "categoryMonth",
+            button {
+                class: "category-title",
+                onclick: move |_| is_open.set(!is_open()),
+                "aria-expanded": if is_open() { "true" } else { "false" },
+                span { "Inom 1 månad" }
+                span { class: "category-count",
+                    span { class: "category-toggle-arrow",
+                    if is_open() {
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
+                    } else {
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
+                    }
+                    }
+                    "{ count }"
+                }
+            }
+            div {
+                class: "category-content",
+                id: "categoryMonth",
+                "aria-hidden": if is_open() { "false" } else { "true" },
                 if count == 0 {
                     div { class: "empty-state", "Inga adresser" }
                 } else {
@@ -594,12 +695,116 @@ pub fn MoreThan1MonthPanel(addresses: Vec<StoredAddress>) -> Element {
             }
         })
         .collect();
-    addrs = sorting_time(addrs);
+    addrs = sorting_time_by_start(addrs);
     let count = addrs.len();
+    let mut is_open = use_signal(|| false);
     rsx! {
         div { class: "category-container category-later",
-            div { class: "category-title", "30+ dagar" }
-            div { class: "category-content", id: "category-later",
+            button {
+                class: "category-title",
+                onclick: move |_| is_open.set(!is_open()),
+                "aria-expanded": if is_open() { "true" } else { "false" },
+                span { "30+ dagar" }
+                span { class: "category-count",
+                    span { class: "category-toggle-arrow",
+                    if is_open() {
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
+                    } else {
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
+                    }
+                    }
+                    "{ count }"
+                }
+            }
+            div {
+                class: "category-content",
+                id: "category-later",
+                "aria-hidden": if is_open() { "false" } else { "true" },
+                if count == 0 {
+                    div { class: "empty-state", "Inga adresser" }
+                } else {
+                    div { class: "address-list",
+                        {
+                            addrs
+                                .into_iter()
+                                .enumerate()
+                                .map(|(i, addr)| {
+                                    rsx! {
+                                        AddressItem {
+                                            key: "{i}",
+                                            addr: addr.clone(),
+                                            index: i,
+                                            on_remove: move |_| {},
+                                        }
+                                    }
+                                })
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+/// Panel displaying addresses with only parking zone data (no street cleaning schedule).
+///
+/// Shows addresses that have parking fee/zone information (taxa, platser, typ)
+/// but no time-based restrictions (dag, tid). These addresses are valid but have
+/// no countdown timer since there's no cleaning schedule.
+///
+/// Styled in brown/sienna colors to represent parking fees.
+///
+/// # Filtering
+/// Displays addresses where:
+/// - `valid == true`
+/// - `active == true`
+/// - `matched_entry` is None (no miljödata)
+/// - `parking_info` is Some (has parking zone data)
+///
+/// # Sorting
+/// Addresses sorted by **postal code** (no time-based sorting).
+///
+/// # Update Frequency
+/// **Static** - no countdown updates.
+///
+/// # Props
+/// * `addresses` - Vector of all StoredAddress entries (automatically filtered)
+#[component]
+pub fn ParkingOnlyPanel(addresses: Vec<StoredAddress>) -> Element {
+    let mut addrs: Vec<_> = addresses
+        .into_iter()
+        .filter(|a| a.valid && a.active && a.matched_entry.is_none() && a.parking_info.is_some())
+        .collect();
+    addrs.sort_by(
+        |a, b| match (a.postal_code.is_empty(), b.postal_code.is_empty()) {
+            (true, false) => std::cmp::Ordering::Greater,
+            (false, true) => std::cmp::Ordering::Less,
+            _ => a.postal_code.cmp(&b.postal_code),
+        },
+    );
+    let count = addrs.len();
+    let mut is_open = use_signal(|| false);
+    rsx! {
+        div { class: "category-container category-parking-only",
+            button {
+                class: "category-title",
+                onclick: move |_| is_open.set(!is_open()),
+                "aria-expanded": if is_open() { "true" } else { "false" },
+                span { "Endast parkeringsavgift" }
+                span { class: "category-count",
+                    span { class: "category-toggle-arrow",
+                    if is_open() {
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
+                    } else {
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
+                    }
+                    }
+                    "{ count }"
+                }
+            }
+            div {
+                class: "category-content",
+                id: "categoryParkingOnly",
+                "aria-hidden": if is_open() { "false" } else { "true" },
                 if count == 0 {
                     div { class: "empty-state", "Inga adresser" }
                 } else {
@@ -663,12 +868,37 @@ pub fn InvalidPanel(addresses: Vec<StoredAddress>) -> Element {
         .into_iter()
         .filter(|a| a.active && !a.valid)
         .collect();
-    addrs.sort_by(|a, b| a.postal_code.cmp(&b.postal_code));
+    addrs.sort_by(
+        |a, b| match (a.postal_code.is_empty(), b.postal_code.is_empty()) {
+            (true, false) => std::cmp::Ordering::Greater,
+            (false, true) => std::cmp::Ordering::Less,
+            _ => a.postal_code.cmp(&b.postal_code),
+        },
+    );
     let count = addrs.len();
+    let mut is_open = use_signal(|| false);
     rsx! {
         div { class: "category-container category-invalid",
-            div { class: "category-title", "Ingen städning" }
-            div { class: "category-content", id: "categoryInvalid",
+            button {
+                class: "category-title",
+                onclick: move |_| is_open.set(!is_open()),
+                "aria-expanded": if is_open() { "true" } else { "false" },
+                span { "Ingen städning" }
+                span { class: "category-count",
+                    span { class: "category-toggle-arrow",
+                    if is_open() {
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
+                    } else {
+                        Icon { icon: MdExpandLess, width: 16, height: 16 }
+                    }
+                    }
+                    "{ count }"
+                }
+            }
+            div {
+                class: "category-content",
+                id: "categoryInvalid",
+                "aria-hidden": if is_open() { "false" } else { "true" },
                 if count == 0 {
                     div { class: "empty-state", "Inga adresser" }
                 } else {

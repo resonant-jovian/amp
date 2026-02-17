@@ -23,6 +23,9 @@ android_logger.workspace = true
 jni.workspace = true
 ndk-context.workspace = true
 once_cell.workspace = true
+rust_decimal.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
 
 [features]
 default = ["mobile"]

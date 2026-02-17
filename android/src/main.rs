@@ -5,8 +5,6 @@ mod android_bridge;
 mod android_utils;
 mod components;
 mod ui;
-#[cfg(target_os = "android")]
-mod webview_config;
 fn main() {
     #[cfg(target_os = "android")]
     {
@@ -30,6 +28,8 @@ fn main() {
     log::info!("Starting Amp Android app");
     #[cfg(target_os = "android")]
     android_bridge::request_notification_permission_jni();
+    #[cfg(target_os = "android")]
+    android_bridge::start_dormant_service_jni();
     #[cfg(target_os = "android")]
     {
         use dioxus::mobile::Config;

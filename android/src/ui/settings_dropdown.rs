@@ -1,3 +1,4 @@
+use crate::android_bridge::open_url;
 use crate::components::notifications::{notify_active, notify_one_day, notify_six_hours};
 use crate::components::settings::{load_settings, save_settings};
 use crate::ui::StoredAddress;
@@ -5,7 +6,7 @@ use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::fa_brands_icons::FaDev;
 use dioxus_free_icons::icons::md_action_icons::{MdInfo, MdSettings};
-use dioxus_free_icons::icons::md_navigation_icons::{MdExpandLess, MdExpandMore};
+use dioxus_free_icons::icons::md_navigation_icons::{MdExpandLess};
 use dioxus_free_icons::icons::md_social_icons::MdNotificationsActive;
 use std::time::Duration;
 /// Represents which settings section is currently open
@@ -20,7 +21,7 @@ enum OpenSection {
 /// Settings dropdown panel component
 ///
 /// Displays a slide-in panel from the top-right with expandable settings sections.
-/// Only one section can be expanded at a time (accordion behavior).
+/// Only one section can be expanded at a time (accordion behaviour).
 /// Switching between sections uses a 300ms delay for smooth animation.
 /// Uses neumorphic design system with gradient header matching the HTML reference.
 /// Settings items use scaled-down address-item container styling.
@@ -96,6 +97,7 @@ pub fn SettingsDropdown(
             valid: true,
             active: true,
             matched_entry: None,
+            parking_info: None,
         };
         eprintln!("[Debug] Triggering active notification");
         notify_active(&debug_address);
@@ -109,6 +111,7 @@ pub fn SettingsDropdown(
             valid: true,
             active: false,
             matched_entry: None,
+            parking_info: None,
         };
         eprintln!("[Debug] Triggering 6-hour notification");
         notify_six_hours(&debug_address);
@@ -122,6 +125,7 @@ pub fn SettingsDropdown(
             valid: true,
             active: false,
             matched_entry: None,
+            parking_info: None,
         };
         eprintln!("[Debug] Triggering 1-day notification");
         notify_one_day(&debug_address);
@@ -143,6 +147,21 @@ pub fn SettingsDropdown(
                     }
                 }
                 div { class: "settings-content",
+                    div { class: "settings-toggle-item",
+                        div { class: "settings-item-text",
+                            div { class: "settings-item-label", "Issue report" }
+                            div { class: "settings-item-description",
+                                "Gå till en websida för att rapportera problem eller ge nya idéer"
+                            }
+                        }
+                        button {
+                            class: "btn-debug-trigger",
+                            onclick: move |_| {
+                                open_url("https://github.com/resonant-jovian/amp/issues/new");
+                            },
+                            "💿"
+                        }
+                    }
                     div { class: "settings-section",
                         button {
                             class: "settings-section-header",
@@ -165,7 +184,7 @@ pub fn SettingsDropdown(
                                     }
                                 } else {
                                     Icon {
-                                        icon: MdExpandMore,
+                                        icon: MdExpandLess,
                                         width: 16,
                                         height: 16,
                                     }
@@ -263,7 +282,7 @@ pub fn SettingsDropdown(
                                     }
                                 } else {
                                     Icon {
-                                        icon: MdExpandMore,
+                                        icon: MdExpandLess,
                                         width: 16,
                                         height: 16,
                                     }
@@ -298,7 +317,7 @@ pub fn SettingsDropdown(
                                     }
                                 } else {
                                     Icon {
-                                        icon: MdExpandMore,
+                                        icon: MdExpandLess,
                                         width: 16,
                                         height: 16,
                                     }
@@ -310,11 +329,28 @@ pub fn SettingsDropdown(
                             "aria-hidden": if open_section() == OpenSection::Info { "false" } else { "true" },
                             div { class: "settings-section-body",
                                 h4 { class: "info-heading", "Om appen" }
-                                p { class: "info-text",
-                                    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut "
-                                    "labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco "
-                                    "laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in "
-                                    "voluptate velit esse cillum dolore eu fugiat nulla pariatur."
+                                div { class: "settings-toggle-item",
+                                    div { class: "info-text", "Välkommen till amp. " }
+                                }
+                                div { class: "settings-toggle-item",
+                                    div { class: "info-text",
+                                        "Vi tar inget ansvar för vad Malmö stad väljer att göra, detta är ett verktyg, inget mer. "
+                                    }
+                                }
+                                div { class: "settings-toggle-item",
+                                    div { class: "info-text",
+                                        "Appen tar data Malmö lägger upp, formaterar den bättre och använder en kopplings algoritm för att skapa en databas som sedan används här för att du som användare förhoppningsvis ska få mindre böter och Malmö ska kunna städa sina gator utan problem. Inget mer, inget mindre. "
+                                    }
+                                }
+                                div { class: "settings-toggle-item",
+                                    div { class: "info-text",
+                                        "Hantering av dagar 29 och 30 i Februari är oklart då Malmös system deklarerar data med en dag i månaden mellan 1 och 30 per datapunkt. Detta innebär bland annat att ingen städning ska hända enligt dem den 31 i månader med det datumet. De säger inget om hur månaden Februari hanteras varken under vanliga år eller skåttår. Nu ignoreras de relevanta adresserna för månad Februari och hamnar istället görs i nästa månad. Är detta rätt? Ingen aning! "
+                                    }
+                                }
+                                div { class: "settings-toggle-item",
+                                    div { class: "info-text",
+                                        "Målet är att inte kräva någon internet uppkoppling i appen men för närvarande pga. UI systemet jag använder så kommer appen krascha om jag inter har nätverks rättigheter. All komplicerad koppling sker på en server som skickar en universell app uppdatering när Malmös data uppdateras. "
+                                    }
                                 }
                             }
                         }
@@ -337,7 +373,7 @@ pub fn SettingsDropdown(
                                     }
                                 } else {
                                     Icon {
-                                        icon: MdExpandMore,
+                                        icon: MdExpandLess,
                                         width: 16,
                                         height: 16,
                                     }

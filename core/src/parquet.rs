@@ -73,8 +73,7 @@
 use crate::structs::*;
 use anyhow;
 use arrow::array::{
-    Array, BooleanArray, BooleanBuilder, Float64Builder, UInt8Array, UInt8Builder, UInt64Array,
-    UInt64Builder,
+    Array, BooleanArray, BooleanBuilder, UInt8Array, UInt8Builder, UInt64Array, UInt64Builder,
 };
 use arrow::{
     array::{StringArray, StringBuilder},
@@ -118,7 +117,7 @@ pub fn output_data_schema() -> Arc<Schema> {
 /// Schema for [`AdressClean`] parquet format.
 ///
 /// Defines 6 columns with coordinate data:
-/// - `longitude`, `latitude`: Float64 (non-nullable)
+/// - `longitude`, `latitude`: Utf8 (non-nullable)
 /// - `postnummer`: Utf8 (nullable)
 /// - `adress`, `gata`, `gatunummer`: Utf8 (non-nullable)
 ///
@@ -129,8 +128,8 @@ pub fn output_data_schema() -> Arc<Schema> {
 /// [`Decimal`]: rust_decimal::Decimal
 pub fn adress_clean_schema() -> Arc<Schema> {
     Arc::new(Schema::new(vec![
-        Field::new("longitude", DataType::Float64, false),
-        Field::new("latitude", DataType::Float64, false),
+        Field::new("longitude", DataType::Utf8, false),
+        Field::new("latitude", DataType::Utf8, false),
         Field::new("postnummer", DataType::Utf8, true),
         Field::new("adress", DataType::Utf8, false),
         Field::new("gata", DataType::Utf8, false),
@@ -795,16 +794,15 @@ pub fn write_adress_clean_parquet(data: Vec<AdressClean>, path: &str) -> anyhow:
     }
     let schema = adress_clean_schema();
     let writer = create_arrow_writer(path, schema.clone())?;
-    let mut longitude_builder = Float64Builder::new();
-    let mut latitude_builder = Float64Builder::new();
+    let mut longitude_builder = StringBuilder::new();
+    let mut latitude_builder = StringBuilder::new();
     let mut postnummer_builder = StringBuilder::new();
     let mut adress_builder = StringBuilder::new();
     let mut gata_builder = StringBuilder::new();
     let mut gatunummer_builder = StringBuilder::new();
     for row in data {
-        longitude_builder
-            .append_value(row.coordinates[0].to_string().parse::<f64>().unwrap_or(0.0));
-        latitude_builder.append_value(row.coordinates[1].to_string().parse::<f64>().unwrap_or(0.0));
+        longitude_builder.append_value(row.coordinates[0].to_string());
+        latitude_builder.append_value(row.coordinates[1].to_string());
         append_optional_string(&mut postnummer_builder, &row.postnummer);
         adress_builder.append_value(&row.adress);
         gata_builder.append_value(&row.gata);

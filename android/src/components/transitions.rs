@@ -215,6 +215,7 @@ pub fn create_test_address_with_bucket(
         valid: true,
         active: true,
         matched_entry: Some(db),
+        parking_info: None,
     };
     (addr, bucket)
 }
@@ -247,6 +248,7 @@ mod tests {
             valid: true,
             active: true,
             matched_entry: Some(db),
+            parking_info: None,
         }
     }
     #[test]
@@ -311,6 +313,7 @@ mod tests {
             valid: false,
             active: false,
             matched_entry: None,
+            parking_info: None,
         };
         let transitions = detect_transitions(&[addr]);
         assert_eq!(

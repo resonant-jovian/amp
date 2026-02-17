@@ -355,6 +355,65 @@ fn show_notification(
     .map_err(|e| format!("Failed to call showNotification: {:?}", e))?;
     Ok(())
 }
+/// Start the DormantService foreground service
+///
+/// Uses the Activity context to start the background monitoring service.
+/// Idempotent — the service checks if it's already running.
+///
+/// # Platform Behavior
+/// - **Android**: Starts DormantService via Intent
+/// - **Other platforms**: No-op
+pub fn start_dormant_service_jni() {
+    #[cfg(target_os = "android")]
+    {
+        match start_dormant_service() {
+            Ok(()) => eprintln!("[Android Bridge] DormantService start requested"),
+            Err(e) => eprintln!("[Android Bridge] Failed to start DormantService: {}", e),
+        }
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        eprintln!("[Mock Android Bridge] DormantService start (no-op on non-Android)");
+    }
+}
+#[cfg(target_os = "android")]
+fn start_dormant_service() -> Result<(), String> {
+    let mut env = get_jni_env()?;
+    let context = get_android_context()?;
+    let class_name = env
+        .new_string("se.malmo.skaggbyran.amp.DormantService")
+        .map_err(|e| format!("String error: {:?}", e))?;
+    let class_loader = env
+        .call_method(&context, "getClassLoader", "()Ljava/lang/ClassLoader;", &[])
+        .map_err(|e| format!("ClassLoader error: {:?}", e))?
+        .l()
+        .map_err(|e| format!("Not object: {:?}", e))?;
+    let service_class = env
+        .call_method(
+            class_loader,
+            "loadClass",
+            "(Ljava/lang/String;)Ljava/lang/Class;",
+            &[JValue::Object(&class_name.into())],
+        )
+        .map_err(|e| format!("Load class error: {:?}", e))?
+        .l()
+        .map_err(|e| format!("Not object: {:?}", e))?;
+    let intent = env
+        .new_object(
+            "android/content/Intent",
+            "(Landroid/content/Context;Ljava/lang/Class;)V",
+            &[JValue::Object(&context), JValue::Object(&service_class)],
+        )
+        .map_err(|e| format!("Intent creation error: {:?}", e))?;
+    env.call_method(
+        &context,
+        "startForegroundService",
+        "(Landroid/content/Intent;)Landroid/content/ComponentName;",
+        &[JValue::Object(&intent)],
+    )
+    .map_err(|e| format!("startForegroundService error: {:?}", e))?;
+    Ok(())
+}
 /// Read device GPS location
 ///
 /// Attempts to get the current device location using Android LocationManager.
@@ -435,6 +494,52 @@ pub fn get_device_info() -> String {
         "Mock Device (Testing)".to_string()
     }
 }
+/// Open a URL in the device's default browser.
+///
+/// # Platform Behavior
+/// - **Android**: Uses an ACTION_VIEW Intent to launch the browser
+/// - **Other platforms**: No-op (logs the URL)
+pub fn open_url(url: &str) {
+    #[cfg(target_os = "android")]
+    {
+        let mut env = get_jni_env().expect("Failed to get JNI env");
+        let context = get_android_context().expect("Failed to get Android context");
+        let url_string = env
+            .new_string(url)
+            .expect("Failed to create Java string for URL");
+        let uri = env
+            .call_static_method(
+                "android/net/Uri",
+                "parse",
+                "(Ljava/lang/String;)Landroid/net/Uri;",
+                &[JValue::Object(&url_string.into())],
+            )
+            .expect("Uri.parse failed")
+            .l()
+            .expect("Uri.parse did not return object");
+        let action_view = env
+            .new_string("android.intent.action.VIEW")
+            .expect("Failed to create ACTION_VIEW string");
+        let intent = env
+            .new_object(
+                "android/content/Intent",
+                "(Ljava/lang/String;Landroid/net/Uri;)V",
+                &[JValue::Object(&action_view.into()), JValue::Object(&uri)],
+            )
+            .expect("Intent creation failed");
+        let _ = env.call_method(
+            &context,
+            "startActivity",
+            "(Landroid/content/Intent;)V",
+            &[JValue::Object(&intent)],
+        );
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        eprintln!("[Mock Android Bridge] open_url: {}", url);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

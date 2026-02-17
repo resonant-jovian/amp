@@ -280,3 +280,137 @@ For issues or questions:
 - Check documentation in `docs/` and `android/kotlin/`
 - Review commit history on `feature/android` branch
 - See `android/NOTIFICATIONS_IMPLEMENTATION.md` for implementation details
+
+---
+
+## storage-obs.sh - APK Storage Structure Observer
+
+Investigates internal storage structure of packaged APK and deployed app.
+
+### Purpose
+
+Debug asset loading issues, verify build outputs, and understand the app's storage footprint for Android platform development. This script inspects the APK file structure, examines deployed app storage on a connected device, and verifies that resources are correctly packaged.
+
+### Usage
+
+```bash
+# Analyze latest built APK
+./scripts/storage-obs.sh
+
+# Analyze specific APK
+./scripts/storage-obs.sh --apk-path /path/to/amp.apk
+
+# Save report to file
+./scripts/storage-obs.sh --output storage-report.txt
+
+# Device inspection only (requires connected device)
+./scripts/storage-obs.sh --device-only
+
+# Show help
+./scripts/storage-obs.sh --help
+```
+
+### What It Inspects
+
+1. **APK Internal Structure**
+   - DEX files (classes.dex) with sizes and count
+   - Native libraries per architecture (lib/ directory)
+   - Assets directory with color-coded file types
+   - Resources (res/) directory summary
+   - Full file listing with compressed/uncompressed sizes
+
+2. **APK Metadata (via aapt)**
+   - Android permissions (color-coded by category)
+   - Package name, version, SDK targets
+   - App label and other manifest metadata
+
+3. **Asset Packaging Verification**
+   - Confirms `data/adress_info.parquet` is packaged
+   - Verifies `style.css` inclusion
+   - Lists all font files (TTF/OTF/WOFF)
+   - Compares APK file sizes against source files
+
+4. **Device Storage Paths**
+   - Internal app storage (`/data/data/se.malmo.skaggbyran.amp/`)
+   - External storage (`/storage/emulated/0/Android/data/...`)
+   - Standard directories: cache, databases, shared_prefs, files
+   - Package info from device dumpsys
+
+### Options
+
+| Flag | Description |
+|---|---|
+| `--apk-path <path>` | Analyze a specific APK file instead of auto-detecting |
+| `--output <file>` | Save report to a file (also prints to stdout) |
+| `--device-only` | Skip APK analysis, only inspect connected device |
+| `--help` | Show usage information |
+
+### Prerequisites
+
+- `unzip` - Required for APK listing (usually pre-installed)
+- `aapt` - Optional, from Android SDK build-tools (enables detailed metadata)
+- `adb` - Required for device inspection (from Android SDK platform-tools)
+
+### Example Output
+
+```
+╔════════════════════════════════════════════════════════════════╗
+║       Amp APK Storage Structure Observer                      ║
+╚════════════════════════════════════════════════════════════════╝
+
+Project root:   /home/albin/Documents/amp
+Package:        se.malmo.skaggbyran.amp
+APK:            .../build/outputs/apk/release/app-release.apk
+
+╔════════════════════════════════════════════════════════════╗
+║ ════════════ APK Structure Analysis ════════════          ║
+╚════════════════════════════════════════════════════════════╝
+
+APK: .../app-release.apk
+Size: 24M
+
+── DEX Files (Compiled Code) ──
+
+  📦 classes.dex  4.21 MB
+  📦 classes2.dex  1.83 MB
+
+  DEX count: 2
+  DEX total: 6.04 MB
+
+── Assets Directory ──
+
+  📊 assets/data/adress_info.parquet  8.52 MB
+  🎨 assets/style.css  12.3 KB
+  🔤 assets/fonts/Inter-Regular.ttf  312.0 KB
+
+── Asset Verification ──
+
+  ✅ assets/data/adress_info.parquet  (8.52 MB)
+  ✅ assets/style.css  (12.3 KB)
+  ✅ All asset verifications passed ✅
+```
+
+### Testing
+
+After creation, verify the script works:
+
+```bash
+# 1. Build APK
+./scripts/build.sh
+
+# 2. Run APK analysis
+./scripts/storage-obs.sh
+
+# 3. Deploy to device and inspect storage
+adb install <path-to-apk>
+./scripts/storage-obs.sh --device-only
+
+# 4. Save full report
+./scripts/storage-obs.sh --output scripts/storage-report.txt
+```
+
+### Related
+
+- [Issue #33 - Android Platform Development](https://github.com/resonant-jovian/amp/issues/33)
+- [Feature branch](https://github.com/resonant-jovian/amp/tree/feature/android)
+- [build.sh documentation](#buildsh---android-notification-setup)
