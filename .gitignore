@@ -14,3 +14,5 @@ keystore.properties
 /android/Dioxus.toml.backup.*
 /keystore.b64
 /android/settings.parquet
+/android/notification_state.parquet
+adb_logcat.txt

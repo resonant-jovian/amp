@@ -330,7 +330,7 @@ pub fn TopBar(
             }
             div { class: "topbar-content",
                 div { class: "topbar-inputs-row",
-                    div { class: "address-item topbar-input-item",
+                    div { class: "topbar-input-item autocomplete-wrapper",
                         input {
                             id: "addressInput",
                             placeholder: "Adress",
