@@ -147,6 +147,21 @@ pub fn SettingsDropdown(
                     }
                 }
                 div { class: "settings-content",
+                    div { class: "settings-toggle-item",
+                        div { class: "settings-item-text",
+                            div { class: "settings-item-label", "Issue report" }
+                            div { class: "settings-item-description",
+                                "Gå till en websida för att rapportera problem eller ge nya idéer"
+                            }
+                        }
+                        button {
+                            class: "btn-debug-trigger",
+                            onclick: move |_| {
+                                open_url("https://github.com/resonant-jovian/amp/issues/new");
+                            },
+                            "💿"
+                        }
+                    }
                     div { class: "settings-section",
                         button {
                             class: "settings-section-header",
@@ -433,13 +448,6 @@ pub fn SettingsDropdown(
                             }
                         }
                     }
-                    /*button {
-                        class: "settings-report-btn",
-                        onclick: move |_| {
-                            open_url("https://github.com/resonant-jovian/amp/issues/new");
-                        },
-                        "Rapportera fel"
-                    }*/
                 }
             }
         }

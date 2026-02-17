@@ -502,13 +502,8 @@ pub fn get_device_info() -> String {
 pub fn open_url(url: &str) {
     #[cfg(target_os = "android")]
     {
-        /*
-        use dioxus::mobile::wry::prelude::WryActivity;
-        use jni::objects::{JObject, JValue};
-        let jvm = WryActivity::class_loader_jvm().expect("Failed to get JVM");
-        let mut env = jvm
-            .attach_current_thread()
-            .expect("Failed to attach thread");
+        let mut env = get_jni_env().expect("Failed to get JNI env");
+        let context = get_android_context().expect("Failed to get Android context");
         let url_string = env
             .new_string(url)
             .expect("Failed to create Java string for URL");
@@ -532,16 +527,12 @@ pub fn open_url(url: &str) {
                 &[JValue::Object(&action_view.into()), JValue::Object(&uri)],
             )
             .expect("Intent creation failed");
-        let context = WryActivity::class_init_activity();
-        let context: JObject = context.into();
         let _ = env.call_method(
             &context,
             "startActivity",
             "(Landroid/content/Intent;)V",
             &[JValue::Object(&intent)],
         );
-
-         */
     }
     #[cfg(not(target_os = "android"))]
     {
