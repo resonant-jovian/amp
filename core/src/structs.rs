@@ -77,7 +77,7 @@ pub const SWEDISH_TZ: Tz = Stockholm;
 /// - `adress`: Full address string (e.g., "Storgatan 10")
 /// - `gata`: Street name only (e.g., "Storgatan")
 /// - `gatunummer`: Street number with optional building code (e.g., "10", "10A")
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct AdressClean {
     pub coordinates: [Decimal; 2],
     pub postnummer: Option<String>,
@@ -864,6 +864,7 @@ pub struct NotificationStateEntry {
 ///     en_dag: false,
 ///     theme: "Dark".to_string(),
 ///     language: "English".to_string(),
+///     autocomplete_source: "Both".to_string(),
 /// };
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -878,6 +879,8 @@ pub struct SettingsData {
     pub theme: String,
     /// Language: "Svenska", "English", "Espanol", or "Francais"
     pub language: String,
+    /// Autocomplete data source: "Both", "MiljoOnly", "ParkeringOnly", or "AllAddresses"
+    pub autocomplete_source: String,
 }
 impl Default for SettingsData {
     /// Create default settings with Swedish language and light theme.
@@ -895,6 +898,7 @@ impl Default for SettingsData {
             en_dag: true,
             theme: "Light".to_string(),
             language: "Svenska".to_string(),
+            autocomplete_source: "Both".to_string(),
         }
     }
 }

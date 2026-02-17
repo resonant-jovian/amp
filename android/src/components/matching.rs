@@ -31,6 +31,7 @@ pub enum ValidationError {
     /// Street number is empty or whitespace-only
     EmptyStreetNumber,
     /// Postal code is empty or whitespace-only
+    #[allow(dead_code)]
     EmptyPostalCode,
     /// Postal code format is invalid (must be 5 digits, optionally with space after 3rd digit)
     InvalidPostalCodeFormat(String),

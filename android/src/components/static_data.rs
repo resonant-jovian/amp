@@ -26,12 +26,13 @@
 //!     println!("Found restriction: {}", entry.adress);
 //! }
 //! ```
+use crate::components::settings::AutocompleteSource;
 use crate::ui::ParkingInfo;
 use amp_core::structs::{AdressClean, DB};
 use bytes::Bytes;
 use chrono::{Datelike, NaiveDate};
 use rust_decimal::Decimal;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 /// Static storage for the parking database (miljödata entries with time restrictions)
 ///
@@ -177,16 +178,59 @@ fn load_parking_data() -> (HashMap<String, DB>, HashMap<String, ParkingInfo>) {
         }
     }
 }
-fn load_ref_data() -> Vec<AdressClean> {
-    eprintln!("[StaticData] Loading ref data from embedded parquet...");
-    match read_ref_parquet_from_bytes(PARQUET_REF_BYTES) {
-        Ok(records) => {
-            eprintln!("[StaticData] Loaded {} ref entries", records.len());
-            records
+static REF_DATA: OnceLock<Vec<AdressClean>> = OnceLock::new();
+pub fn load_ref_data() -> &'static Vec<AdressClean> {
+    REF_DATA.get_or_init(|| {
+        eprintln!("[StaticData] Loading ref data from embedded parquet...");
+        match read_ref_parquet_from_bytes(PARQUET_REF_BYTES) {
+            Ok(records) => {
+                eprintln!("[StaticData] Loaded {} ref entries", records.len());
+                records
+            }
+            Err(e) => {
+                eprintln!("[StaticData] FATAL: Failed to load ref data: {}", e);
+                panic!("Failed to load embedded ref data: {}", e);
+            }
         }
-        Err(e) => {
-            eprintln!("[StaticData] FATAL: Failed to load ref data: {}", e);
-            panic!("Failed to load embedded ref data: {}", e);
+    })
+}
+/// Get autocomplete address strings based on the selected data source.
+pub fn get_autocomplete_addresses(source: &AutocompleteSource) -> Vec<String> {
+    match source {
+        AutocompleteSource::Both => {
+            let mut addrs: Vec<String> = get_static_data()
+                .values()
+                .map(|db| db.adress.clone())
+                .collect::<HashSet<_>>()
+                .into_iter()
+                .collect();
+            addrs.sort();
+            addrs
+        }
+        AutocompleteSource::MiljoOnly => {
+            let mut addrs: Vec<String> = get_static_data()
+                .values()
+                .filter(|db| db.info.is_some())
+                .map(|db| db.adress.clone())
+                .collect::<HashSet<_>>()
+                .into_iter()
+                .collect();
+            addrs.sort();
+            addrs
+        }
+        AutocompleteSource::ParkeringOnly => {
+            let mut addrs: Vec<String> = get_static_data()
+                .values()
+                .filter(|db| db.taxa.is_some())
+                .map(|db| db.adress.clone())
+                .collect::<HashSet<_>>()
+                .into_iter()
+                .collect();
+            addrs.sort();
+            addrs
+        }
+        AutocompleteSource::AllAddresses => {
+            load_ref_data().iter().map(|a| a.adress.clone()).collect()
         }
     }
 }
@@ -305,8 +349,8 @@ fn read_ref_parquet_from_bytes(bytes: &[u8]) -> anyhow::Result<Vec<AdressClean>>
                 .downcast_ref::<arrow::array::StringArray>()
                 .ok_or_else(|| anyhow::anyhow!("{} column missing or wrong type", name))
         };
-        let x_cords = get_string_column("x_cords")?;
-        let y_cords = get_string_column("y_cords")?;
+        let x_cords = get_string_column("longitude")?;
+        let y_cords = get_string_column("latitude")?;
         let postnummer = get_string_column("postnummer")?;
         let adress = get_string_column("adress")?;
         let gata = get_string_column("gata")?;

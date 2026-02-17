@@ -363,6 +363,7 @@ fn show_notification(
 /// # Platform Behavior
 /// - **Android**: Starts DormantService via Intent
 /// - **Other platforms**: No-op
+#[allow(dead_code)]
 pub fn start_dormant_service_jni() {
     #[cfg(target_os = "android")]
     {

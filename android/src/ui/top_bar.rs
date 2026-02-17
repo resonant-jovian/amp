@@ -125,6 +125,8 @@
 //! - [`crate::components::geo::find_address_by_coordinates`]: Address lookup
 use crate::android_bridge::read_device_gps_location;
 use crate::components::geo::find_address_by_coordinates;
+use crate::components::settings::load_settings;
+use crate::components::static_data::get_autocomplete_addresses;
 use crate::ui::settings_dropdown::SettingsDropdown;
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
@@ -245,6 +247,8 @@ pub fn TopBar(
     let mut address_input = use_signal(String::new);
     let mut postal_code_input = use_signal(String::new);
     let mut show_settings = use_signal(|| false);
+    let mut suggestions = use_signal::<Vec<String>>(Vec::new);
+    let mut show_suggestions = use_signal(|| false);
     let handle_add_click = move |_| {
         let address_str = address_input();
         let postal_code = postal_code_input();
@@ -334,11 +338,50 @@ pub fn TopBar(
                             class: "topbar-input",
                             value: "{address_input}",
                             oninput: move |evt: FormEvent| {
-                                address_input.set(evt.value());
+                                let val = evt.value();
+                                address_input.set(val.clone());
+                                if val.trim().len() >= 2 {
+                                    let source = load_settings().autocomplete_source;
+                                    let all = get_autocomplete_addresses(&source);
+                                    let query = val.to_lowercase();
+                                    let filtered: Vec<String> = all
+                                        .into_iter()
+                                        .filter(|a| a.to_lowercase().contains(&query))
+                                        .take(10)
+                                        .collect();
+                                    suggestions.set(filtered);
+                                    show_suggestions.set(true);
+                                } else {
+                                    suggestions.set(Vec::new());
+                                    show_suggestions.set(false);
+                                }
+                            },
+                            onfocusin: move |_| {
+                                if !suggestions.read().is_empty() {
+                                    show_suggestions.set(true);
+                                }
                             },
                         }
+                        if show_suggestions() && !suggestions.read().is_empty() {
+                            div { class: "autocomplete-dropdown",
+                                for suggestion in suggestions.read().iter() {
+                                    div {
+                                        class: "autocomplete-item",
+                                        onclick: {
+                                            let s = suggestion.clone();
+                                            move |_| {
+                                                address_input.set(s.clone());
+                                                show_suggestions.set(false);
+                                                suggestions.set(Vec::new());
+                                            }
+                                        },
+                                        "{suggestion}"
+                                    }
+                                }
+                            }
+                        }
                     }
-                    div { class: "address-item topbar-input-item",
+                    div { class: "topbar-input-item",
                         input {
                             id: "postalInput",
                             placeholder: "Postnummer (valfritt)",

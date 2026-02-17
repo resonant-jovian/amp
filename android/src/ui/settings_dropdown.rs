@@ -1,6 +1,6 @@
 use crate::android_bridge::open_url;
 use crate::components::notifications::{notify_active, notify_one_day, notify_six_hours};
-use crate::components::settings::{load_settings, save_settings};
+use crate::components::settings::{AutocompleteSource, load_settings, save_settings};
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
@@ -293,8 +293,116 @@ pub fn SettingsDropdown(
                             class: "settings-section-content",
                             "aria-hidden": if open_section() == OpenSection::Installningar { "false" } else { "true" },
                             div { class: "settings-section-body",
+                                h4 { class: "info-heading", "Datakälla" }
                                 div { class: "settings-toggle-item",
-                                    div { class: "settings-item-text" }
+                                    div { class: "settings-item-text",
+                                        div { class: "settings-item-label", "Miljö + Parkering" }
+                                        div { class: "settings-item-description", "Standard" }
+                                    }
+                                    label { class: "settings-toggle-switch",
+                                        input {
+                                            r#type: "radio",
+                                            name: "autocomplete_source",
+                                            checked: settings().autocomplete_source == AutocompleteSource::Both,
+                                            onchange: move |_| {
+                                                let mut current = settings();
+                                                current.autocomplete_source = AutocompleteSource::Both;
+                                                save_settings(&current);
+                                                settings.set(current);
+                                            },
+                                        }
+                                        div { class: "settings-switch-container",
+                                            div {
+                                                class: "settings-switch-thumb",
+                                                "data-active": if settings().autocomplete_source == AutocompleteSource::Both { "true" } else { "false" },
+                                                div { class: "settings-led" }
+                                            }
+                                        }
+                                    }
+                                }
+                                div { class: "settings-toggle-item",
+                                    div { class: "settings-item-text",
+                                        div { class: "settings-item-label", "Miljö" }
+                                        div { class: "settings-item-description",
+                                            "Enbart gatustädning"
+                                        }
+                                    }
+                                    label { class: "settings-toggle-switch",
+                                        input {
+                                            r#type: "radio",
+                                            name: "autocomplete_source",
+                                            checked: settings().autocomplete_source == AutocompleteSource::MiljoOnly,
+                                            onchange: move |_| {
+                                                let mut current = settings();
+                                                current.autocomplete_source = AutocompleteSource::MiljoOnly;
+                                                save_settings(&current);
+                                                settings.set(current);
+                                            },
+                                        }
+                                        div { class: "settings-switch-container",
+                                            div {
+                                                class: "settings-switch-thumb",
+                                                "data-active": if settings().autocomplete_source == AutocompleteSource::MiljoOnly { "true" } else { "false" },
+                                                div { class: "settings-led" }
+                                            }
+                                        }
+                                    }
+                                }
+                                div { class: "settings-toggle-item",
+                                    div { class: "settings-item-text",
+                                        div { class: "settings-item-label", "Parkering" }
+                                        div { class: "settings-item-description",
+                                            "Enbart parkeringszoner"
+                                        }
+                                    }
+                                    label { class: "settings-toggle-switch",
+                                        input {
+                                            r#type: "radio",
+                                            name: "autocomplete_source",
+                                            checked: settings().autocomplete_source == AutocompleteSource::ParkeringOnly,
+                                            onchange: move |_| {
+                                                let mut current = settings();
+                                                current.autocomplete_source = AutocompleteSource::ParkeringOnly;
+                                                save_settings(&current);
+                                                settings.set(current);
+                                            },
+                                        }
+                                        div { class: "settings-switch-container",
+                                            div {
+                                                class: "settings-switch-thumb",
+                                                "data-active": if settings().autocomplete_source == AutocompleteSource::ParkeringOnly { "true" } else { "false" },
+                                                div { class: "settings-led" }
+                                            }
+                                        }
+                                    }
+                                }
+                                div { class: "settings-toggle-item",
+                                    div { class: "settings-item-text",
+                                        div { class: "settings-item-label", "Alla adresser" }
+                                        div { class: "settings-item-description",
+                                            "Alla ~60k adresser i Malmö (kan vara långsamt)"
+                                        }
+                                    }
+                                    label { class: "settings-toggle-switch",
+                                        input {
+                                            r#type: "radio",
+                                            name: "autocomplete_source",
+                                            checked: settings().autocomplete_source == AutocompleteSource::AllAddresses,
+                                            onchange: move |_| {
+                                                let mut current = settings();
+                                                current.autocomplete_source = AutocompleteSource::AllAddresses;
+                                                save_settings(&current);
+                                                settings.set(current);
+                                            },
+                                        }
+                                        div { class: "settings-switch-container",
+                                            div {
+                                                class: "settings-switch-thumb",
+                                                "data-active": if settings().autocomplete_source == AutocompleteSource::AllAddresses { "true" } else { "false" },
+                                                div { class: "settings-led" }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }

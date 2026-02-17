@@ -947,6 +947,7 @@ pub fn settings_data_schema() -> Arc<Schema> {
         Field::new("en_dag", DataType::Boolean, false),
         Field::new("theme", DataType::Utf8, false),
         Field::new("language", DataType::Utf8, false),
+        Field::new("autocomplete_source", DataType::Utf8, false),
     ]))
 }
 /// Build [`SettingsData`] into an in-memory Parquet buffer.
@@ -985,12 +986,14 @@ pub fn build_settings_parquet(data: Vec<SettingsData>) -> anyhow::Result<Vec<u8>
     let mut en_dag_builder = BooleanBuilder::new();
     let mut theme_builder = StringBuilder::new();
     let mut language_builder = StringBuilder::new();
+    let mut autocomplete_source_builder = StringBuilder::new();
     for row in data {
         stadning_nu_builder.append_value(row.stadning_nu);
         sex_timmar_builder.append_value(row.sex_timmar);
         en_dag_builder.append_value(row.en_dag);
         theme_builder.append_value(&row.theme);
         language_builder.append_value(&row.language);
+        autocomplete_source_builder.append_value(&row.autocomplete_source);
     }
     let batch = RecordBatch::try_new(
         schema.clone(),
@@ -1000,6 +1003,7 @@ pub fn build_settings_parquet(data: Vec<SettingsData>) -> anyhow::Result<Vec<u8>
             Arc::new(en_dag_builder.finish()),
             Arc::new(theme_builder.finish()),
             Arc::new(language_builder.finish()),
+            Arc::new(autocomplete_source_builder.finish()),
         ],
     )
     .map_err(|e| anyhow::anyhow!("Failed to create record batch: {}", e))?;
@@ -1037,6 +1041,7 @@ pub fn read_settings_parquet(file: File) -> anyhow::Result<Vec<SettingsData>> {
         let en_dag = get_boolean_column(&batch, "en_dag")?;
         let theme = get_string_column(&batch, "theme")?;
         let language = get_string_column(&batch, "language")?;
+        let autocomplete_source = get_string_column(&batch, "autocomplete_source").ok();
         for i in 0..batch.num_rows() {
             let entry = SettingsData {
                 stadning_nu: get_boolean_with_default(stadning_nu, i, true),
@@ -1044,6 +1049,9 @@ pub fn read_settings_parquet(file: File) -> anyhow::Result<Vec<SettingsData>> {
                 en_dag: get_boolean_with_default(en_dag, i, false),
                 theme: get_required_string(theme, i),
                 language: get_required_string(language, i),
+                autocomplete_source: autocomplete_source
+                    .map(|col| get_required_string(col, i))
+                    .unwrap_or_else(|| "Both".to_string()),
             };
             result.push(entry);
         }
@@ -1083,6 +1091,7 @@ pub fn read_settings_parquet_from_bytes(bytes: &[u8]) -> anyhow::Result<Vec<Sett
         let en_dag = get_boolean_column(&batch, "en_dag")?;
         let theme = get_string_column(&batch, "theme")?;
         let language = get_string_column(&batch, "language")?;
+        let autocomplete_source = get_string_column(&batch, "autocomplete_source").ok();
         for i in 0..batch.num_rows() {
             let entry = SettingsData {
                 stadning_nu: get_boolean_with_default(stadning_nu, i, true),
@@ -1090,6 +1099,9 @@ pub fn read_settings_parquet_from_bytes(bytes: &[u8]) -> anyhow::Result<Vec<Sett
                 en_dag: get_boolean_with_default(en_dag, i, false),
                 theme: get_required_string(theme, i),
                 language: get_required_string(language, i),
+                autocomplete_source: autocomplete_source
+                    .map(|col| get_required_string(col, i))
+                    .unwrap_or_else(|| "Both".to_string()),
             };
             result.push(entry);
         }

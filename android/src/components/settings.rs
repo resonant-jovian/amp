@@ -93,12 +93,45 @@ impl std::fmt::Display for Language {
         write!(f, "{}", self.as_str())
     }
 }
+/// Autocomplete data source selection
+#[derive(Clone, Debug, PartialEq, Default)]
+pub enum AutocompleteSource {
+    MiljoOnly,
+    ParkeringOnly,
+    #[default]
+    Both,
+    AllAddresses,
+}
+impl AutocompleteSource {
+    pub fn as_str(&self) -> &str {
+        match self {
+            AutocompleteSource::MiljoOnly => "MiljoOnly",
+            AutocompleteSource::ParkeringOnly => "ParkeringOnly",
+            AutocompleteSource::Both => "Both",
+            AutocompleteSource::AllAddresses => "AllAddresses",
+        }
+    }
+    fn from_string(s: &str) -> Self {
+        match s {
+            "MiljoOnly" => AutocompleteSource::MiljoOnly,
+            "ParkeringOnly" => AutocompleteSource::ParkeringOnly,
+            "AllAddresses" => AutocompleteSource::AllAddresses,
+            _ => AutocompleteSource::Both,
+        }
+    }
+}
+impl std::fmt::Display for AutocompleteSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
 /// Complete app settings
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct AppSettings {
     pub notifications: NotificationSettings,
     pub theme: Theme,
     pub language: Language,
+    pub autocomplete_source: AutocompleteSource,
 }
 /// Convert SettingsData from Parquet to AppSettings
 fn from_settings_data(data: SettingsData) -> AppSettings {
@@ -110,6 +143,7 @@ fn from_settings_data(data: SettingsData) -> AppSettings {
         },
         theme: Theme::from_string(&data.theme),
         language: Language::from_string(&data.language),
+        autocomplete_source: AutocompleteSource::from_string(&data.autocomplete_source),
     }
 }
 /// Convert AppSettings to SettingsData for Parquet serialization
@@ -120,6 +154,7 @@ fn to_settings_data(settings: &AppSettings) -> SettingsData {
         en_dag: settings.notifications.en_dag,
         theme: settings.theme.to_string(),
         language: settings.language.to_string(),
+        autocomplete_source: settings.autocomplete_source.to_string(),
     }
 }
 /// Get app-specific storage directory that's writable on Android
@@ -281,6 +316,7 @@ mod tests {
             },
             theme: Theme::Dark,
             language: Language::English,
+            autocomplete_source: AutocompleteSource::MiljoOnly,
         };
         let settings_data = to_settings_data(&original);
         let restored = from_settings_data(settings_data);
