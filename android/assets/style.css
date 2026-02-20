@@ -41,17 +41,11 @@ body {
     transition: background 0.4s ease;
 }
 
-/* Lock scroll on body/html when any overlay is open */
-html:has(.modal-overlay),
-html:has(.settings-overlay) {
-    overflow: hidden;
-    height: 100%;
-}
-
+/* Lock scroll when any overlay is open.
+   overflow: clip (not hidden) avoids resetting the scroll position. */
 body:has(.modal-overlay),
 body:has(.settings-overlay) {
-    overflow: hidden;
-    height: 100%;
+    overflow: clip;
 }
 
 input,

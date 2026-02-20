@@ -239,24 +239,20 @@ pub fn get_autocomplete_addresses(source: &AutocompleteSource) -> Vec<String> {
 /// Searches DB entries and ref data for a matching address, returning its postal code.
 pub fn get_postnummer_for_address(address: &str) -> Option<String> {
     let addr_lower = address.trim().to_lowercase();
-    // Search miljo DB entries first
     for entry in get_static_data().values() {
-        if entry.adress.to_lowercase() == addr_lower {
-            if let Some(ref pn) = entry.postnummer {
-                if !pn.is_empty() {
-                    return Some(pn.clone());
-                }
-            }
+        if entry.adress.to_lowercase() == addr_lower
+            && let Some(ref pn) = entry.postnummer
+            && !pn.is_empty()
+        {
+            return Some(pn.clone());
         }
     }
-    // Fall back to ref data
     for entry in load_ref_data().iter() {
-        if entry.adress.to_lowercase() == addr_lower {
-            if let Some(ref pn) = entry.postnummer {
-                if !pn.is_empty() {
-                    return Some(pn.clone());
-                }
-            }
+        if entry.adress.to_lowercase() == addr_lower
+            && let Some(ref pn) = entry.postnummer
+            && !pn.is_empty()
+        {
+            return Some(pn.clone());
         }
     }
     None

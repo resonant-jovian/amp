@@ -394,6 +394,7 @@ pub fn create_test_address_with_bucket(
 mod tests {
     use super::*;
     use amp_core::structs::DB;
+    use serial_test::serial;
     use std::slice::from_ref;
     /// Helper to create a test address with a specific day/time
     fn create_test_address(id: usize, day: u8, time: &str) -> StoredAddress {
@@ -424,12 +425,14 @@ mod tests {
         }
     }
     #[test]
+    #[serial]
     fn test_initialize_panel_tracker() {
         clear_panel_state();
         initialize_panel_tracker();
         assert_eq!(tracked_address_count(), 0);
     }
     #[test]
+    #[serial]
     fn test_first_detection_in_actionable_bucket() {
         clear_panel_state();
         initialize_panel_tracker();
@@ -452,6 +455,7 @@ mod tests {
         }
     }
     #[test]
+    #[serial]
     fn test_same_bucket_no_duplicate_notification() {
         clear_panel_state();
         initialize_panel_tracker();
@@ -474,6 +478,7 @@ mod tests {
         );
     }
     #[test]
+    #[serial]
     fn test_address_without_match_ignored() {
         clear_panel_state();
         initialize_panel_tracker();
@@ -495,6 +500,7 @@ mod tests {
         );
     }
     #[test]
+    #[serial]
     fn test_tracked_count_increases() {
         clear_panel_state();
         initialize_panel_tracker();
@@ -506,6 +512,7 @@ mod tests {
         assert_eq!(tracked_address_count(), 2);
     }
     #[test]
+    #[serial]
     fn test_clear_state() {
         clear_panel_state();
         initialize_panel_tracker();
@@ -516,6 +523,7 @@ mod tests {
         assert_eq!(tracked_address_count(), 0);
     }
     #[test]
+    #[serial]
     fn test_bucket_string_roundtrip() {
         let buckets = vec![
             TimeBucket::Now,
@@ -532,6 +540,7 @@ mod tests {
         }
     }
     #[test]
+    #[serial]
     fn test_state_persists_across_restart() {
         clear_panel_state();
         initialize_panel_tracker();
@@ -553,6 +562,7 @@ mod tests {
         clear_panel_state();
     }
     #[test]
+    #[serial]
     fn test_current_year_month() {
         let ym = current_year_month();
         assert!(ym >= 202001, "year_month should be >= 202001, got {}", ym);

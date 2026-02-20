@@ -249,6 +249,8 @@ pub fn TopBar(
     let mut show_settings = use_signal(|| false);
     let mut suggestions = use_signal::<Vec<String>>(Vec::new);
     let mut show_suggestions = use_signal(|| false);
+    let mut show_gps_error = use_signal(|| false);
+    let mut gps_error_msg = use_signal(String::new);
     let handle_add_click = move |_| {
         let address_str = address_input();
         let postal_code = postal_code_input();
@@ -290,22 +292,37 @@ pub fn TopBar(
     };
     let handle_gps_click = move |_| {
         info!("GPS button clicked - reading device location");
-        if let Some((lat, lon)) = read_device_gps_location() {
-            info!("Got location: lat={}, lon={}", lat, lon);
-            if let Some(entry) = find_address_by_coordinates(lat, lon) {
-                info!(
-                    "Found address: {:?} {:?}, {:?}",
-                    entry.gata, entry.gatunummer, entry.postnummer
-                );
-                let full_address = format!("{:?} {:?}", entry.gata, entry.gatunummer);
-                address_input.set(full_address);
-                postal_code_input.set(entry.postnummer.clone().unwrap_or_default());
-                info!("Address fields auto-populated from GPS");
-            } else {
-                warn!("No address found near GPS location");
+        match read_device_gps_location() {
+            Some((lat, lon)) => {
+                info!("Got location: lat={}, lon={}", lat, lon);
+                match find_address_by_coordinates(lat, lon) {
+                    Some(entry) => {
+                        info!(
+                            "GPS matched address: {} {}, {:?}",
+                            entry.gata, entry.gatunummer, entry.postnummer
+                        );
+                        let postal = entry.postnummer.unwrap_or_default();
+                        on_add_address.call((entry.gata, entry.gatunummer, postal));
+                        info!("Address added directly from GPS");
+                    }
+                    None => {
+                        warn!("No address found within 20 m of GPS position");
+                        gps_error_msg.set(
+                            "Ingen adress hittades inom 20 m från din GPS-position.".to_string(),
+                        );
+                        show_gps_error.set(true);
+                    }
+                }
             }
-        } else {
-            warn!("Could not read device location - check permissions");
+            None => {
+                warn!("Could not read device location - check permissions");
+                gps_error_msg
+                    .set(
+                        "Kunde inte läsa GPS-position. Kontrollera att platsbehörighet är beviljad och försök igen."
+                            .to_string(),
+                    );
+                show_gps_error.set(true);
+            }
         }
     };
     let handle_settings_click = move |_| {
@@ -345,7 +362,7 @@ pub fn TopBar(
                             oninput: move |evt: FormEvent| {
                                 let val = evt.value();
                                 address_input.set(val.clone());
-                                if val.trim().len() >= 1 {
+                                if !val.trim().is_empty() {
                                     let source = load_settings().autocomplete_source;
                                     let all = get_autocomplete_addresses(&source);
                                     let query = val.to_lowercase();
@@ -422,6 +439,29 @@ pub fn TopBar(
             on_close: handle_close_settings,
             debug_mode,
             on_toggle_debug,
+        }
+        if show_gps_error() {
+            div {
+                class: "modal-overlay",
+                onclick: move |_| show_gps_error.set(false),
+                div {
+                    class: "modal-container confirm-dialog",
+                    onclick: move |e| e.stop_propagation(),
+                    div { class: "modal-header",
+                        h3 { class: "confirm-dialog-title", "GPS-fel" }
+                    }
+                    div { class: "modal-body",
+                        p { "{gps_error_msg}" }
+                    }
+                    div { class: "modal-actions",
+                        button {
+                            class: "modal-btn modal-btn-cancel",
+                            onclick: move |_| show_gps_error.set(false),
+                            "OK"
+                        }
+                    }
+                }
+            }
         }
     }
 }

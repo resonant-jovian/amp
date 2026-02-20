@@ -459,23 +459,70 @@ pub fn read_device_gps_location() -> Option<(f64, f64)> {
         None
     }
 }
-/// Get Android location using JNI and LocationManager
+/// Get Android location via JNI using LocationHelper Kotlin class.
+///
+/// Calls `se.malmo.skaggbyran.amp.LocationHelper.getLocation(Context)`
+/// which checks permission, requests it if missing, and returns the last
+/// known location from GPS, network, or passive provider.
 ///
 /// # Returns
-/// Result containing (latitude, longitude) or error message
-///
-/// # TODO
-/// Implement full LocationManager integration:
-/// 1. Get LocationManager system service
-/// 2. Request last known location from GPS_PROVIDER
-/// 3. Fall back to NETWORK_PROVIDER if GPS unavailable
-/// 4. Handle location timeout and retries
+/// Result containing (latitude, longitude) or an error message
 #[cfg(target_os = "android")]
 fn get_android_location() -> Result<(f64, f64), String> {
-    Err(
-        "Android location reading not fully implemented - requires LocationManager integration"
-            .to_string(),
-    )
+    let mut env = get_jni_env()?;
+    let context = get_android_context()?;
+    let class_loader = env
+        .call_method(&context, "getClassLoader", "()Ljava/lang/ClassLoader;", &[])
+        .map_err(|e| format!("Failed to get ClassLoader: {:?}", e))?
+        .l()
+        .map_err(|e| format!("ClassLoader not an object: {:?}", e))?;
+    let j_class_name = env
+        .new_string("se.malmo.skaggbyran.amp.LocationHelper")
+        .map_err(|e| format!("Failed to create LocationHelper class name string: {:?}", e))?;
+    let class_obj = env
+        .call_method(
+            class_loader,
+            "loadClass",
+            "(Ljava/lang/String;)Ljava/lang/Class;",
+            &[JValue::Object(&j_class_name.into())],
+        )
+        .map_err(|e| format!("Failed to load LocationHelper: {:?}", e))?
+        .l()
+        .map_err(|e| format!("Loaded LocationHelper class not an object: {:?}", e))?;
+    let helper_class = JClass::from(class_obj);
+    let result_jobj = env
+        .call_static_method(
+            helper_class,
+            "getLocation",
+            "(Landroid/content/Context;)Ljava/lang/String;",
+            &[JValue::Object(&context)],
+        )
+        .map_err(|e| format!("Failed to call LocationHelper.getLocation: {:?}", e))?
+        .l()
+        .map_err(|e| format!("getLocation did not return an object: {:?}", e))?;
+    if result_jobj.is_null() {
+        return Err("LocationHelper.getLocation returned null".to_string());
+    }
+    let result_jstr: jni::objects::JString<'_> = result_jobj.into();
+    let location_str: String = env
+        .get_string(&result_jstr)
+        .map_err(|e| format!("Failed to convert location string: {:?}", e))?
+        .into();
+    if location_str.is_empty() {
+        return Err("Location unavailable — grant location permission and try again".to_string());
+    }
+    let mut parts = location_str.splitn(2, ',');
+    let lat = parts
+        .next()
+        .ok_or("Missing latitude in location string")?
+        .parse::<f64>()
+        .map_err(|e| format!("Failed to parse latitude: {:?}", e))?;
+    let lon = parts
+        .next()
+        .ok_or("Missing longitude in location string")?
+        .parse::<f64>()
+        .map_err(|e| format!("Failed to parse longitude: {:?}", e))?;
+    Ok((lat, lon))
 }
 /// Get device model and manufacturer information
 ///

@@ -137,6 +137,20 @@ verify_package_structure() {
         ISSUES=$((ISSUES + 1))
     fi
 
+    # Check LocationHelper
+    if [ -f "$KOTLIN_SRC/LocationHelper.kt" ]; then
+        local PACKAGE=$(grep "^package " "$KOTLIN_SRC/LocationHelper.kt" | awk '{print $2}' | tr -d ';')
+        if [ "$PACKAGE" = "se.malmo.skaggbyran.amp" ]; then
+            echo "  ✅ LocationHelper.kt: package=$PACKAGE"
+        else
+            echo "  ❌ LocationHelper.kt: WRONG PACKAGE ($PACKAGE != se.malmo.skaggbyran.amp)"
+            ISSUES=$((ISSUES + 1))
+        fi
+    else
+        echo "  ❌ LocationHelper.kt not found"
+        ISSUES=$((ISSUES + 1))
+    fi
+
     # Check ProGuard rules file exists
     if [ -f "$REPO_ROOT/android/proguard/proguard-rules.pro" ]; then
         echo "  ✅ ProGuard rules file found"
@@ -279,7 +293,8 @@ setup_notifications() {
     DORMANT_SERVICE_SOURCE="$REPO_ROOT/android/kotlin/DormantService.kt"
     BOOT_RECEIVER_SOURCE="$REPO_ROOT/android/kotlin/BootReceiver.kt"
     DORMANT_BRIDGE_SOURCE="$REPO_ROOT/android/kotlin/DormantBridge.kt"
-    
+    LOCATION_HELPER_SOURCE="$REPO_ROOT/android/kotlin/LocationHelper.kt"
+
     # Create Kotlin directory matching package structure
     if [ ! -d "$KOTLIN_DIR" ]; then
         echo "  📁 Creating directory: $KOTLIN_DIR"
@@ -335,7 +350,17 @@ setup_notifications() {
         echo "  ❌ DormantBridge.kt not found at $DORMANT_BRIDGE_SOURCE"
         exit 1
     fi
-    
+
+    # Copy LocationHelper.kt
+    if [ -f "$LOCATION_HELPER_SOURCE" ]; then
+        echo "  📄 Copying LocationHelper.kt to kotlin/ directory..."
+        cp "$LOCATION_HELPER_SOURCE" "$KOTLIN_DIR/LocationHelper.kt"
+        echo "  ✓ LocationHelper.kt copied (GPS location reading)"
+    else
+        echo "  ❌ LocationHelper.kt not found at $LOCATION_HELPER_SOURCE"
+        exit 1
+    fi
+
     # ========== CRITICAL: Replace auto-generated MainActivity ==========
     echo ""
     echo "  🔧 CRITICAL: Replacing auto-generated MainActivity with custom version..."
@@ -583,6 +608,16 @@ GRADLE_TASK
             echo "  ✓ RECEIVE_BOOT_COMPLETED added"
         else
             echo "  ✓ RECEIVE_BOOT_COMPLETED already present"
+        fi
+
+        # Add GPS location permissions
+        HAS_FINE_LOC=$(grep -c "android.permission.ACCESS_FINE_LOCATION" "$MANIFEST" || true)
+        if [ "$HAS_FINE_LOC" -eq 0 ]; then
+            echo "  📝 Adding GPS location permissions..."
+            sed -i '/<uses-permission.*RECEIVE_BOOT_COMPLETED/a\    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />' "$MANIFEST"
+            echo "  ✓ ACCESS_FINE_LOCATION and ACCESS_COARSE_LOCATION added"
+        else
+            echo "  ✓ GPS location permissions already present"
         fi
 
         # Register DormantService and BootReceiver in manifest
