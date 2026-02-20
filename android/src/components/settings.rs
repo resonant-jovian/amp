@@ -98,8 +98,8 @@ impl std::fmt::Display for Language {
 pub enum AutocompleteSource {
     MiljoOnly,
     ParkeringOnly,
-    #[default]
     Both,
+    #[default]
     AllAddresses,
 }
 impl AutocompleteSource {
@@ -116,7 +116,7 @@ impl AutocompleteSource {
             "MiljoOnly" => AutocompleteSource::MiljoOnly,
             "ParkeringOnly" => AutocompleteSource::ParkeringOnly,
             "AllAddresses" => AutocompleteSource::AllAddresses,
-            _ => AutocompleteSource::Both,
+            _ => AutocompleteSource::AllAddresses,
         }
     }
 }

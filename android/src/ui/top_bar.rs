@@ -126,7 +126,7 @@
 use crate::android_bridge::read_device_gps_location;
 use crate::components::geo::find_address_by_coordinates;
 use crate::components::settings::load_settings;
-use crate::components::static_data::get_autocomplete_addresses;
+use crate::components::static_data::{get_autocomplete_addresses, get_postnummer_for_address};
 use crate::ui::settings_dropdown::SettingsDropdown;
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
@@ -274,11 +274,16 @@ pub fn TopBar(
         };
         let street = street_words[..idx].join(" ");
         let street_number = street_words[idx..].join(" ");
+        let postal_code = if postal_code.trim().is_empty() {
+            get_postnummer_for_address(&address_str).unwrap_or_default()
+        } else {
+            postal_code.to_string()
+        };
         info!(
             "Parsed: street='{}', street_number='{}', postal_code='{}'",
             street, street_number, postal_code
         );
-        on_add_address.call((street, street_number, postal_code.to_string()));
+        on_add_address.call((street, street_number, postal_code));
         address_input.set(String::new());
         postal_code_input.set(String::new());
         info!("Address added successfully");
@@ -340,7 +345,7 @@ pub fn TopBar(
                             oninput: move |evt: FormEvent| {
                                 let val = evt.value();
                                 address_input.set(val.clone());
-                                if val.trim().len() >= 2 {
+                                if val.trim().len() >= 1 {
                                     let source = load_settings().autocomplete_source;
                                     let all = get_autocomplete_addresses(&source);
                                     let query = val.to_lowercase();
