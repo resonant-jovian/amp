@@ -282,6 +282,50 @@ pub fn save_settings(settings: &AppSettings) {
         }
     }
 }
+/// Get the path to the settings.parquet storage file
+///
+/// Returns the absolute path to the user's settings data file.
+/// Used by the export feature to locate the file to export.
+///
+/// # Returns
+/// - `Ok(path)` with the absolute path string
+/// - `Err(message)` if storage directory cannot be determined
+pub fn get_settings_storage_path() -> Result<String, String> {
+    let path = get_settings_path()?;
+    Ok(path
+        .to_str()
+        .ok_or_else(|| "Path contains invalid UTF-8".to_string())?
+        .to_string())
+}
+/// Import settings from an external parquet file
+///
+/// Validates the file schema by attempting to read it with `read_settings_parquet()`,
+/// then copies it over the current settings.parquet.
+///
+/// # Arguments
+/// * `temp_path` - Path to the imported temp file (from SAF file picker)
+///
+/// # Returns
+/// - `Ok(())` if import succeeded
+/// - `Err(message)` if file is invalid or copy failed
+pub fn import_settings_from_path(temp_path: &str) -> Result<(), String> {
+    let _lock = SETTINGS_LOCK.lock().unwrap();
+    let temp = std::path::Path::new(temp_path);
+    if !temp.exists() {
+        return Err("Importfilen hittades inte".to_string());
+    }
+    let file = File::open(temp).map_err(|e| format!("Kunde inte öppna filen: {}", e))?;
+    read_settings_parquet(file)
+        .map_err(|_| "Ogiltig fil: schemat matchar inte inställningsdatabasen".to_string())?;
+    let settings_path = get_settings_path()?;
+    std::fs::copy(temp, &settings_path)
+        .map_err(|e| format!("Kunde inte kopiera importfil: {}", e))?;
+    eprintln!(
+        "[Settings] Successfully imported settings from {}",
+        temp_path
+    );
+    Ok(())
+}
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -151,6 +151,20 @@ verify_package_structure() {
         ISSUES=$((ISSUES + 1))
     fi
 
+    # Check FilePickerHelper
+    if [ -f "$KOTLIN_SRC/FilePickerHelper.kt" ]; then
+        local PACKAGE=$(grep "^package " "$KOTLIN_SRC/FilePickerHelper.kt" | awk '{print $2}' | tr -d ';')
+        if [ "$PACKAGE" = "se.malmo.skaggbyran.amp" ]; then
+            echo "  ✅ FilePickerHelper.kt: package=$PACKAGE"
+        else
+            echo "  ❌ FilePickerHelper.kt: WRONG PACKAGE ($PACKAGE != se.malmo.skaggbyran.amp)"
+            ISSUES=$((ISSUES + 1))
+        fi
+    else
+        echo "  ❌ FilePickerHelper.kt not found"
+        ISSUES=$((ISSUES + 1))
+    fi
+
     # Check ProGuard rules file exists
     if [ -f "$REPO_ROOT/android/proguard/proguard-rules.pro" ]; then
         echo "  ✅ ProGuard rules file found"
@@ -294,6 +308,7 @@ setup_notifications() {
     BOOT_RECEIVER_SOURCE="$REPO_ROOT/android/kotlin/BootReceiver.kt"
     DORMANT_BRIDGE_SOURCE="$REPO_ROOT/android/kotlin/DormantBridge.kt"
     LOCATION_HELPER_SOURCE="$REPO_ROOT/android/kotlin/LocationHelper.kt"
+    FILEPICKER_SOURCE="$REPO_ROOT/android/kotlin/FilePickerHelper.kt"
 
     # Create Kotlin directory matching package structure
     if [ ! -d "$KOTLIN_DIR" ]; then
@@ -358,6 +373,16 @@ setup_notifications() {
         echo "  ✓ LocationHelper.kt copied (GPS location reading)"
     else
         echo "  ❌ LocationHelper.kt not found at $LOCATION_HELPER_SOURCE"
+        exit 1
+    fi
+
+    # Copy FilePickerHelper.kt
+    if [ -f "$FILEPICKER_SOURCE" ]; then
+        echo "  📄 Copying FilePickerHelper.kt to kotlin/ directory..."
+        cp "$FILEPICKER_SOURCE" "$KOTLIN_DIR/FilePickerHelper.kt"
+        echo "  ✓ FilePickerHelper.kt copied (SAF import/export)"
+    else
+        echo "  ❌ FilePickerHelper.kt not found at $FILEPICKER_SOURCE"
         exit 1
     fi
 
@@ -491,7 +516,7 @@ tasks.register<Copy>("syncKotlinSources") {
     }
     
     doLast {
-        println("✅ Kotlin sources synced - NotificationHelper, WebViewConfigurator, MainActivity, DormantService, DormantBridge, BootReceiver")
+        println("✅ Kotlin sources synced - NotificationHelper, WebViewConfigurator, MainActivity, DormantService, DormantBridge, BootReceiver, FilePickerHelper")
     }
 }
 
@@ -1069,14 +1094,23 @@ if [ -n "$APK_PATH" ]; then
             echo "  ⚠️  Auto-start on boot will not work"
         fi
 
-        if [ "$CLASSES_FOUND" -eq 6 ]; then
+        # Check FilePickerHelper
+        if dexdump -l plain "$APK_PATH" 2>/dev/null | grep -q "FilePickerHelper"; then
+            echo "  ✅ FilePickerHelper found in classes.dex"
+            CLASSES_FOUND=$((CLASSES_FOUND + 1))
+        else
+            echo "  ❌ FilePickerHelper NOT found in classes.dex"
+            echo "  ⚠️  Import/export will not work"
+        fi
+
+        if [ "$CLASSES_FOUND" -eq 7 ]; then
             echo ""
-            echo "  ✅ SUCCESS: All 6 Kotlin classes compiled successfully!"
+            echo "  ✅ SUCCESS: All 7 Kotlin classes compiled successfully!"
 
             # Show class details for confirmation
             echo ""
             echo "  📋 Class details:"
-            dexdump -l plain "$APK_PATH" 2>/dev/null | grep -E "(NotificationHelper|WebViewConfigurator|dev/dioxus/main/MainActivity|DormantService|DormantBridge|BootReceiver)" | head -n 16
+            dexdump -l plain "$APK_PATH" 2>/dev/null | grep -E "(NotificationHelper|WebViewConfigurator|dev/dioxus/main/MainActivity|DormantService|DormantBridge|BootReceiver|FilePickerHelper)" | head -n 18
             
             # Verify methods exist
             echo ""

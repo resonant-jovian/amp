@@ -587,6 +587,175 @@ pub fn open_url(url: &str) {
         eprintln!("[Mock Android Bridge] open_url: {}", url);
     }
 }
+/// Export a file to user-chosen location via SAF (Storage Access Framework)
+///
+/// Launches the system file picker for the user to choose a save location,
+/// then copies the source file to that location.
+///
+/// # Arguments
+/// * `source_path` - Absolute path to the file to export
+/// * `suggested_name` - Suggested file name for the save dialog
+///
+/// # Returns
+/// - `Ok(())` if export succeeded
+/// - `Err(message)` if export failed or was cancelled
+///
+/// # Platform Behavior
+/// - **Android**: Uses SAF via FilePickerHelper
+/// - **Other platforms**: Mock implementation (always errors)
+pub fn export_file_jni(source_path: &str, suggested_name: &str) -> Result<(), String> {
+    #[cfg(target_os = "android")]
+    {
+        export_file_impl(source_path, suggested_name)
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        eprintln!(
+            "[Mock Android Bridge] export_file_jni: source={}, name={}",
+            source_path, suggested_name,
+        );
+        Err("Export not supported on this platform".to_string())
+    }
+}
+#[cfg(target_os = "android")]
+fn export_file_impl(source_path: &str, suggested_name: &str) -> Result<(), String> {
+    let mut env = get_jni_env()?;
+    let context = get_android_context()?;
+    let class_loader = env
+        .call_method(&context, "getClassLoader", "()Ljava/lang/ClassLoader;", &[])
+        .map_err(|e| format!("ClassLoader error: {:?}", e))?
+        .l()
+        .map_err(|e| format!("Not object: {:?}", e))?;
+    let j_class_name = env
+        .new_string("se.malmo.skaggbyran.amp.FilePickerHelper")
+        .map_err(|e| format!("String error: {:?}", e))?;
+    let class_obj = env
+        .call_method(
+            class_loader,
+            "loadClass",
+            "(Ljava/lang/String;)Ljava/lang/Class;",
+            &[JValue::Object(&j_class_name.into())],
+        )
+        .map_err(|e| format!("Load class error: {:?}", e))?
+        .l()
+        .map_err(|e| format!("Not object: {:?}", e))?;
+    let helper_class = JClass::from(class_obj);
+    let j_source_path = env
+        .new_string(source_path)
+        .map_err(|e| format!("String error: {:?}", e))?;
+    let j_suggested_name = env
+        .new_string(suggested_name)
+        .map_err(|e| format!("String error: {:?}", e))?;
+    let j_mime_type = env
+        .new_string("application/octet-stream")
+        .map_err(|e| format!("String error: {:?}", e))?;
+    let result_obj = env
+        .call_static_method(
+            helper_class,
+            "exportFile",
+            "(Landroid/app/Activity;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;",
+            &[
+                JValue::Object(&context),
+                JValue::Object(&j_source_path),
+                JValue::Object(&j_suggested_name),
+                JValue::Object(&j_mime_type),
+            ],
+        )
+        .map_err(|e| format!("exportFile call failed: {:?}", e))?
+        .l()
+        .map_err(|e| format!("Not object: {:?}", e))?;
+    if result_obj.is_null() {
+        return Err("exportFile returned null".to_string());
+    }
+    let result_jstr: jni::objects::JString<'_> = result_obj.into();
+    let result: String = env
+        .get_string(&result_jstr)
+        .map_err(|e| format!("String conversion error: {:?}", e))?
+        .into();
+    if result == "ok" {
+        Ok(())
+    } else if result.starts_with("error:") {
+        Err(result[6..].to_string())
+    } else {
+        Err(format!("Unexpected result: {}", result))
+    }
+}
+/// Import a file from user-chosen location via SAF (Storage Access Framework)
+///
+/// Launches the system file picker for the user to choose a file,
+/// then copies it to a temp file in the app's cache directory.
+///
+/// # Returns
+/// - `Ok(Some(path))` with temp file path if a file was selected
+/// - `Ok(None)` if the user cancelled
+/// - `Err(message)` if import failed
+///
+/// # Platform Behavior
+/// - **Android**: Uses SAF via FilePickerHelper
+/// - **Other platforms**: Mock implementation (always returns None)
+pub fn import_file_jni() -> Result<Option<String>, String> {
+    #[cfg(target_os = "android")]
+    {
+        import_file_impl()
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        eprintln!("[Mock Android Bridge] import_file_jni (no-op)");
+        Ok(None)
+    }
+}
+#[cfg(target_os = "android")]
+fn import_file_impl() -> Result<Option<String>, String> {
+    let mut env = get_jni_env()?;
+    let context = get_android_context()?;
+    let class_loader = env
+        .call_method(&context, "getClassLoader", "()Ljava/lang/ClassLoader;", &[])
+        .map_err(|e| format!("ClassLoader error: {:?}", e))?
+        .l()
+        .map_err(|e| format!("Not object: {:?}", e))?;
+    let j_class_name = env
+        .new_string("se.malmo.skaggbyran.amp.FilePickerHelper")
+        .map_err(|e| format!("String error: {:?}", e))?;
+    let class_obj = env
+        .call_method(
+            class_loader,
+            "loadClass",
+            "(Ljava/lang/String;)Ljava/lang/Class;",
+            &[JValue::Object(&j_class_name.into())],
+        )
+        .map_err(|e| format!("Load class error: {:?}", e))?
+        .l()
+        .map_err(|e| format!("Not object: {:?}", e))?;
+    let helper_class = JClass::from(class_obj);
+    let j_mime_type = env
+        .new_string("*/*")
+        .map_err(|e| format!("String error: {:?}", e))?;
+    let result_obj = env
+        .call_static_method(
+            helper_class,
+            "importFile",
+            "(Landroid/app/Activity;Ljava/lang/String;)Ljava/lang/String;",
+            &[JValue::Object(&context), JValue::Object(&j_mime_type)],
+        )
+        .map_err(|e| format!("importFile call failed: {:?}", e))?
+        .l()
+        .map_err(|e| format!("Not object: {:?}", e))?;
+    if result_obj.is_null() {
+        return Err("importFile returned null".to_string());
+    }
+    let result_jstr: jni::objects::JString<'_> = result_obj.into();
+    let result: String = env
+        .get_string(&result_jstr)
+        .map_err(|e| format!("String conversion error: {:?}", e))?
+        .into();
+    if result.is_empty() {
+        Ok(None)
+    } else if result.starts_with("error:") {
+        Err(result[6..].to_string())
+    } else {
+        Ok(Some(result))
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;

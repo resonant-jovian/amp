@@ -608,12 +608,18 @@ pub fn App() -> Element {
             stored_addresses.set(loaded);
         }
     };
+    let handle_data_imported = move |_| {
+        info!("Data imported - reloading addresses from storage");
+        let loaded = read_addresses_from_device();
+        stored_addresses.set(loaded);
+    };
     rsx! {
         Stylesheet { href: CSS }
         TopBar {
             on_add_address: handle_add_address,
             debug_mode: debug_mode(),
             on_toggle_debug: handle_toggle_debug,
+            on_data_imported: handle_data_imported,
         }
         Addresses {
             stored_addresses: stored_addresses.read().clone(),

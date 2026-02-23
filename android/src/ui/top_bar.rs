@@ -243,6 +243,7 @@ pub fn TopBar(
     mut on_add_address: EventHandler<(String, String, String)>,
     debug_mode: bool,
     on_toggle_debug: EventHandler<()>,
+    on_data_imported: EventHandler<()>,
 ) -> Element {
     let mut address_input = use_signal(String::new);
     let mut postal_code_input = use_signal(String::new);
@@ -439,6 +440,7 @@ pub fn TopBar(
             on_close: handle_close_settings,
             debug_mode,
             on_toggle_debug,
+            on_data_imported,
         }
         if show_gps_error() {
             div {

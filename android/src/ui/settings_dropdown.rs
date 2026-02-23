@@ -1,11 +1,15 @@
-use crate::android_bridge::open_url;
+use crate::android_bridge::{export_file_jni, import_file_jni, open_url};
 use crate::components::notifications::{notify_active, notify_one_day, notify_six_hours};
-use crate::components::settings::{AutocompleteSource, load_settings, save_settings};
+use crate::components::settings::{
+    AutocompleteSource, get_settings_storage_path, import_settings_from_path, load_settings,
+    save_settings,
+};
+use crate::components::storage::{get_local_storage_path, import_local_from_path};
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::fa_brands_icons::FaDev;
-use dioxus_free_icons::icons::md_action_icons::{MdInfo, MdSettings};
+use dioxus_free_icons::icons::md_action_icons::{MdInfo, MdSettings, MdSwapHoriz};
 use dioxus_free_icons::icons::md_navigation_icons::MdExpandLess;
 use dioxus_free_icons::icons::md_social_icons::MdNotificationsActive;
 use std::time::Duration;
@@ -13,10 +17,17 @@ use std::time::Duration;
 #[derive(Clone, Copy, PartialEq)]
 enum OpenSection {
     None,
+    ImportExport,
     Aviseringar,
     Installningar,
     Info,
     Debug,
+}
+/// Type of data being imported
+#[derive(Clone, Copy, PartialEq)]
+enum ImportType {
+    Addresses,
+    Settings,
 }
 /// Settings dropdown panel component
 ///
@@ -53,9 +64,16 @@ pub fn SettingsDropdown(
     on_close: EventHandler<()>,
     debug_mode: bool,
     on_toggle_debug: EventHandler<()>,
+    on_data_imported: EventHandler<()>,
 ) -> Element {
     let mut settings = use_signal(load_settings);
     let mut open_section = use_signal(|| OpenSection::None);
+    let mut show_overwrite_warning = use_signal(|| false);
+    let mut pending_import_type = use_signal(|| ImportType::Addresses);
+    let mut show_error_dialog = use_signal(|| false);
+    let mut error_message = use_signal(String::new);
+    let mut show_success_dialog = use_signal(|| false);
+    let mut success_message = use_signal(String::new);
     let toggle_section = move |target_section: OpenSection| {
         spawn(async move {
             let current = open_section();
@@ -130,6 +148,97 @@ pub fn SettingsDropdown(
         eprintln!("[Debug] Triggering 1-day notification");
         notify_one_day(&debug_address);
     };
+    let handle_export_addresses = move |_| {
+        spawn(async move {
+            match get_local_storage_path() {
+                Ok(path) => match export_file_jni(&path, "local.parquet") {
+                    Ok(()) => {
+                        success_message.set("Adresser exporterade!".to_string());
+                        show_success_dialog.set(true);
+                    }
+                    Err(e) if e == "cancelled" => {}
+                    Err(e) => {
+                        error_message.set(format!("Export misslyckades: {}", e));
+                        show_error_dialog.set(true);
+                    }
+                },
+                Err(e) => {
+                    error_message.set(format!("Kunde inte hitta adressfilen: {}", e));
+                    show_error_dialog.set(true);
+                }
+            }
+        });
+    };
+    let handle_export_settings = move |_| {
+        spawn(async move {
+            match get_settings_storage_path() {
+                Ok(path) => match export_file_jni(&path, "settings.parquet") {
+                    Ok(()) => {
+                        success_message.set("Inställningar exporterade!".to_string());
+                        show_success_dialog.set(true);
+                    }
+                    Err(e) if e == "cancelled" => {}
+                    Err(e) => {
+                        error_message.set(format!("Export misslyckades: {}", e));
+                        show_error_dialog.set(true);
+                    }
+                },
+                Err(e) => {
+                    error_message.set(format!("Kunde inte hitta inställningsfilen: {}", e));
+                    show_error_dialog.set(true);
+                }
+            }
+        });
+    };
+    let handle_import_addresses_request = move |_| {
+        pending_import_type.set(ImportType::Addresses);
+        show_overwrite_warning.set(true);
+    };
+    let handle_import_settings_request = move |_| {
+        pending_import_type.set(ImportType::Settings);
+        show_overwrite_warning.set(true);
+    };
+    let handle_confirm_import = move |_| {
+        show_overwrite_warning.set(false);
+        let import_type = pending_import_type();
+        spawn(async move {
+            match import_file_jni() {
+                Ok(Some(temp_path)) => {
+                    let result = match import_type {
+                        ImportType::Addresses => import_local_from_path(&temp_path),
+                        ImportType::Settings => import_settings_from_path(&temp_path),
+                    };
+                    let _ = std::fs::remove_file(&temp_path);
+                    match result {
+                        Ok(()) => {
+                            let msg = match import_type {
+                                ImportType::Addresses => "Adresser importerade!",
+                                ImportType::Settings => "Inställningar importerade!",
+                            };
+                            success_message.set(msg.to_string());
+                            show_success_dialog.set(true);
+                            on_data_imported.call(());
+                            if import_type == ImportType::Settings {
+                                settings.set(load_settings());
+                            }
+                        }
+                        Err(e) => {
+                            error_message.set(e);
+                            show_error_dialog.set(true);
+                        }
+                    }
+                }
+                Ok(None) => {}
+                Err(e) => {
+                    error_message.set(format!("Import misslyckades: {}", e));
+                    show_error_dialog.set(true);
+                }
+            }
+        });
+    };
+    let handle_cancel_import = move |_| {
+        show_overwrite_warning.set(false);
+    };
     if !is_open {
         return rsx!();
     }
@@ -160,6 +269,96 @@ pub fn SettingsDropdown(
                                 open_url("https://github.com/resonant-jovian/amp/issues/new");
                             },
                             "💿"
+                        }
+                    }
+                    div { class: "settings-section",
+                        button {
+                            class: "settings-section-header",
+                            onclick: move |_| toggle_section(OpenSection::ImportExport),
+                            "aria-expanded": if open_section() == OpenSection::ImportExport { "true" } else { "false" },
+                            div { class: "settings-section-header-left",
+                                Icon {
+                                    icon: MdSwapHoriz,
+                                    width: 16,
+                                    height: 16,
+                                }
+                                span { "Import / Export" }
+                            }
+                            span { class: "settings-section-arrow",
+                                if open_section() == OpenSection::ImportExport {
+                                    Icon {
+                                        icon: MdExpandLess,
+                                        width: 16,
+                                        height: 16,
+                                    }
+                                } else {
+                                    Icon {
+                                        icon: MdExpandLess,
+                                        width: 16,
+                                        height: 16,
+                                    }
+                                }
+                            }
+                        }
+                        div {
+                            class: "settings-section-content",
+                            "aria-hidden": if open_section() == OpenSection::ImportExport { "false" } else { "true" },
+                            div { class: "settings-section-body",
+                                h4 { class: "info-heading", "Adresser" }
+                                div { class: "settings-toggle-item",
+                                    div { class: "settings-item-text",
+                                        div { class: "settings-item-label", "Exportera" }
+                                        div { class: "settings-item-description",
+                                            "Spara adresser till fil"
+                                        }
+                                    }
+                                    button {
+                                        class: "btn-debug-trigger",
+                                        onclick: handle_export_addresses,
+                                        "📤"
+                                    }
+                                }
+                                div { class: "settings-toggle-item",
+                                    div { class: "settings-item-text",
+                                        div { class: "settings-item-label", "Importera" }
+                                        div { class: "settings-item-description",
+                                            "Ladda adresser från fil"
+                                        }
+                                    }
+                                    button {
+                                        class: "btn-debug-trigger",
+                                        onclick: handle_import_addresses_request,
+                                        "📥"
+                                    }
+                                }
+                                h4 { class: "info-heading", "Inställningar" }
+                                div { class: "settings-toggle-item",
+                                    div { class: "settings-item-text",
+                                        div { class: "settings-item-label", "Exportera" }
+                                        div { class: "settings-item-description",
+                                            "Spara inställningar till fil"
+                                        }
+                                    }
+                                    button {
+                                        class: "btn-debug-trigger",
+                                        onclick: handle_export_settings,
+                                        "📤"
+                                    }
+                                }
+                                div { class: "settings-toggle-item",
+                                    div { class: "settings-item-text",
+                                        div { class: "settings-item-label", "Importera" }
+                                        div { class: "settings-item-description",
+                                            "Ladda inställningar från fil"
+                                        }
+                                    }
+                                    button {
+                                        class: "btn-debug-trigger",
+                                        onclick: handle_import_settings_request,
+                                        "📥"
+                                    }
+                                }
+                            }
                         }
                     }
                     div { class: "settings-section",
@@ -554,6 +753,78 @@ pub fn SettingsDropdown(
                                     }
                                 }
                             }
+                        }
+                    }
+                }
+            }
+        }
+        if show_overwrite_warning() {
+            div { class: "modal-overlay", onclick: handle_cancel_import,
+                div {
+                    class: "modal-container confirm-dialog",
+                    onclick: move |e| e.stop_propagation(),
+                    div { class: "modal-header",
+                        h3 { class: "confirm-dialog-title", "Bekräfta import" }
+                    }
+                    div { class: "modal-body",
+                        p { "Detta kommer att ersätta all nuvarande data. Vill du fortsätta?" }
+                    }
+                    div { class: "modal-actions",
+                        button {
+                            class: "modal-btn modal-btn-cancel",
+                            onclick: handle_cancel_import,
+                            "Avbryt"
+                        }
+                        button {
+                            class: "modal-btn modal-btn-confirm",
+                            onclick: handle_confirm_import,
+                            "Importera"
+                        }
+                    }
+                }
+            }
+        }
+        if show_error_dialog() {
+            div {
+                class: "modal-overlay",
+                onclick: move |_| show_error_dialog.set(false),
+                div {
+                    class: "modal-container confirm-dialog",
+                    onclick: move |e| e.stop_propagation(),
+                    div { class: "modal-header",
+                        h3 { class: "confirm-dialog-title", "Fel" }
+                    }
+                    div { class: "modal-body",
+                        p { "{error_message}" }
+                    }
+                    div { class: "modal-actions",
+                        button {
+                            class: "modal-btn modal-btn-cancel",
+                            onclick: move |_| show_error_dialog.set(false),
+                            "OK"
+                        }
+                    }
+                }
+            }
+        }
+        if show_success_dialog() {
+            div {
+                class: "modal-overlay",
+                onclick: move |_| show_success_dialog.set(false),
+                div {
+                    class: "modal-container confirm-dialog",
+                    onclick: move |e| e.stop_propagation(),
+                    div { class: "modal-header",
+                        h3 { class: "confirm-dialog-title", "Klart" }
+                    }
+                    div { class: "modal-body",
+                        p { "{success_message}" }
+                    }
+                    div { class: "modal-actions",
+                        button {
+                            class: "modal-btn modal-btn-cancel",
+                            onclick: move |_| show_success_dialog.set(false),
+                            "OK"
                         }
                     }
                 }
