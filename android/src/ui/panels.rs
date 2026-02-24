@@ -139,6 +139,8 @@
 use crate::components::countdown::{
     TimeBucket, bucket_for, format_countdown, time_until_next_occurrence, time_until_next_start,
 };
+use crate::components::settings::AppSettings;
+use crate::components::translations::t;
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
@@ -334,13 +336,15 @@ pub fn ActivePanel(addresses: Vec<StoredAddress>) -> Element {
     active_addrs = sorting_time(active_addrs);
     let active_count = active_addrs.len();
     let mut is_open = use_signal(|| false);
+    let app_settings = use_context::<Signal<AppSettings>>();
+    let tr = move |key: &'static str| t(key, &app_settings().language);
     rsx! {
         div { class: "category-container category-active",
             button {
                 class: "category-title",
                 onclick: move |_| is_open.set(!is_open()),
                 "aria-expanded": if is_open() { "true" } else { "false" },
-                span { "Städas nu" }
+                span { {tr("panel.cleaning_now")} }
                 span { class: "category-count",
                     span { class: "category-toggle-arrow",
                         if is_open() {
@@ -357,7 +361,7 @@ pub fn ActivePanel(addresses: Vec<StoredAddress>) -> Element {
                 id: "categoryActive",
                 "aria-hidden": if is_open() { "false" } else { "true" },
                 if active_count == 0 {
-                    div { class: "empty-state", "Inga adresser" }
+                    div { class: "empty-state", {tr("panel.no_addresses")} }
                 } else {
                     div { class: "address-list",
                         {
@@ -425,13 +429,15 @@ pub fn SixHoursPanel(addresses: Vec<StoredAddress>) -> Element {
     addrs = sorting_time_by_start(addrs);
     let count = addrs.len();
     let mut is_open = use_signal(|| false);
+    let app_settings = use_context::<Signal<AppSettings>>();
+    let tr = move |key: &'static str| t(key, &app_settings().language);
     rsx! {
         div { class: "category-container category-6h",
             button {
                 class: "category-title",
                 onclick: move |_| is_open.set(!is_open()),
                 "aria-expanded": if is_open() { "true" } else { "false" },
-                span { "Inom 6 timmar" }
+                span { {tr("panel.within_6h")} }
                 span { class: "category-count",
                     span { class: "category-toggle-arrow",
                         if is_open() {
@@ -448,7 +454,7 @@ pub fn SixHoursPanel(addresses: Vec<StoredAddress>) -> Element {
                 id: "category6h",
                 "aria-hidden": if is_open() { "false" } else { "true" },
                 if count == 0 {
-                    div { class: "empty-state", "Inga adresser" }
+                    div { class: "empty-state", {tr("panel.no_addresses")} }
                 } else {
                     div { class: "address-list",
                         {
@@ -516,13 +522,15 @@ pub fn OneDayPanel(addresses: Vec<StoredAddress>) -> Element {
     addrs = sorting_time_by_start(addrs);
     let count = addrs.len();
     let mut is_open = use_signal(|| false);
+    let app_settings = use_context::<Signal<AppSettings>>();
+    let tr = move |key: &'static str| t(key, &app_settings().language);
     rsx! {
         div { class: "category-container category-24h",
             button {
                 class: "category-title",
                 onclick: move |_| is_open.set(!is_open()),
                 "aria-expanded": if is_open() { "true" } else { "false" },
-                span { "Inom 1 dag" }
+                span { {tr("panel.within_1d")} }
                 span { class: "category-count",
                     span { class: "category-toggle-arrow",
                         if is_open() {
@@ -539,7 +547,7 @@ pub fn OneDayPanel(addresses: Vec<StoredAddress>) -> Element {
                 id: "category24h",
                 "aria-hidden": if is_open() { "false" } else { "true" },
                 if count == 0 {
-                    div { class: "empty-state", "Inga adresser" }
+                    div { class: "empty-state", {tr("panel.no_addresses")} }
                 } else {
                     div { class: "address-list",
                         {
@@ -607,13 +615,15 @@ pub fn OneMonthPanel(addresses: Vec<StoredAddress>) -> Element {
     addrs = sorting_time_by_start(addrs);
     let count = addrs.len();
     let mut is_open = use_signal(|| false);
+    let app_settings = use_context::<Signal<AppSettings>>();
+    let tr = move |key: &'static str| t(key, &app_settings().language);
     rsx! {
         div { class: "category-container category-month",
             button {
                 class: "category-title",
                 onclick: move |_| is_open.set(!is_open()),
                 "aria-expanded": if is_open() { "true" } else { "false" },
-                span { "Inom 1 månad" }
+                span { {tr("panel.within_1m")} }
                 span { class: "category-count",
                     span { class: "category-toggle-arrow",
                         if is_open() {
@@ -630,7 +640,7 @@ pub fn OneMonthPanel(addresses: Vec<StoredAddress>) -> Element {
                 id: "categoryMonth",
                 "aria-hidden": if is_open() { "false" } else { "true" },
                 if count == 0 {
-                    div { class: "empty-state", "Inga adresser" }
+                    div { class: "empty-state", {tr("panel.no_addresses")} }
                 } else {
                     div { class: "address-list",
                         {
@@ -698,13 +708,15 @@ pub fn MoreThan1MonthPanel(addresses: Vec<StoredAddress>) -> Element {
     addrs = sorting_time_by_start(addrs);
     let count = addrs.len();
     let mut is_open = use_signal(|| false);
+    let app_settings = use_context::<Signal<AppSettings>>();
+    let tr = move |key: &'static str| t(key, &app_settings().language);
     rsx! {
         div { class: "category-container category-later",
             button {
                 class: "category-title",
                 onclick: move |_| is_open.set(!is_open()),
                 "aria-expanded": if is_open() { "true" } else { "false" },
-                span { "30+ dagar" }
+                span { {tr("panel.more_than_1m")} }
                 span { class: "category-count",
                     span { class: "category-toggle-arrow",
                         if is_open() {
@@ -721,7 +733,7 @@ pub fn MoreThan1MonthPanel(addresses: Vec<StoredAddress>) -> Element {
                 id: "category-later",
                 "aria-hidden": if is_open() { "false" } else { "true" },
                 if count == 0 {
-                    div { class: "empty-state", "Inga adresser" }
+                    div { class: "empty-state", {tr("panel.no_addresses")} }
                 } else {
                     div { class: "address-list",
                         {
@@ -783,13 +795,15 @@ pub fn ParkingOnlyPanel(addresses: Vec<StoredAddress>) -> Element {
     );
     let count = addrs.len();
     let mut is_open = use_signal(|| false);
+    let app_settings = use_context::<Signal<AppSettings>>();
+    let tr = move |key: &'static str| t(key, &app_settings().language);
     rsx! {
         div { class: "category-container category-parking-only",
             button {
                 class: "category-title",
                 onclick: move |_| is_open.set(!is_open()),
                 "aria-expanded": if is_open() { "true" } else { "false" },
-                span { "Endast parkeringsavgift" }
+                span { {tr("panel.parking_only")} }
                 span { class: "category-count",
                     span { class: "category-toggle-arrow",
                         if is_open() {
@@ -806,7 +820,7 @@ pub fn ParkingOnlyPanel(addresses: Vec<StoredAddress>) -> Element {
                 id: "categoryParkingOnly",
                 "aria-hidden": if is_open() { "false" } else { "true" },
                 if count == 0 {
-                    div { class: "empty-state", "Inga adresser" }
+                    div { class: "empty-state", {tr("panel.no_addresses")} }
                 } else {
                     div { class: "address-list",
                         {
@@ -877,13 +891,15 @@ pub fn InvalidPanel(addresses: Vec<StoredAddress>) -> Element {
     );
     let count = addrs.len();
     let mut is_open = use_signal(|| false);
+    let app_settings = use_context::<Signal<AppSettings>>();
+    let tr = move |key: &'static str| t(key, &app_settings().language);
     rsx! {
         div { class: "category-container category-invalid",
             button {
                 class: "category-title",
                 onclick: move |_| is_open.set(!is_open()),
                 "aria-expanded": if is_open() { "true" } else { "false" },
-                span { "Ingen städning" }
+                span { {tr("panel.invalid")} }
                 span { class: "category-count",
                     span { class: "category-toggle-arrow",
                         if is_open() {
@@ -900,7 +916,7 @@ pub fn InvalidPanel(addresses: Vec<StoredAddress>) -> Element {
                 id: "categoryInvalid",
                 "aria-hidden": if is_open() { "false" } else { "true" },
                 if count == 0 {
-                    div { class: "empty-state", "Inga adresser" }
+                    div { class: "empty-state", {tr("panel.no_addresses")} }
                 } else {
                     div { class: "address-list",
                         {

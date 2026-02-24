@@ -182,6 +182,7 @@ use crate::components::address_utils::normalize_string;
 use crate::components::debug::load_debug_addresses;
 use crate::components::lifecycle::{LifecycleManager, handle_active_toggle, handle_address_change};
 use crate::components::matching::{MatchResult, match_address};
+use crate::components::settings::{Theme, load_settings};
 use crate::components::storage::{read_addresses_from_device, write_addresses_to_device};
 use crate::components::validity::check_and_update_validity;
 use amp_core::structs::DB;
@@ -500,6 +501,8 @@ pub fn App() -> Element {
     let mut stored_addresses = use_signal::<Vec<StoredAddress>>(Vec::new);
     let mut debug_mode = use_signal(|| false);
     let mut lifecycle_manager = use_signal::<Option<Arc<Mutex<LifecycleManager>>>>(|| None);
+    let app_settings = use_signal(load_settings);
+    provide_context(app_settings);
     use_effect(move || {
         let mut manager = LifecycleManager::new();
         manager.start();
@@ -613,28 +616,35 @@ pub fn App() -> Element {
         let loaded = read_addresses_from_device();
         stored_addresses.set(loaded);
     };
+    let theme_attr = if app_settings().theme == Theme::Dark {
+        "dark"
+    } else {
+        "light"
+    };
     rsx! {
         Stylesheet { href: CSS }
-        TopBar {
-            on_add_address: handle_add_address,
-            debug_mode: debug_mode(),
-            on_toggle_debug: handle_toggle_debug,
-            on_data_imported: handle_data_imported,
+        div { id: "app-root", "data-theme": theme_attr,
+            TopBar {
+                on_add_address: handle_add_address,
+                debug_mode: debug_mode(),
+                on_toggle_debug: handle_toggle_debug,
+                on_data_imported: handle_data_imported,
+            }
+            Addresses {
+                stored_addresses: stored_addresses.read().clone(),
+                on_toggle_active: handle_toggle_active,
+                on_remove_address: handle_remove_address,
+            }
+            div { class: "categories-section",
+                ActivePanel { addresses: stored_addresses.read().clone() }
+                SixHoursPanel { addresses: stored_addresses.read().clone() }
+                OneDayPanel { addresses: stored_addresses.read().clone() }
+                OneMonthPanel { addresses: stored_addresses.read().clone() }
+                MoreThan1MonthPanel { addresses: stored_addresses.read().clone() }
+                ParkingOnlyPanel { addresses: stored_addresses.read().clone() }
+                InvalidPanel { addresses: stored_addresses.read().clone() }
+            }
+            script {}
         }
-        Addresses {
-            stored_addresses: stored_addresses.read().clone(),
-            on_toggle_active: handle_toggle_active,
-            on_remove_address: handle_remove_address,
-        }
-        div { class: "categories-section",
-            ActivePanel { addresses: stored_addresses.read().clone() }
-            SixHoursPanel { addresses: stored_addresses.read().clone() }
-            OneDayPanel { addresses: stored_addresses.read().clone() }
-            OneMonthPanel { addresses: stored_addresses.read().clone() }
-            MoreThan1MonthPanel { addresses: stored_addresses.read().clone() }
-            ParkingOnlyPanel { addresses: stored_addresses.read().clone() }
-            InvalidPanel { addresses: stored_addresses.read().clone() }
-        }
-        script {}
     }
 }

@@ -125,8 +125,9 @@
 //! - [`crate::components::geo::find_address_by_coordinates`]: Address lookup
 use crate::android_bridge::read_device_gps_location;
 use crate::components::geo::find_address_by_coordinates;
-use crate::components::settings::load_settings;
+use crate::components::settings::{AppSettings, load_settings};
 use crate::components::static_data::{get_autocomplete_addresses, get_postnummer_for_address};
+use crate::components::translations::t;
 use crate::ui::settings_dropdown::SettingsDropdown;
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
@@ -252,6 +253,8 @@ pub fn TopBar(
     let mut show_suggestions = use_signal(|| false);
     let mut show_gps_error = use_signal(|| false);
     let mut gps_error_msg = use_signal(String::new);
+    let app_settings = use_context::<Signal<AppSettings>>();
+    let tr = move |key: &'static str| t(key, &app_settings().language);
     let handle_add_click = move |_| {
         let address_str = address_input();
         let postal_code = postal_code_input();
@@ -308,9 +311,8 @@ pub fn TopBar(
                     }
                     None => {
                         warn!("No address found within 20 m of GPS position");
-                        gps_error_msg.set(
-                            "Ingen adress hittades inom 20 m från din GPS-position.".to_string(),
-                        );
+                        gps_error_msg
+                            .set(t("topbar.gps_not_found", &app_settings().language).to_string());
                         show_gps_error.set(true);
                     }
                 }
@@ -318,10 +320,7 @@ pub fn TopBar(
             None => {
                 warn!("Could not read device location - check permissions");
                 gps_error_msg
-                    .set(
-                        "Kunde inte läsa GPS-position. Kontrollera att platsbehörighet är beviljad och försök igen."
-                            .to_string(),
-                    );
+                    .set(t("topbar.gps_no_permission", &app_settings().language).to_string());
                 show_gps_error.set(true);
             }
         }
@@ -356,7 +355,7 @@ pub fn TopBar(
                     div { class: "topbar-input-item autocomplete-wrapper",
                         input {
                             id: "addressInput",
-                            placeholder: "Adress",
+                            placeholder: tr("topbar.address_placeholder"),
                             r#type: "text",
                             class: "topbar-input",
                             value: "{address_input}",
@@ -407,7 +406,7 @@ pub fn TopBar(
                     div { class: "topbar-input-item",
                         input {
                             id: "postalInput",
-                            placeholder: "Postnummer (valfritt)",
+                            placeholder: tr("topbar.postal_placeholder"),
                             inputmode: "numeric",
                             r#type: "text",
                             class: "topbar-input",
@@ -423,7 +422,7 @@ pub fn TopBar(
                         class: "topbar-btn",
                         id: "addBtn",
                         onclick: handle_add_click,
-                        "Lägg till"
+                        {tr("topbar.add")}
                     }
                     button {
                         class: "topbar-btn",
@@ -450,7 +449,7 @@ pub fn TopBar(
                     class: "modal-container confirm-dialog",
                     onclick: move |e| e.stop_propagation(),
                     div { class: "modal-header",
-                        h3 { class: "confirm-dialog-title", "GPS-fel" }
+                        h3 { class: "confirm-dialog-title", {tr("topbar.gps_error_title")} }
                     }
                     div { class: "modal-body",
                         p { "{gps_error_msg}" }
@@ -459,7 +458,7 @@ pub fn TopBar(
                         button {
                             class: "modal-btn modal-btn-cancel",
                             onclick: move |_| show_gps_error.set(false),
-                            "OK"
+                            {tr("topbar.ok")}
                         }
                     }
                 }

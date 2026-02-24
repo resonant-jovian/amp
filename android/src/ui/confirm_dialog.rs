@@ -1,3 +1,5 @@
+use crate::components::settings::AppSettings;
+use crate::components::translations::t;
 use dioxus::prelude::*;
 /// Confirmation dialog component for destructive actions
 ///
@@ -32,6 +34,8 @@ pub fn ConfirmDialog(
     if !is_open {
         return rsx!();
     }
+    let app_settings = use_context::<Signal<AppSettings>>();
+    let tr = move |key: &'static str| t(key, &app_settings().language);
     rsx! {
         div { class: "modal-overlay", onclick: move |_| on_cancel.call(()),
             div {
@@ -47,12 +51,12 @@ pub fn ConfirmDialog(
                     button {
                         class: "modal-btn modal-btn-cancel",
                         onclick: move |_| on_cancel.call(()),
-                        "Avbryt"
+                        {tr("confirm_dialog.cancel")}
                     }
                     button {
                         class: "modal-btn modal-btn-confirm",
                         onclick: move |_| on_confirm.call(()),
-                        "Ta bort"
+                        {tr("confirm_dialog.confirm")}
                     }
                 }
             }

@@ -35,6 +35,15 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    background: transparent;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+}
+
+/* App root wrapper – owns the background and padding so that
+   [data-theme="dark"] can override CSS variables for the whole tree */
+#app-root {
     background: var(--color-bg);
     padding: 20px;
     min-height: 100vh;
@@ -1583,4 +1592,235 @@ button.category-title[aria-expanded="true"] {
         width: calc(100% - 16px);
         max-width: 320px;
     }
+}
+
+/* ============================================================
+   DARK THEME
+   Applied via: [data-theme="dark"]
+   Colors:
+     bg:          #2d2d2d
+     shadow-dark: #1a1a1a   (replaces #a3b1c6 / #c3c3c3)
+     shadow-light:#3a3a3a   (replaces #ffffff / #fdfdfd)
+     text:        #d0d0d0
+     text-sec:    #999999
+   ============================================================ */
+
+[data-theme="dark"] {
+    --color-bg: #2d2d2d;
+    --color-text: #d0d0d0;
+    --color-text-secondary: #999999;
+    --shadow-sm: 2px 2px 4px #1a1a1a, -2px -2px 4px #3a3a3a;
+    --shadow-md: 4px 4px 8px #1a1a1a, -4px -4px 8px #3a3a3a;
+    --shadow-lg: 6px 6px 12px #1a1a1a, -6px -6px 12px #3a3a3a;
+    --shadow-xl: 9px 9px 16px #1a1a1a, -9px -9px 16px #3a3a3a;
+    --shadow-inset: inset 2px 2px 5px #1a1a1a, inset -2px -2px 5px #3a3a3a;
+    --shadow-default: 4px 4px 8px #1a1a1a, -4px -4px 8px #3a3a3a;
+}
+
+/* Category containers */
+[data-theme="dark"] .category-container {
+    background: #2d2d2d;
+    box-shadow: 5px 5px 30px #1a1a1a, -5px -5px 30px #3a3a3a;
+}
+
+/* Topbar title gradient – dark variant */
+[data-theme="dark"] .topbar-title {
+    background: linear-gradient(
+        0deg,
+        #2d2d2d 0%,
+        #3d2e38 25%,
+        #5d3d57 75%,
+        #7a3470 100%
+    );
+}
+
+/* Topbar settings button */
+[data-theme="dark"] .topbar-settings-btn {
+    box-shadow: inset 1px 1px 3px #1a1a1a, inset -1px -1px 20px #3a3a3a;
+}
+[data-theme="dark"] .topbar-settings-btn:hover,
+[data-theme="dark"] .topbar-settings-btn:active {
+    box-shadow: inset 1px 1px 3px #1a1a1a, inset -1px -1px 20px #3a3a3a !important;
+}
+
+/* Autocomplete */
+[data-theme="dark"] .autocomplete-dropdown {
+    background: #2d2d2d;
+    box-shadow: 5px 5px 30px #1a1a1a, -5px -5px 30px #3a3a3a;
+}
+[data-theme="dark"] .autocomplete-item {
+    color: #d0d0d0;
+    box-shadow: inset 1px 1px 2px #1a1a1a, inset -1px -1px 15px #3a3a3a;
+}
+
+/* Topbar inputs */
+[data-theme="dark"] .topbar-input-item {
+    box-shadow: inset 1px 1px 3px #1a1a1a, inset -1px -1px 20px #3a3a3a;
+}
+[data-theme="dark"] .topbar-input::placeholder {
+    color: #666;
+}
+
+/* Topbar buttons */
+[data-theme="dark"] .topbar-btn {
+    background: #2d2d2d;
+    box-shadow: inset 1px 1px 3px #1a1a1a, inset -1px -1px 20px #3a3a3a;
+}
+[data-theme="dark"] .topbar-btn:focus-within {
+    box-shadow: inset 1px 1px 3px #1a1a1a, inset -1px -1px 20px #3a3a3a !important;
+}
+
+/* Address list items */
+[data-theme="dark"] .address-item {
+    box-shadow: inset 1px 1px 3px #1a1a1a, inset -1px -1px 20px #3a3a3a;
+}
+
+/* Info icon & action buttons */
+[data-theme="dark"] .address-info-icon {
+    box-shadow: inset 1px 1px 3px #1a1a1a, inset -1px -1px 5px #3a3a3a;
+}
+[data-theme="dark"] .address-info-icon:hover,
+[data-theme="dark"] .address-info-icon:focus-within {
+    box-shadow: inset 1px 1px 3px #1a1a1a, inset -1px -1px 5px #3a3a3a !important;
+}
+
+/* Main toggle switches (address list) */
+[data-theme="dark"] .switch-container {
+    box-shadow: inset 3px 3px 7px #1a1a1a, inset -3px -3px 7px #3a3a3a;
+}
+[data-theme="dark"] .switch-container:focus,
+[data-theme="dark"] .switch-container:focus-visible,
+[data-theme="dark"] .switch-container:focus-within,
+[data-theme="dark"] .switch-container:active {
+    box-shadow: inset 3px 3px 7px #1a1a1a, inset -3px -3px 7px #3a3a3a !important;
+}
+[data-theme="dark"] .switch-thumb {
+    background: #2d2d2d;
+    box-shadow: 2px 2px 5px #1a1a1a, -2px -2px 5px #3a3a3a;
+}
+[data-theme="dark"] .switch-thumb[data-active="true"] {
+    background: #4a4a4a;
+}
+
+/* Remove / debug trigger buttons */
+[data-theme="dark"] .btn-remove {
+    background: #2d2d2d;
+    box-shadow: inset 1px 1px 3px #1a1a1a, inset -1px -1px 5px #3a3a3a;
+}
+[data-theme="dark"] .btn-remove:hover,
+[data-theme="dark"] .btn-remove:focus-within {
+    box-shadow: inset 1px 1px 3px #1a1a1a, inset -1px -1px 5px #3a3a3a !important;
+}
+[data-theme="dark"] .btn-debug-trigger {
+    background: #2d2d2d;
+    box-shadow: inset 1px 1px 3px #1a1a1a, inset -1px -1px 5px #3a3a3a;
+}
+[data-theme="dark"] .btn-debug-trigger:hover {
+    box-shadow: inset 1px 1px 3px #1a1a1a, inset -1px -1px 5px #3a3a3a !important;
+}
+
+/* Modal overlay & container */
+[data-theme="dark"] .modal-overlay {
+    background: rgba(0, 0, 0, 0.65);
+}
+[data-theme="dark"] .modal-container {
+    background: #2d2d2d;
+    box-shadow: 9px 9px 16px #1a1a1a, -9px -9px 16px #3a3a3a;
+}
+[data-theme="dark"] .modal-btn {
+    background: #2d2d2d;
+    box-shadow: inset 1px 1px 3px #1a1a1a, inset -1px -1px 5px #3a3a3a;
+}
+
+/* Settings overlay & dropdown */
+[data-theme="dark"] .settings-overlay {
+    background: rgba(0, 0, 0, 0.65);
+}
+[data-theme="dark"] .settings-dropdown {
+    background: #2d2d2d;
+    box-shadow: 6px 6px 12px #1a1a1a, -6px -6px 12px #3a3a3a;
+}
+[data-theme="dark"] .settings-header {
+    background: linear-gradient(
+        0deg,
+        #2d2d2d 0%,
+        #3d2e38 25%,
+        #5d3d57 75%,
+        #7a3470 100%
+    );
+}
+[data-theme="dark"] .settings-content {
+    background: #2d2d2d;
+}
+[data-theme="dark"] .settings-section-header {
+    background: #2d2d2d;
+    box-shadow: 2px 2px 4px #1a1a1a, -2px -2px 4px #3a3a3a;
+}
+[data-theme="dark"] .settings-section-header:hover {
+    box-shadow: 3px 3px 6px #1a1a1a, -3px -3px 6px #3a3a3a;
+}
+[data-theme="dark"] .settings-section-header:active {
+    box-shadow: inset 2px 2px 4px #1a1a1a, inset -2px -2px 4px #3a3a3a;
+}
+[data-theme="dark"] .settings-section-body {
+    background: #2d2d2d;
+    box-shadow: inset 2px 2px 4px #1a1a1a, inset -2px -2px 4px #3a3a3a;
+}
+[data-theme="dark"] .settings-toggle-item,
+[data-theme="dark"] .settings-select-item {
+    box-shadow: inset 1px 1px 2px #1a1a1a, inset -1px -1px 15px #3a3a3a;
+}
+/* Settings toggle switches */
+[data-theme="dark"] .settings-switch-container {
+    background: #2d2d2d;
+    box-shadow: inset 3px 3px 7px #1a1a1a, inset -3px -3px 7px #3a3a3a;
+}
+[data-theme="dark"] .settings-switch-container:focus,
+[data-theme="dark"] .settings-switch-container:focus-visible,
+[data-theme="dark"] .settings-switch-container:focus-within,
+[data-theme="dark"] .settings-switch-container:active {
+    box-shadow: inset 3px 3px 7px #1a1a1a, inset -3px -3px 7px #3a3a3a !important;
+}
+[data-theme="dark"] .settings-switch-thumb {
+    background: #2d2d2d;
+    box-shadow: 2px 2px 5px #1a1a1a, -2px -2px 5px #3a3a3a;
+}
+[data-theme="dark"] .settings-switch-thumb[data-active="true"] {
+    background: #4a4a4a;
+}
+
+/* Language / data-source select */
+[data-theme="dark"] .settings-select {
+    background-color: #2d2d2d;
+    color: #d0d0d0;
+    box-shadow: inset 1px 1px 2px #1a1a1a, inset -1px -1px 10px #3a3a3a;
+}
+
+/* Placeholder text */
+[data-theme="dark"] .input-column input::placeholder {
+    color: #555;
+}
+
+/* Divider */
+[data-theme="dark"] .settings-divider {
+    background: rgba(208, 208, 208, 0.1);
+}
+
+/* Info dialog header gradient (dark mode) */
+[data-theme="dark"] .info-dialog .modal-header {
+    background: linear-gradient(
+        0deg,
+        #2d2d2d 0%,
+        #3d2e38 25%,
+        #5d3d57 75%,
+        #7a3470 100%
+    );
+    box-shadow: 0 4px 8px rgba(122, 52, 112, 0.3);
+}
+
+/* Modal button dark mode cancel */
+[data-theme="dark"] .modal-btn-cancel {
+    background: #2d2d2d;
+    color: #d0d0d0;
+    box-shadow: inset 1px 1px 3px #1a1a1a, inset -1px -1px 20px #3a3a3a;
 }

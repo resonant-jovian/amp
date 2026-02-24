@@ -1,10 +1,12 @@
+#![allow(clippy::suspicious_else_formatting)]
 use crate::android_bridge::{export_file_jni, import_file_jni, open_url};
 use crate::components::notifications::{notify_active, notify_one_day, notify_six_hours};
 use crate::components::settings::{
-    AutocompleteSource, get_settings_storage_path, import_settings_from_path, load_settings,
-    save_settings,
+    AppSettings, AutocompleteSource, Language, Theme, get_settings_storage_path,
+    import_settings_from_path, load_settings, save_settings,
 };
 use crate::components::storage::{get_local_storage_path, import_local_from_path};
+use crate::components::translations::t;
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
@@ -30,34 +32,6 @@ enum ImportType {
     Settings,
 }
 /// Settings dropdown panel component
-///
-/// Displays a slide-in panel from the top-right with expandable settings sections.
-/// Only one section can be expanded at a time (accordion behaviour).
-/// Switching between sections uses a 300ms delay for smooth animation.
-/// Uses neumorphic design system with gradient header matching the HTML reference.
-/// Settings items use scaled-down address-item container styling.
-///
-/// # Sections
-/// * Aviseringar - Notification preferences (städas nu, 6h, 1 day)
-/// * Inställningar - Theme toggle and language selector
-/// * Info - App information
-/// * Debug - Debug mode toggle + test notification buttons
-///
-/// # Props
-/// * `is_open` - Controls visibility of the dropdown
-/// * `on_close` - Event handler called when user closes the panel
-/// * `debug_mode` - Current debug mode state
-/// * `on_toggle_debug` - Event handler called when debug mode is toggled
-///
-/// # Example
-/// ```rust
-/// SettingsDropdown {
-///     is_open: show_settings(),
-///     on_close: handle_close_settings,
-///     debug_mode: is_debug_mode(),
-///     on_toggle_debug: handle_toggle_debug,
-/// }
-/// ```
 #[component]
 pub fn SettingsDropdown(
     is_open: bool,
@@ -66,7 +40,7 @@ pub fn SettingsDropdown(
     on_toggle_debug: EventHandler<()>,
     on_data_imported: EventHandler<()>,
 ) -> Element {
-    let mut settings = use_signal(load_settings);
+    let mut settings = use_context::<Signal<AppSettings>>();
     let mut open_section = use_signal(|| OpenSection::None);
     let mut show_overwrite_warning = use_signal(|| false);
     let mut pending_import_type = use_signal(|| ImportType::Addresses);
@@ -74,6 +48,7 @@ pub fn SettingsDropdown(
     let mut error_message = use_signal(String::new);
     let mut show_success_dialog = use_signal(|| false);
     let mut success_message = use_signal(String::new);
+    let tr = move |key: &'static str| t(key, &settings().language);
     let toggle_section = move |target_section: OpenSection| {
         spawn(async move {
             let current = open_section();
@@ -103,6 +78,28 @@ pub fn SettingsDropdown(
     let on_toggle_en_dag = move |_| {
         let mut current = settings();
         current.notifications.en_dag = !current.notifications.en_dag;
+        save_settings(&current);
+        settings.set(current);
+    };
+    let on_toggle_darkmode = move |_| {
+        let mut current = settings();
+        current.theme = if current.theme == Theme::Dark {
+            Theme::Light
+        } else {
+            Theme::Dark
+        };
+        save_settings(&current);
+        settings.set(current);
+    };
+    let on_set_language_sv = move |_| {
+        let mut current = settings();
+        current.language = Language::Svenska;
+        save_settings(&current);
+        settings.set(current);
+    };
+    let on_set_language_en = move |_| {
+        let mut current = settings();
+        current.language = Language::English;
         save_settings(&current);
         settings.set(current);
     };
@@ -153,17 +150,27 @@ pub fn SettingsDropdown(
             match get_local_storage_path() {
                 Ok(path) => match export_file_jni(&path, "local.parquet") {
                     Ok(()) => {
-                        success_message.set("Adresser exporterade!".to_string());
+                        success_message.set(
+                            t("msg.export_success.addresses", &settings().language).to_string(),
+                        );
                         show_success_dialog.set(true);
                     }
                     Err(e) if e == "cancelled" => {}
                     Err(e) => {
-                        error_message.set(format!("Export misslyckades: {}", e));
+                        error_message.set(format!(
+                            "{}: {}",
+                            t("msg.export_fail", &settings().language),
+                            e,
+                        ));
                         show_error_dialog.set(true);
                     }
                 },
                 Err(e) => {
-                    error_message.set(format!("Kunde inte hitta adressfilen: {}", e));
+                    error_message.set(format!(
+                        "{}: {}",
+                        t("msg.export_no_addr_file", &settings().language),
+                        e,
+                    ));
                     show_error_dialog.set(true);
                 }
             }
@@ -174,17 +181,27 @@ pub fn SettingsDropdown(
             match get_settings_storage_path() {
                 Ok(path) => match export_file_jni(&path, "settings.parquet") {
                     Ok(()) => {
-                        success_message.set("Inställningar exporterade!".to_string());
+                        success_message.set(
+                            t("msg.export_success.settings", &settings().language).to_string(),
+                        );
                         show_success_dialog.set(true);
                     }
                     Err(e) if e == "cancelled" => {}
                     Err(e) => {
-                        error_message.set(format!("Export misslyckades: {}", e));
+                        error_message.set(format!(
+                            "{}: {}",
+                            t("msg.export_fail", &settings().language),
+                            e,
+                        ));
                         show_error_dialog.set(true);
                     }
                 },
                 Err(e) => {
-                    error_message.set(format!("Kunde inte hitta inställningsfilen: {}", e));
+                    error_message.set(format!(
+                        "{}: {}",
+                        t("msg.export_no_sett_file", &settings().language),
+                        e,
+                    ));
                     show_error_dialog.set(true);
                 }
             }
@@ -212,14 +229,19 @@ pub fn SettingsDropdown(
                     match result {
                         Ok(()) => {
                             let msg = match import_type {
-                                ImportType::Addresses => "Adresser importerade!",
-                                ImportType::Settings => "Inställningar importerade!",
+                                ImportType::Addresses => {
+                                    t("msg.import_success.addresses", &settings().language)
+                                }
+                                ImportType::Settings => {
+                                    t("msg.import_success.settings", &settings().language)
+                                }
                             };
                             success_message.set(msg.to_string());
                             show_success_dialog.set(true);
                             on_data_imported.call(());
                             if import_type == ImportType::Settings {
-                                settings.set(load_settings());
+                                let reloaded = load_settings();
+                                settings.set(reloaded);
                             }
                         }
                         Err(e) => {
@@ -230,7 +252,11 @@ pub fn SettingsDropdown(
                 }
                 Ok(None) => {}
                 Err(e) => {
-                    error_message.set(format!("Import misslyckades: {}", e));
+                    error_message.set(format!(
+                        "{}: {}",
+                        t("msg.import_fail", &settings().language),
+                        e,
+                    ));
                     show_error_dialog.set(true);
                 }
             }
@@ -248,7 +274,7 @@ pub fn SettingsDropdown(
                 class: "settings-dropdown",
                 onclick: move |e| e.stop_propagation(),
                 div { class: "settings-header",
-                    h3 { "Inställningar" }
+                    h3 { {tr("settings.title")} }
                     button {
                         class: "settings-close-btn",
                         onclick: move |_| on_close.call(()),
@@ -258,9 +284,9 @@ pub fn SettingsDropdown(
                 div { class: "settings-content",
                     div { class: "settings-toggle-item",
                         div { class: "settings-item-text",
-                            div { class: "settings-item-label", "Issue report" }
+                            div { class: "settings-item-label", {tr("settings.issue_report.label")} }
                             div { class: "settings-item-description",
-                                "Gå till en websida för att rapportera problem eller ge nya idéer"
+                                {tr("settings.issue_report.desc")}
                             }
                         }
                         button {
@@ -282,21 +308,13 @@ pub fn SettingsDropdown(
                                     width: 16,
                                     height: 16,
                                 }
-                                span { "Import / Export" }
+                                span { {tr("settings.import_export.title")} }
                             }
                             span { class: "settings-section-arrow",
-                                if open_section() == OpenSection::ImportExport {
-                                    Icon {
-                                        icon: MdExpandLess,
-                                        width: 16,
-                                        height: 16,
-                                    }
-                                } else {
-                                    Icon {
-                                        icon: MdExpandLess,
-                                        width: 16,
-                                        height: 16,
-                                    }
+                                Icon {
+                                    icon: MdExpandLess,
+                                    width: 16,
+                                    height: 16,
                                 }
                             }
                         }
@@ -304,12 +322,16 @@ pub fn SettingsDropdown(
                             class: "settings-section-content",
                             "aria-hidden": if open_section() == OpenSection::ImportExport { "false" } else { "true" },
                             div { class: "settings-section-body",
-                                h4 { class: "info-heading", "Adresser" }
+                                h4 { class: "info-heading",
+                                    {tr("settings.import_export.addresses_heading")}
+                                }
                                 div { class: "settings-toggle-item",
                                     div { class: "settings-item-text",
-                                        div { class: "settings-item-label", "Exportera" }
+                                        div { class: "settings-item-label",
+                                            {tr("settings.import_export.export_label")}
+                                        }
                                         div { class: "settings-item-description",
-                                            "Spara adresser till fil"
+                                            {tr("settings.import_export.export_addr_desc")}
                                         }
                                     }
                                     button {
@@ -320,9 +342,11 @@ pub fn SettingsDropdown(
                                 }
                                 div { class: "settings-toggle-item",
                                     div { class: "settings-item-text",
-                                        div { class: "settings-item-label", "Importera" }
+                                        div { class: "settings-item-label",
+                                            {tr("settings.import_export.import_label")}
+                                        }
                                         div { class: "settings-item-description",
-                                            "Ladda adresser från fil"
+                                            {tr("settings.import_export.import_addr_desc")}
                                         }
                                     }
                                     button {
@@ -331,12 +355,16 @@ pub fn SettingsDropdown(
                                         "📥"
                                     }
                                 }
-                                h4 { class: "info-heading", "Inställningar" }
+                                h4 { class: "info-heading",
+                                    {tr("settings.import_export.settings_heading")}
+                                }
                                 div { class: "settings-toggle-item",
                                     div { class: "settings-item-text",
-                                        div { class: "settings-item-label", "Exportera" }
+                                        div { class: "settings-item-label",
+                                            {tr("settings.import_export.export_label")}
+                                        }
                                         div { class: "settings-item-description",
-                                            "Spara inställningar till fil"
+                                            {tr("settings.import_export.export_sett_desc")}
                                         }
                                     }
                                     button {
@@ -347,9 +375,11 @@ pub fn SettingsDropdown(
                                 }
                                 div { class: "settings-toggle-item",
                                     div { class: "settings-item-text",
-                                        div { class: "settings-item-label", "Importera" }
+                                        div { class: "settings-item-label",
+                                            {tr("settings.import_export.import_label")}
+                                        }
                                         div { class: "settings-item-description",
-                                            "Ladda inställningar från fil"
+                                            {tr("settings.import_export.import_sett_desc")}
                                         }
                                     }
                                     button {
@@ -372,21 +402,13 @@ pub fn SettingsDropdown(
                                     width: 16,
                                     height: 16,
                                 }
-                                span { "Aviseringar" }
+                                span { {tr("settings.notifications.title")} }
                             }
                             span { class: "settings-section-arrow",
-                                if open_section() == OpenSection::Aviseringar {
-                                    Icon {
-                                        icon: MdExpandLess,
-                                        width: 16,
-                                        height: 16,
-                                    }
-                                } else {
-                                    Icon {
-                                        icon: MdExpandLess,
-                                        width: 16,
-                                        height: 16,
-                                    }
+                                Icon {
+                                    icon: MdExpandLess,
+                                    width: 16,
+                                    height: 16,
                                 }
                             }
                         }
@@ -396,9 +418,11 @@ pub fn SettingsDropdown(
                             div { class: "settings-section-body",
                                 div { class: "settings-toggle-item",
                                     div { class: "settings-item-text",
-                                        div { class: "settings-item-label", "Städas nu" }
+                                        div { class: "settings-item-label",
+                                            {tr("settings.notifications.now_label")}
+                                        }
                                         div { class: "settings-item-description",
-                                            "Avisera när gatustädning pågår"
+                                            {tr("settings.notifications.now_desc")}
                                         }
                                     }
                                     label { class: "settings-toggle-switch",
@@ -418,9 +442,11 @@ pub fn SettingsDropdown(
                                 }
                                 div { class: "settings-toggle-item",
                                     div { class: "settings-item-text",
-                                        div { class: "settings-item-label", "6 timmar" }
+                                        div { class: "settings-item-label",
+                                            {tr("settings.notifications.6h_label")}
+                                        }
                                         div { class: "settings-item-description",
-                                            "Avisera 6 timmar före gatustädning"
+                                            {tr("settings.notifications.6h_desc")}
                                         }
                                     }
                                     label { class: "settings-toggle-switch",
@@ -440,9 +466,11 @@ pub fn SettingsDropdown(
                                 }
                                 div { class: "settings-toggle-item",
                                     div { class: "settings-item-text",
-                                        div { class: "settings-item-label", "1 dag" }
+                                        div { class: "settings-item-label",
+                                            {tr("settings.notifications.1d_label")}
+                                        }
                                         div { class: "settings-item-description",
-                                            "Avisera 1 dag före gatustädning"
+                                            {tr("settings.notifications.1d_desc")}
                                         }
                                     }
                                     label { class: "settings-toggle-switch",
@@ -470,21 +498,13 @@ pub fn SettingsDropdown(
                             "aria-expanded": if open_section() == OpenSection::Installningar { "true" } else { "false" },
                             div { class: "settings-section-header-left",
                                 Icon { icon: MdSettings, width: 16, height: 16 }
-                                span { "Inställningar" }
+                                span { {tr("settings.settings.title")} }
                             }
                             span { class: "settings-section-arrow",
-                                if open_section() == OpenSection::Installningar {
-                                    Icon {
-                                        icon: MdExpandLess,
-                                        width: 16,
-                                        height: 16,
-                                    }
-                                } else {
-                                    Icon {
-                                        icon: MdExpandLess,
-                                        width: 16,
-                                        height: 16,
-                                    }
+                                Icon {
+                                    icon: MdExpandLess,
+                                    width: 16,
+                                    height: 16,
                                 }
                             }
                         }
@@ -492,11 +512,88 @@ pub fn SettingsDropdown(
                             class: "settings-section-content",
                             "aria-hidden": if open_section() == OpenSection::Installningar { "false" } else { "true" },
                             div { class: "settings-section-body",
-                                h4 { class: "info-heading", "Datakälla" }
                                 div { class: "settings-toggle-item",
                                     div { class: "settings-item-text",
-                                        div { class: "settings-item-label", "Miljö + Parkering" }
-                                        div { class: "settings-item-description", "Standard" }
+                                        div { class: "settings-item-label",
+                                            {tr("settings.settings.darkmode_label")}
+                                        }
+                                        div { class: "settings-item-description",
+                                            {tr("settings.settings.darkmode_desc")}
+                                        }
+                                    }
+                                    label { class: "settings-toggle-switch",
+                                        input {
+                                            r#type: "checkbox",
+                                            checked: settings().theme == Theme::Dark,
+                                            onchange: on_toggle_darkmode,
+                                        }
+                                        div { class: "settings-switch-container",
+                                            div {
+                                                class: "settings-switch-thumb",
+                                                "data-active": if settings().theme == Theme::Dark { "true" } else { "false" },
+                                                div { class: "settings-led" }
+                                            }
+                                        }
+                                    }
+                                }
+                                h4 { class: "info-heading",
+                                    {tr("settings.settings.language_heading")}
+                                }
+                                div { class: "settings-toggle-item",
+                                    div { class: "settings-item-text",
+                                        div { class: "settings-item-label",
+                                            {tr("settings.settings.lang_sv")}
+                                        }
+                                    }
+                                    label { class: "settings-toggle-switch",
+                                        input {
+                                            r#type: "radio",
+                                            name: "language",
+                                            checked: settings().language == Language::Svenska,
+                                            onchange: on_set_language_sv,
+                                        }
+                                        div { class: "settings-switch-container",
+                                            div {
+                                                class: "settings-switch-thumb",
+                                                "data-active": if settings().language == Language::Svenska { "true" } else { "false" },
+                                                div { class: "settings-led" }
+                                            }
+                                        }
+                                    }
+                                }
+                                div { class: "settings-toggle-item",
+                                    div { class: "settings-item-text",
+                                        div { class: "settings-item-label",
+                                            {tr("settings.settings.lang_en")}
+                                        }
+                                    }
+                                    label { class: "settings-toggle-switch",
+                                        input {
+                                            r#type: "radio",
+                                            name: "language",
+                                            checked: settings().language == Language::English,
+                                            onchange: on_set_language_en,
+                                        }
+                                        div { class: "settings-switch-container",
+                                            div {
+                                                class: "settings-switch-thumb",
+                                                "data-active": if settings().language == Language::English { "true" } else { "false" },
+                                                div { class: "settings-led" }
+                                            }
+                                        }
+                                    }
+                                }
+                                h4 { class: "info-heading",
+                                    {tr("settings.settings.datasource_heading")}
+                                }
+                                div { class: "settings-toggle-item",
+                                    div { class: "settings-item-text",
+                                        div { class: "settings-item-label",
+                                            {tr("settings.settings.both_label")}
+                                        }
+                                        div { class: "settings-item-description",
+                                            {tr("settings.settings.both_desc")}
+                                        }
                                     }
                                     label { class: "settings-toggle-switch",
                                         input {
@@ -521,9 +618,11 @@ pub fn SettingsDropdown(
                                 }
                                 div { class: "settings-toggle-item",
                                     div { class: "settings-item-text",
-                                        div { class: "settings-item-label", "Miljö" }
+                                        div { class: "settings-item-label",
+                                            {tr("settings.settings.miljo_label")}
+                                        }
                                         div { class: "settings-item-description",
-                                            "Enbart gatustädning"
+                                            {tr("settings.settings.miljo_desc")}
                                         }
                                     }
                                     label { class: "settings-toggle-switch",
@@ -549,9 +648,11 @@ pub fn SettingsDropdown(
                                 }
                                 div { class: "settings-toggle-item",
                                     div { class: "settings-item-text",
-                                        div { class: "settings-item-label", "Parkering" }
+                                        div { class: "settings-item-label",
+                                            {tr("settings.settings.parkering_label")}
+                                        }
                                         div { class: "settings-item-description",
-                                            "Enbart parkeringszoner"
+                                            {tr("settings.settings.parkering_desc")}
                                         }
                                     }
                                     label { class: "settings-toggle-switch",
@@ -577,9 +678,11 @@ pub fn SettingsDropdown(
                                 }
                                 div { class: "settings-toggle-item",
                                     div { class: "settings-item-text",
-                                        div { class: "settings-item-label", "Alla adresser" }
+                                        div { class: "settings-item-label",
+                                            {tr("settings.settings.all_label")}
+                                        }
                                         div { class: "settings-item-description",
-                                            "Alla ~60k adresser i Malmö (kan vara långsamt)"
+                                            {tr("settings.settings.all_desc")}
                                         }
                                     }
                                     label { class: "settings-toggle-switch",
@@ -613,21 +716,13 @@ pub fn SettingsDropdown(
                             "aria-expanded": if open_section() == OpenSection::Info { "true" } else { "false" },
                             div { class: "settings-section-header-left",
                                 Icon { icon: MdInfo, width: 16, height: 16 }
-                                span { "Info" }
+                                span { {tr("settings.info.title")} }
                             }
                             span { class: "settings-section-arrow",
-                                if open_section() == OpenSection::Info {
-                                    Icon {
-                                        icon: MdExpandLess,
-                                        width: 16,
-                                        height: 16,
-                                    }
-                                } else {
-                                    Icon {
-                                        icon: MdExpandLess,
-                                        width: 16,
-                                        height: 16,
-                                    }
+                                Icon {
+                                    icon: MdExpandLess,
+                                    width: 16,
+                                    height: 16,
                                 }
                             }
                         }
@@ -635,29 +730,21 @@ pub fn SettingsDropdown(
                             class: "settings-section-content",
                             "aria-hidden": if open_section() == OpenSection::Info { "false" } else { "true" },
                             div { class: "settings-section-body",
-                                h4 { class: "info-heading", "Om appen" }
+                                h4 { class: "info-heading", {tr("settings.info.about_heading")} }
                                 div { class: "settings-toggle-item",
-                                    div { class: "info-text", "Välkommen till amp. " }
+                                    div { class: "info-text", {tr("settings.info.p1")} }
                                 }
                                 div { class: "settings-toggle-item",
-                                    div { class: "info-text",
-                                        "Vi tar inget ansvar för vad Malmö stad väljer att göra, detta är ett verktyg, inget mer. "
-                                    }
+                                    div { class: "info-text", {tr("settings.info.p2")} }
                                 }
                                 div { class: "settings-toggle-item",
-                                    div { class: "info-text",
-                                        "Appen tar data Malmö lägger upp, formaterar den bättre och använder en kopplings algoritm för att skapa en databas som sedan används här för att du som användare förhoppningsvis ska få mindre böter och Malmö ska kunna städa sina gator utan problem. Inget mer, inget mindre. "
-                                    }
+                                    div { class: "info-text", {tr("settings.info.p3")} }
                                 }
                                 div { class: "settings-toggle-item",
-                                    div { class: "info-text",
-                                        "Hantering av dagar 29 och 30 i Februari är oklart då Malmös system deklarerar data med en dag i månaden mellan 1 och 30 per datapunkt. Detta innebär bland annat att ingen städning ska hända enligt dem den 31 i månader med det datumet. De säger inget om hur månaden Februari hanteras varken under vanliga år eller skåttår. Nu ignoreras de relevanta adresserna för månad Februari och hamnar istället görs i nästa månad. Är detta rätt? Ingen aning! "
-                                    }
+                                    div { class: "info-text", {tr("settings.info.p4")} }
                                 }
                                 div { class: "settings-toggle-item",
-                                    div { class: "info-text",
-                                        "Målet är att inte kräva någon internet uppkoppling i appen men för närvarande pga. UI systemet jag använder så kommer appen krascha om jag inter har nätverks rättigheter. All komplicerad koppling sker på en server som skickar en universell app uppdatering när Malmös data uppdateras. "
-                                    }
+                                    div { class: "info-text", {tr("settings.info.p5")} }
                                 }
                             }
                         }
@@ -669,21 +756,13 @@ pub fn SettingsDropdown(
                             "aria-expanded": if open_section() == OpenSection::Debug { "true" } else { "false" },
                             div { class: "settings-section-header-left",
                                 Icon { icon: FaDev, width: 16, height: 16 }
-                                span { "Debug" }
+                                span { {tr("settings.debug.title")} }
                             }
                             span { class: "settings-section-arrow",
-                                if open_section() == OpenSection::Debug {
-                                    Icon {
-                                        icon: MdExpandLess,
-                                        width: 16,
-                                        height: 16,
-                                    }
-                                } else {
-                                    Icon {
-                                        icon: MdExpandLess,
-                                        width: 16,
-                                        height: 16,
-                                    }
+                                Icon {
+                                    icon: MdExpandLess,
+                                    width: 16,
+                                    height: 16,
                                 }
                             }
                         }
@@ -693,9 +772,11 @@ pub fn SettingsDropdown(
                             div { class: "settings-section-body",
                                 div { class: "settings-toggle-item",
                                     div { class: "settings-item-text",
-                                        div { class: "settings-item-label", "Debug adresser" }
+                                        div { class: "settings-item-label",
+                                            {tr("settings.debug.addresses_label")}
+                                        }
                                         div { class: "settings-item-description",
-                                            "Visa felsökningsinformation för adresser"
+                                            {tr("settings.debug.addresses_desc")}
                                         }
                                     }
                                     label { class: "settings-toggle-switch",
@@ -715,9 +796,11 @@ pub fn SettingsDropdown(
                                 }
                                 div { class: "settings-toggle-item",
                                     div { class: "settings-item-text",
-                                        div { class: "settings-item-label", "Test Städas nu" }
+                                        div { class: "settings-item-label",
+                                            {tr("settings.debug.test_now_label")}
+                                        }
                                         div { class: "settings-item-description",
-                                            "Skicka aktiv städning-avisering"
+                                            {tr("settings.debug.test_now_desc")}
                                         }
                                     }
                                     button {
@@ -728,9 +811,11 @@ pub fn SettingsDropdown(
                                 }
                                 div { class: "settings-toggle-item",
                                     div { class: "settings-item-text",
-                                        div { class: "settings-item-label", "Test 6 timmar" }
+                                        div { class: "settings-item-label",
+                                            {tr("settings.debug.test_6h_label")}
+                                        }
                                         div { class: "settings-item-description",
-                                            "Skicka 6-timmars varning"
+                                            {tr("settings.debug.test_6h_desc")}
                                         }
                                     }
                                     button {
@@ -741,9 +826,11 @@ pub fn SettingsDropdown(
                                 }
                                 div { class: "settings-toggle-item",
                                     div { class: "settings-item-text",
-                                        div { class: "settings-item-label", "Test 1 dag" }
+                                        div { class: "settings-item-label",
+                                            {tr("settings.debug.test_1d_label")}
+                                        }
                                         div { class: "settings-item-description",
-                                            "Skicka 1-dags påminnelse"
+                                            {tr("settings.debug.test_1d_desc")}
                                         }
                                     }
                                     button {
@@ -764,21 +851,21 @@ pub fn SettingsDropdown(
                     class: "modal-container confirm-dialog",
                     onclick: move |e| e.stop_propagation(),
                     div { class: "modal-header",
-                        h3 { class: "confirm-dialog-title", "Bekräfta import" }
+                        h3 { class: "confirm-dialog-title", {tr("dialog.confirm_import.title")} }
                     }
                     div { class: "modal-body",
-                        p { "Detta kommer att ersätta all nuvarande data. Vill du fortsätta?" }
+                        p { {tr("dialog.confirm_import.body")} }
                     }
                     div { class: "modal-actions",
                         button {
                             class: "modal-btn modal-btn-cancel",
                             onclick: handle_cancel_import,
-                            "Avbryt"
+                            {tr("dialog.confirm_import.cancel")}
                         }
                         button {
                             class: "modal-btn modal-btn-confirm",
                             onclick: handle_confirm_import,
-                            "Importera"
+                            {tr("dialog.confirm_import.ok")}
                         }
                     }
                 }
@@ -792,7 +879,7 @@ pub fn SettingsDropdown(
                     class: "modal-container confirm-dialog",
                     onclick: move |e| e.stop_propagation(),
                     div { class: "modal-header",
-                        h3 { class: "confirm-dialog-title", "Fel" }
+                        h3 { class: "confirm-dialog-title", {tr("dialog.error.title")} }
                     }
                     div { class: "modal-body",
                         p { "{error_message}" }
@@ -801,7 +888,7 @@ pub fn SettingsDropdown(
                         button {
                             class: "modal-btn modal-btn-cancel",
                             onclick: move |_| show_error_dialog.set(false),
-                            "OK"
+                            {tr("dialog.ok")}
                         }
                     }
                 }
@@ -815,7 +902,7 @@ pub fn SettingsDropdown(
                     class: "modal-container confirm-dialog",
                     onclick: move |e| e.stop_propagation(),
                     div { class: "modal-header",
-                        h3 { class: "confirm-dialog-title", "Klart" }
+                        h3 { class: "confirm-dialog-title", {tr("dialog.success.title")} }
                     }
                     div { class: "modal-body",
                         p { "{success_message}" }
@@ -824,7 +911,7 @@ pub fn SettingsDropdown(
                         button {
                             class: "modal-btn modal-btn-cancel",
                             onclick: move |_| show_success_dialog.set(false),
-                            "OK"
+                            {tr("dialog.ok")}
                         }
                     }
                 }
