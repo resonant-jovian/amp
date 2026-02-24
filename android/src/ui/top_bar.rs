@@ -125,6 +125,9 @@
 //! - [`crate::components::geo::find_address_by_coordinates`]: Address lookup
 use crate::android_bridge::read_device_gps_location;
 use crate::components::geo::find_address_by_coordinates;
+use crate::components::settings::{AppSettings, load_settings};
+use crate::components::static_data::{get_autocomplete_addresses, get_postnummer_for_address};
+use crate::components::translations::t;
 use crate::ui::settings_dropdown::SettingsDropdown;
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
@@ -241,10 +244,17 @@ pub fn TopBar(
     mut on_add_address: EventHandler<(String, String, String)>,
     debug_mode: bool,
     on_toggle_debug: EventHandler<()>,
+    on_data_imported: EventHandler<()>,
 ) -> Element {
     let mut address_input = use_signal(String::new);
     let mut postal_code_input = use_signal(String::new);
     let mut show_settings = use_signal(|| false);
+    let mut suggestions = use_signal::<Vec<String>>(Vec::new);
+    let mut show_suggestions = use_signal(|| false);
+    let mut show_gps_error = use_signal(|| false);
+    let mut gps_error_msg = use_signal(String::new);
+    let app_settings = use_context::<Signal<AppSettings>>();
+    let tr = move |key: &'static str| t(key, &app_settings().language);
     let handle_add_click = move |_| {
         let address_str = address_input();
         let postal_code = postal_code_input();
@@ -270,33 +280,49 @@ pub fn TopBar(
         };
         let street = street_words[..idx].join(" ");
         let street_number = street_words[idx..].join(" ");
+        let postal_code = if postal_code.trim().is_empty() {
+            get_postnummer_for_address(&address_str).unwrap_or_default()
+        } else {
+            postal_code.to_string()
+        };
         info!(
             "Parsed: street='{}', street_number='{}', postal_code='{}'",
             street, street_number, postal_code
         );
-        on_add_address.call((street, street_number, postal_code.to_string()));
+        on_add_address.call((street, street_number, postal_code));
         address_input.set(String::new());
         postal_code_input.set(String::new());
         info!("Address added successfully");
     };
     let handle_gps_click = move |_| {
         info!("GPS button clicked - reading device location");
-        if let Some((lat, lon)) = read_device_gps_location() {
-            info!("Got location: lat={}, lon={}", lat, lon);
-            if let Some(entry) = find_address_by_coordinates(lat, lon) {
-                info!(
-                    "Found address: {:?} {:?}, {:?}",
-                    entry.gata, entry.gatunummer, entry.postnummer
-                );
-                let full_address = format!("{:?} {:?}", entry.gata, entry.gatunummer);
-                address_input.set(full_address);
-                postal_code_input.set(entry.postnummer.clone().unwrap_or_default());
-                info!("Address fields auto-populated from GPS");
-            } else {
-                warn!("No address found near GPS location");
+        match read_device_gps_location() {
+            Some((lat, lon)) => {
+                info!("Got location: lat={}, lon={}", lat, lon);
+                match find_address_by_coordinates(lat, lon) {
+                    Some(entry) => {
+                        info!(
+                            "GPS matched address: {} {}, {:?}",
+                            entry.gata, entry.gatunummer, entry.postnummer
+                        );
+                        let postal = entry.postnummer.unwrap_or_default();
+                        on_add_address.call((entry.gata, entry.gatunummer, postal));
+                        info!("Address added directly from GPS");
+                    }
+                    None => {
+                        warn!("No address found within 20 m of GPS position");
+                        gps_error_msg
+                            .set(t("topbar.gps_not_found", &app_settings().language).to_string());
+                        show_gps_error.set(true);
+                    }
+                }
             }
-        } else {
-            warn!("Could not read device location - check permissions");
+            None => {
+                warn!("Could not read device location - check permissions");
+                gps_error_msg
+                    .set(t("topbar.gps_no_permission", &app_settings().language).to_string());
+                show_gps_error.set(true);
+            }
         }
     };
     let handle_settings_click = move |_| {
@@ -326,22 +352,61 @@ pub fn TopBar(
             }
             div { class: "topbar-content",
                 div { class: "topbar-inputs-row",
-                    div { class: "address-item topbar-input-item",
+                    div { class: "topbar-input-item autocomplete-wrapper",
                         input {
                             id: "addressInput",
-                            placeholder: "Adress",
+                            placeholder: tr("topbar.address_placeholder"),
                             r#type: "text",
                             class: "topbar-input",
                             value: "{address_input}",
                             oninput: move |evt: FormEvent| {
-                                address_input.set(evt.value());
+                                let val = evt.value();
+                                address_input.set(val.clone());
+                                if !val.trim().is_empty() {
+                                    let source = load_settings().autocomplete_source;
+                                    let all = get_autocomplete_addresses(&source);
+                                    let query = val.to_lowercase();
+                                    let filtered: Vec<String> = all
+                                        .into_iter()
+                                        .filter(|a| a.to_lowercase().contains(&query))
+                                        .take(10)
+                                        .collect();
+                                    suggestions.set(filtered);
+                                    show_suggestions.set(true);
+                                } else {
+                                    suggestions.set(Vec::new());
+                                    show_suggestions.set(false);
+                                }
+                            },
+                            onfocusin: move |_| {
+                                if !suggestions.read().is_empty() {
+                                    show_suggestions.set(true);
+                                }
                             },
                         }
+                        if show_suggestions() && !suggestions.read().is_empty() {
+                            div { class: "autocomplete-dropdown",
+                                for suggestion in suggestions.read().iter() {
+                                    div {
+                                        class: "autocomplete-item",
+                                        onclick: {
+                                            let s = suggestion.clone();
+                                            move |_| {
+                                                address_input.set(s.clone());
+                                                show_suggestions.set(false);
+                                                suggestions.set(Vec::new());
+                                            }
+                                        },
+                                        "{suggestion}"
+                                    }
+                                }
+                            }
+                        }
                     }
-                    div { class: "address-item topbar-input-item",
+                    div { class: "topbar-input-item",
                         input {
                             id: "postalInput",
-                            placeholder: "Postnummer (valfritt)",
+                            placeholder: tr("topbar.postal_placeholder"),
                             inputmode: "numeric",
                             r#type: "text",
                             class: "topbar-input",
@@ -357,7 +422,7 @@ pub fn TopBar(
                         class: "topbar-btn",
                         id: "addBtn",
                         onclick: handle_add_click,
-                        "Lägg till"
+                        {tr("topbar.add")}
                     }
                     button {
                         class: "topbar-btn",
@@ -374,6 +439,30 @@ pub fn TopBar(
             on_close: handle_close_settings,
             debug_mode,
             on_toggle_debug,
+            on_data_imported,
+        }
+        if show_gps_error() {
+            div {
+                class: "modal-overlay",
+                onclick: move |_| show_gps_error.set(false),
+                div {
+                    class: "modal-container confirm-dialog",
+                    onclick: move |e| e.stop_propagation(),
+                    div { class: "modal-header",
+                        h3 { class: "confirm-dialog-title", {tr("topbar.gps_error_title")} }
+                    }
+                    div { class: "modal-body",
+                        p { "{gps_error_msg}" }
+                    }
+                    div { class: "modal-actions",
+                        button {
+                            class: "modal-btn modal-btn-cancel",
+                            onclick: move |_| show_gps_error.set(false),
+                            {tr("topbar.ok")}
+                        }
+                    }
+                }
+            }
         }
     }
 }

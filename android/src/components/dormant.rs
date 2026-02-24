@@ -15,6 +15,7 @@ use crate::components::transitions::detect_transitions;
 use serde::Serialize;
 /// Notification data returned to Kotlin for display
 #[derive(Clone, Debug, Serialize)]
+#[allow(dead_code)]
 pub struct DormantNotification {
     pub channel_id: String,
     pub notification_id: i32,
@@ -30,6 +31,7 @@ pub struct DormantNotification {
 /// 5. Maps transitions to notification data (respecting user settings)
 ///
 /// Returns a list of notifications to send.
+#[allow(dead_code)]
 pub fn dormant_hourly_check(storage_path: &str) -> Vec<DormantNotification> {
     eprintln!(
         "[Dormant] Starting hourly check with storage_path={}",

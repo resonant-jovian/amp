@@ -92,13 +92,15 @@
 //! - [`ConfirmDialog`]: Removal confirmation modal
 //! - [`InfoDialog`]: Parking details modal
 //! - [`crate::ui::StoredAddress`]: Address data structure
+use crate::components::settings::AppSettings;
+use crate::components::translations::t;
 use crate::ui::StoredAddress;
 use crate::ui::confirm_dialog::ConfirmDialog;
 use crate::ui::info_dialog::InfoDialog;
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::md_action_icons::MdInfo;
-use dioxus_free_icons::icons::md_navigation_icons::{MdExpandLess};
+use dioxus_free_icons::icons::md_navigation_icons::MdExpandLess;
 /// Address list component displaying all stored addresses with toggle and remove controls.
 ///
 /// This component provides a comprehensive interface for managing saved addresses:
@@ -225,20 +227,22 @@ pub fn Addresses(
     };
     let mut is_open = use_signal(|| false);
     let count = stored_addresses.len();
+    let app_settings = use_context::<Signal<AppSettings>>();
+    let tr = move |key: &'static str| t(key, &app_settings().language);
     rsx! {
         div { class: "category-container category-addresses",
             button {
                 class: "category-title",
                 onclick: move |_| is_open.set(!is_open()),
                 "aria-expanded": if is_open() { "true" } else { "false" },
-                span { "Adresser" }
+                span { {tr("addresses.title")} }
                 span { class: "category-count",
                     span { class: "category-toggle-arrow",
-                    if is_open() {
-                        Icon { icon: MdExpandLess, width: 16, height: 16 }
-                    } else {
-                        Icon { icon: MdExpandLess, width: 16, height: 16 }
-                    }
+                        if is_open() {
+                            Icon { icon: MdExpandLess, width: 16, height: 16 }
+                        } else {
+                            Icon { icon: MdExpandLess, width: 16, height: 16 }
+                        }
                     }
                     "{ count }"
                 }
@@ -247,7 +251,7 @@ pub fn Addresses(
                 class: "category-content",
                 "aria-hidden": if is_open() { "false" } else { "true" },
                 if sorted_addresses.is_empty() {
-                    div { class: "empty-state", "Inga adresser tillagda" }
+                    div { class: "empty-state", {tr("addresses.empty")} }
                 } else {
                     div { id: "addressList",
                         {
@@ -293,8 +297,8 @@ pub fn Addresses(
             }
             ConfirmDialog {
                 is_open: show_confirm(),
-                title: "Bekräfta borttagning".to_string(),
-                message: "Är du säker på att du vill ta bort denna adress?".to_string(),
+                title: tr("addresses.confirm_remove_title").to_string(),
+                message: tr("addresses.confirm_remove_msg").to_string(),
                 on_confirm: handle_confirm_remove,
                 on_cancel: handle_cancel,
             }

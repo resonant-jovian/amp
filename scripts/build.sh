@@ -137,6 +137,34 @@ verify_package_structure() {
         ISSUES=$((ISSUES + 1))
     fi
 
+    # Check LocationHelper
+    if [ -f "$KOTLIN_SRC/LocationHelper.kt" ]; then
+        local PACKAGE=$(grep "^package " "$KOTLIN_SRC/LocationHelper.kt" | awk '{print $2}' | tr -d ';')
+        if [ "$PACKAGE" = "se.malmo.skaggbyran.amp" ]; then
+            echo "  ✅ LocationHelper.kt: package=$PACKAGE"
+        else
+            echo "  ❌ LocationHelper.kt: WRONG PACKAGE ($PACKAGE != se.malmo.skaggbyran.amp)"
+            ISSUES=$((ISSUES + 1))
+        fi
+    else
+        echo "  ❌ LocationHelper.kt not found"
+        ISSUES=$((ISSUES + 1))
+    fi
+
+    # Check FilePickerHelper
+    if [ -f "$KOTLIN_SRC/FilePickerHelper.kt" ]; then
+        local PACKAGE=$(grep "^package " "$KOTLIN_SRC/FilePickerHelper.kt" | awk '{print $2}' | tr -d ';')
+        if [ "$PACKAGE" = "se.malmo.skaggbyran.amp" ]; then
+            echo "  ✅ FilePickerHelper.kt: package=$PACKAGE"
+        else
+            echo "  ❌ FilePickerHelper.kt: WRONG PACKAGE ($PACKAGE != se.malmo.skaggbyran.amp)"
+            ISSUES=$((ISSUES + 1))
+        fi
+    else
+        echo "  ❌ FilePickerHelper.kt not found"
+        ISSUES=$((ISSUES + 1))
+    fi
+
     # Check ProGuard rules file exists
     if [ -f "$REPO_ROOT/android/proguard/proguard-rules.pro" ]; then
         echo "  ✅ ProGuard rules file found"
@@ -279,7 +307,9 @@ setup_notifications() {
     DORMANT_SERVICE_SOURCE="$REPO_ROOT/android/kotlin/DormantService.kt"
     BOOT_RECEIVER_SOURCE="$REPO_ROOT/android/kotlin/BootReceiver.kt"
     DORMANT_BRIDGE_SOURCE="$REPO_ROOT/android/kotlin/DormantBridge.kt"
-    
+    LOCATION_HELPER_SOURCE="$REPO_ROOT/android/kotlin/LocationHelper.kt"
+    FILEPICKER_SOURCE="$REPO_ROOT/android/kotlin/FilePickerHelper.kt"
+
     # Create Kotlin directory matching package structure
     if [ ! -d "$KOTLIN_DIR" ]; then
         echo "  📁 Creating directory: $KOTLIN_DIR"
@@ -335,7 +365,27 @@ setup_notifications() {
         echo "  ❌ DormantBridge.kt not found at $DORMANT_BRIDGE_SOURCE"
         exit 1
     fi
-    
+
+    # Copy LocationHelper.kt
+    if [ -f "$LOCATION_HELPER_SOURCE" ]; then
+        echo "  📄 Copying LocationHelper.kt to kotlin/ directory..."
+        cp "$LOCATION_HELPER_SOURCE" "$KOTLIN_DIR/LocationHelper.kt"
+        echo "  ✓ LocationHelper.kt copied (GPS location reading)"
+    else
+        echo "  ❌ LocationHelper.kt not found at $LOCATION_HELPER_SOURCE"
+        exit 1
+    fi
+
+    # Copy FilePickerHelper.kt
+    if [ -f "$FILEPICKER_SOURCE" ]; then
+        echo "  📄 Copying FilePickerHelper.kt to kotlin/ directory..."
+        cp "$FILEPICKER_SOURCE" "$KOTLIN_DIR/FilePickerHelper.kt"
+        echo "  ✓ FilePickerHelper.kt copied (SAF import/export)"
+    else
+        echo "  ❌ FilePickerHelper.kt not found at $FILEPICKER_SOURCE"
+        exit 1
+    fi
+
     # ========== CRITICAL: Replace auto-generated MainActivity ==========
     echo ""
     echo "  🔧 CRITICAL: Replacing auto-generated MainActivity with custom version..."
@@ -466,7 +516,7 @@ tasks.register<Copy>("syncKotlinSources") {
     }
     
     doLast {
-        println("✅ Kotlin sources synced - NotificationHelper, WebViewConfigurator, MainActivity, DormantService, DormantBridge, BootReceiver")
+        println("✅ Kotlin sources synced - NotificationHelper, WebViewConfigurator, MainActivity, DormantService, DormantBridge, BootReceiver, FilePickerHelper")
     }
 }
 
@@ -583,6 +633,16 @@ GRADLE_TASK
             echo "  ✓ RECEIVE_BOOT_COMPLETED added"
         else
             echo "  ✓ RECEIVE_BOOT_COMPLETED already present"
+        fi
+
+        # Add GPS location permissions
+        HAS_FINE_LOC=$(grep -c "android.permission.ACCESS_FINE_LOCATION" "$MANIFEST" || true)
+        if [ "$HAS_FINE_LOC" -eq 0 ]; then
+            echo "  📝 Adding GPS location permissions..."
+            sed -i '/<uses-permission.*RECEIVE_BOOT_COMPLETED/a\    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />' "$MANIFEST"
+            echo "  ✓ ACCESS_FINE_LOCATION and ACCESS_COARSE_LOCATION added"
+        else
+            echo "  ✓ GPS location permissions already present"
         fi
 
         # Register DormantService and BootReceiver in manifest
@@ -1034,14 +1094,23 @@ if [ -n "$APK_PATH" ]; then
             echo "  ⚠️  Auto-start on boot will not work"
         fi
 
-        if [ "$CLASSES_FOUND" -eq 6 ]; then
+        # Check FilePickerHelper
+        if dexdump -l plain "$APK_PATH" 2>/dev/null | grep -q "FilePickerHelper"; then
+            echo "  ✅ FilePickerHelper found in classes.dex"
+            CLASSES_FOUND=$((CLASSES_FOUND + 1))
+        else
+            echo "  ❌ FilePickerHelper NOT found in classes.dex"
+            echo "  ⚠️  Import/export will not work"
+        fi
+
+        if [ "$CLASSES_FOUND" -eq 7 ]; then
             echo ""
-            echo "  ✅ SUCCESS: All 6 Kotlin classes compiled successfully!"
+            echo "  ✅ SUCCESS: All 7 Kotlin classes compiled successfully!"
 
             # Show class details for confirmation
             echo ""
             echo "  📋 Class details:"
-            dexdump -l plain "$APK_PATH" 2>/dev/null | grep -E "(NotificationHelper|WebViewConfigurator|dev/dioxus/main/MainActivity|DormantService|DormantBridge|BootReceiver)" | head -n 16
+            dexdump -l plain "$APK_PATH" 2>/dev/null | grep -E "(NotificationHelper|WebViewConfigurator|dev/dioxus/main/MainActivity|DormantService|DormantBridge|BootReceiver|FilePickerHelper)" | head -n 18
             
             # Verify methods exist
             echo ""

@@ -683,6 +683,80 @@ fn save_to_parquet(addresses: &[StoredAddress]) -> Result<(), String> {
     );
     Ok(())
 }
+/// Get the path to the local.parquet storage file
+///
+/// Returns the absolute path to the user's address data file.
+/// Used by the export feature to locate the file to export.
+///
+/// # Returns
+/// - `Ok(path)` with the absolute path string
+/// - `Err(message)` if storage directory cannot be determined
+pub fn get_local_storage_path() -> Result<String, String> {
+    #[cfg(target_os = "android")]
+    {
+        let path = get_local_parquet_path()?;
+        Ok(path
+            .to_str()
+            .ok_or("Path contains invalid UTF-8")?
+            .to_string())
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let mut path = get_storage_dir()?;
+        path.push("local.parquet");
+        Ok(path
+            .to_str()
+            .ok_or_else(|| "Path contains invalid UTF-8".to_string())?
+            .to_string())
+    }
+}
+/// Import addresses from an external parquet file
+///
+/// Validates the file schema by attempting to read it with `read_local_parquet()`,
+/// then copies it over the current local.parquet with backup rotation.
+///
+/// # Arguments
+/// * `temp_path` - Path to the imported temp file (from SAF file picker)
+///
+/// # Returns
+/// - `Ok(())` if import succeeded
+/// - `Err(message)` if file is invalid or copy failed
+pub fn import_local_from_path(temp_path: &str) -> Result<(), String> {
+    let _lock = STORAGE_LOCK.lock().unwrap();
+    let temp = std::path::Path::new(temp_path);
+    if !temp.exists() {
+        return Err("Importfilen hittades inte".to_string());
+    }
+    let file = File::open(temp).map_err(|e| format!("Kunde inte öppna filen: {}", e))?;
+    read_local_parquet(file)
+        .map_err(|_| "Ogiltig fil: schemat matchar inte adressdatabasen".to_string())?;
+    #[cfg(target_os = "android")]
+    {
+        let local_path = get_local_parquet_path()?;
+        let backup_path = get_backup_parquet_path()?;
+        if backup_path.exists() {
+            fs::remove_file(&backup_path)
+                .map_err(|e| format!("Kunde inte ta bort gammal backup: {}", e))?;
+        }
+        if local_path.exists() {
+            fs::rename(&local_path, &backup_path)
+                .map_err(|e| format!("Kunde inte skapa backup: {}", e))?;
+        }
+        fs::copy(temp, &local_path).map_err(|e| format!("Kunde inte kopiera importfil: {}", e))?;
+        eprintln!(
+            "[Storage] Successfully imported addresses from {}",
+            temp_path
+        );
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let mut path = get_storage_dir()?;
+        path.push("local.parquet");
+        fs::copy(temp, &path).map_err(|e| format!("Kunde inte kopiera importfil: {}", e))?;
+        eprintln!("[Mock Storage] Imported addresses from {}", temp_path);
+    }
+    Ok(())
+}
 #[cfg(test)]
 mod tests {
     #[allow(unused_imports)]

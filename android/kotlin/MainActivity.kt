@@ -1,8 +1,10 @@
 package dev.dioxus.main
 
+import android.content.Intent
 import android.util.Log
 import android.webkit.WebView
 import se.malmo.skaggbyran.amp.BuildConfig
+import se.malmo.skaggbyran.amp.FilePickerHelper
 // REMOVED: import se.malmo.skaggbyran.amp.WebViewConfigurator
 // Using reflection instead to avoid class verification failure
 
@@ -96,6 +98,19 @@ class MainActivity : WryActivity() {
             Log.e(TAG, "❌ Failed to configure WebView via reflection: ${e.javaClass.simpleName}", e)
             Log.e(TAG, "   Message: ${e.message}")
             // Non-fatal - app may still work with RustWebView defaults
+        }
+    }
+
+    /**
+     * Handle SAF file picker results for import/export.
+     *
+     * Delegates to FilePickerHelper for our request codes (2001, 2002).
+     * Other request codes are passed to the superclass.
+     */
+    @Suppress("DEPRECATION")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (!FilePickerHelper.onActivityResult(requestCode, resultCode, data)) {
+            super.onActivityResult(requestCode, resultCode, data)
         }
     }
 }

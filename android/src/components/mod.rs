@@ -101,4 +101,5 @@ pub mod settings;
 pub mod static_data;
 pub mod storage;
 pub mod transitions;
+pub mod translations;
 pub mod validity;

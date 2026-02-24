@@ -42,6 +42,13 @@
 }
 -keepnames class se.malmo.skaggbyran.amp.BootReceiver
 
+# Keep FilePickerHelper - SAF file picker for import/export via JNI
+-keep public class se.malmo.skaggbyran.amp.FilePickerHelper {
+    public <methods>;
+    public <fields>;
+}
+-keepnames class se.malmo.skaggbyran.amp.FilePickerHelper
+
 # Keep DormantBridge - JNI bridge to Rust dormant check
 -keep public class se.malmo.skaggbyran.amp.DormantBridge {
     public <methods>;
