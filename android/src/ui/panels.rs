@@ -369,9 +369,10 @@ pub fn ActivePanel(addresses: Vec<StoredAddress>) -> Element {
                                 .into_iter()
                                 .enumerate()
                                 .map(|(i, addr)| {
+                                    let key = addr.id;
                                     rsx! {
                                         AddressItem {
-                                            key: "{i}",
+                                            key: "{key}",
                                             addr: addr.clone(),
                                             index: i,
                                             on_remove: move |_| {},
@@ -462,9 +463,10 @@ pub fn SixHoursPanel(addresses: Vec<StoredAddress>) -> Element {
                                 .into_iter()
                                 .enumerate()
                                 .map(|(i, addr)| {
+                                    let key = addr.id;
                                     rsx! {
                                         AddressItem {
-                                            key: "{i}",
+                                            key: "{key}",
                                             addr: addr.clone(),
                                             index: i,
                                             on_remove: move |_| {},
@@ -555,9 +557,10 @@ pub fn OneDayPanel(addresses: Vec<StoredAddress>) -> Element {
                                 .into_iter()
                                 .enumerate()
                                 .map(|(i, addr)| {
+                                    let key = addr.id;
                                     rsx! {
                                         AddressItem {
-                                            key: "{i}",
+                                            key: "{key}",
                                             addr: addr.clone(),
                                             index: i,
                                             on_remove: move |_| {},
@@ -648,9 +651,10 @@ pub fn OneMonthPanel(addresses: Vec<StoredAddress>) -> Element {
                                 .into_iter()
                                 .enumerate()
                                 .map(|(i, addr)| {
+                                    let key = addr.id;
                                     rsx! {
                                         AddressItem {
-                                            key: "{i}",
+                                            key: "{key}",
                                             addr: addr.clone(),
                                             index: i,
                                             on_remove: move |_| {},
@@ -741,9 +745,10 @@ pub fn MoreThan1MonthPanel(addresses: Vec<StoredAddress>) -> Element {
                                 .into_iter()
                                 .enumerate()
                                 .map(|(i, addr)| {
+                                    let key = addr.id;
                                     rsx! {
                                         AddressItem {
-                                            key: "{i}",
+                                            key: "{key}",
                                             addr: addr.clone(),
                                             index: i,
                                             on_remove: move |_| {},
@@ -828,9 +833,10 @@ pub fn ParkingOnlyPanel(addresses: Vec<StoredAddress>) -> Element {
                                 .into_iter()
                                 .enumerate()
                                 .map(|(i, addr)| {
+                                    let key = addr.id;
                                     rsx! {
                                         AddressItem {
-                                            key: "{i}",
+                                            key: "{key}",
                                             addr: addr.clone(),
                                             index: i,
                                             on_remove: move |_| {},
@@ -924,9 +930,10 @@ pub fn InvalidPanel(addresses: Vec<StoredAddress>) -> Element {
                                 .into_iter()
                                 .enumerate()
                                 .map(|(i, addr)| {
+                                    let key = addr.id;
                                     rsx! {
                                         AddressItem {
-                                            key: "{i}",
+                                            key: "{key}",
                                             addr: addr.clone(),
                                             index: i,
                                             on_remove: move |_| {},

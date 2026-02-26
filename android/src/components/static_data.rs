@@ -61,7 +61,7 @@ const PARQUET_REF_BYTES: &[u8] = include_bytes!("../../assets/data/adresser.parq
 ///
 /// # Returns
 /// Tuple of (year, month) to use for creating the DB entry
-fn determine_year_month(
+pub(crate) fn determine_year_month(
     day: u8,
     current_year: i32,
     current_month: u32,
@@ -200,6 +200,7 @@ pub fn get_autocomplete_addresses(source: &AutocompleteSource) -> Vec<String> {
         AutocompleteSource::Both => {
             let mut addrs: Vec<String> = get_static_data()
                 .values()
+                .filter(|db| db.info.is_some() || db.taxa.is_some())
                 .map(|db| db.adress.clone())
                 .collect::<HashSet<_>>()
                 .into_iter()
