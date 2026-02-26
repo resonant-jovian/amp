@@ -603,7 +603,20 @@ GRADLE_TASK
         exit 1
     fi
     # ========== END PROGUARD ==========
-    
+
+    # ========== INJECT SPLASHSCREEN DEPENDENCY ==========
+    echo ""
+    echo "  🎬 Injecting SplashScreen API dependency..."
+    if [ -f "$BUILD_GRADLE" ]; then
+        if ! grep -q "core-splashscreen" "$BUILD_GRADLE"; then
+            sed -i 's/implementation("com.google.android.material:material:[^"]*")/&\n    implementation("androidx.core:core-splashscreen:1.0.1")/' "$BUILD_GRADLE"
+            echo "  ✅ core-splashscreen dependency added"
+        else
+            echo "  ✅ core-splashscreen already present"
+        fi
+    fi
+    # ========== END SPLASHSCREEN DEPENDENCY ==========
+
     # Add notification permissions to manifest if not already present
     if [ -f "$MANIFEST" ]; then
         HAS_POST_NOTIF=$(grep -c "android.permission.POST_NOTIFICATIONS" "$MANIFEST" || true)
@@ -684,6 +697,26 @@ GRADLE_TASK
     if [ -f "$STRINGS_XML" ]; then
         sed -i 's/<string name="app_name">.*<\/string>/<string name="app_name">amp<\/string>/g' "$STRINGS_XML"
         echo "  ✅ App name set to lowercase 'amp'"
+    fi
+
+    # Fix styles.xml to use SplashScreen theme
+    local STYLES_XML="$ANDROID_DIR/src/main/res/values/styles.xml"
+    if [ -f "$STYLES_XML" ]; then
+        cat > "$STYLES_XML" << 'STYLES_EOF'
+<resources>
+    <!-- Base app theme (restored after splash dismisses) -->
+    <style name="AppThemeBase" parent="Theme.AppCompat.Light.NoActionBar">
+    </style>
+
+    <!-- Splash screen theme (shown on cold start) -->
+    <style name="AppTheme" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#e0e0e0</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="postSplashScreenTheme">@style/AppThemeBase</item>
+    </style>
+</resources>
+STYLES_EOF
+        echo "  ✅ styles.xml updated with SplashScreen theme"
     fi
 }
 # ========== END NOTIFICATION SETUP ==========
