@@ -300,10 +300,13 @@ fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
             "[Storage::from_local_data] Found persisted match data: tid={}, dag={}, taxa={:?}",
             tid, dag, data.taxa,
         );
+        use crate::components::static_data::determine_year_month;
         use chrono::Utc;
         let now = Utc::now();
         let current_year = now.year();
         let current_month = now.month();
+        let current_day = now.day();
+        let (year, month) = determine_year_month(dag, current_year, current_month, current_day);
         match DB::from_params(DBParams {
             postnummer: data.postnummer.clone(),
             adress: format!("{} {}", street, street_number),
@@ -315,8 +318,8 @@ fn from_local_data(data: LocalData, id: usize) -> StoredAddress {
             taxa: data.taxa.clone(),
             antal_platser: data.antal_platser,
             typ_av_parkering: data.typ_av_parkering.clone(),
-            year: current_year,
-            month: current_month,
+            year,
+            month,
         }) {
             Some(db_entry) => {
                 eprintln!(

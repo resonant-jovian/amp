@@ -15,7 +15,7 @@ fn t_sv(key: &str) -> &'static str {
         "topbar.add" => "Lägg till",
         "topbar.settings_title" => "Inställningar",
         "topbar.gps_error_title" => "GPS-fel",
-        "topbar.gps_not_found" => "Ingen adress hittades inom 20 m från din GPS-position.",
+        "topbar.gps_not_found" => "Ingen adress hittades inom 50 m från din GPS-position.",
         "topbar.gps_no_permission" => {
             "Kunde inte läsa GPS-position. Kontrollera att platsbehörighet är beviljad och försök igen."
         }
@@ -84,7 +84,6 @@ fn t_sv(key: &str) -> &'static str {
         "msg.import_success.addresses" => "Adresser importerade!",
         "msg.import_success.settings" => "Inställningar importerade!",
         "msg.import_fail" => "Import misslyckades",
-        // panels
         "panel.cleaning_now" => "Städas nu",
         "panel.within_6h" => "Inom 6 timmar",
         "panel.within_1d" => "Inom 1 dag",
@@ -93,15 +92,12 @@ fn t_sv(key: &str) -> &'static str {
         "panel.parking_only" => "Endast parkeringsavgift",
         "panel.invalid" => "Ingen städning",
         "panel.no_addresses" => "Inga adresser",
-        // addresses panel
         "addresses.title" => "Adresser",
         "addresses.empty" => "Inga adresser tillagda",
         "addresses.confirm_remove_title" => "Bekräfta borttagning",
         "addresses.confirm_remove_msg" => "Är du säker på att du vill ta bort denna adress?",
-        // confirm dialog buttons
         "confirm_dialog.cancel" => "Avbryt",
         "confirm_dialog.confirm" => "Ta bort",
-        // info dialog
         "info_dialog.title" => "Adressinformation",
         "info_dialog.street" => "Gata:",
         "info_dialog.street_number" => "Gatunummer:",
@@ -117,7 +113,6 @@ fn t_sv(key: &str) -> &'static str {
         "info_dialog.yes" => "Ja",
         "info_dialog.no" => "Nej",
         "info_dialog.close" => "Stäng",
-        // settings info paragraphs
         "settings.info.p1" => "Välkommen till amp.",
         "settings.info.p2" => {
             "Vi tar inget ansvar för vad Malmö stad väljer att göra, detta är ett verktyg, inget mer."
@@ -141,7 +136,7 @@ fn t_en(key: &str) -> &'static str {
         "topbar.add" => "Add",
         "topbar.settings_title" => "Settings",
         "topbar.gps_error_title" => "GPS error",
-        "topbar.gps_not_found" => "No address found within 20 m of your GPS position.",
+        "topbar.gps_not_found" => "No address found within 50 m of your GPS position.",
         "topbar.gps_no_permission" => {
             "Could not read GPS position. Check that location permission is granted and try again."
         }
@@ -208,7 +203,6 @@ fn t_en(key: &str) -> &'static str {
         "msg.import_success.addresses" => "Addresses imported!",
         "msg.import_success.settings" => "Settings imported!",
         "msg.import_fail" => "Import failed",
-        // panels
         "panel.cleaning_now" => "Cleaning now",
         "panel.within_6h" => "Within 6 hours",
         "panel.within_1d" => "Within 1 day",
@@ -217,15 +211,12 @@ fn t_en(key: &str) -> &'static str {
         "panel.parking_only" => "Parking fee only",
         "panel.invalid" => "No cleaning",
         "panel.no_addresses" => "No addresses",
-        // addresses panel
         "addresses.title" => "Addresses",
         "addresses.empty" => "No addresses added",
         "addresses.confirm_remove_title" => "Confirm removal",
         "addresses.confirm_remove_msg" => "Are you sure you want to remove this address?",
-        // confirm dialog buttons
         "confirm_dialog.cancel" => "Cancel",
         "confirm_dialog.confirm" => "Remove",
-        // info dialog
         "info_dialog.title" => "Address information",
         "info_dialog.street" => "Street:",
         "info_dialog.street_number" => "Street number:",
@@ -241,7 +232,6 @@ fn t_en(key: &str) -> &'static str {
         "info_dialog.yes" => "Yes",
         "info_dialog.no" => "No",
         "info_dialog.close" => "Close",
-        // settings info paragraphs
         "settings.info.p1" => "Welcome to amp.",
         "settings.info.p2" => {
             "We take no responsibility for what the city of Malmö chooses to do, this is a tool, nothing more."

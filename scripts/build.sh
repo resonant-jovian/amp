@@ -603,7 +603,8 @@ GRADLE_TASK
         exit 1
     fi
     # ========== END PROGUARD ==========
-    
+
+
     # Add notification permissions to manifest if not already present
     if [ -f "$MANIFEST" ]; then
         HAS_POST_NOTIF=$(grep -c "android.permission.POST_NOTIFICATIONS" "$MANIFEST" || true)
@@ -684,6 +685,18 @@ GRADLE_TASK
     if [ -f "$STRINGS_XML" ]; then
         sed -i 's/<string name="app_name">.*<\/string>/<string name="app_name">amp<\/string>/g' "$STRINGS_XML"
         echo "  ✅ App name set to lowercase 'amp'"
+    fi
+
+    # Fix styles.xml to use plain AppCompat theme (no splash)
+    local STYLES_XML="$ANDROID_DIR/src/main/res/values/styles.xml"
+    if [ -f "$STYLES_XML" ]; then
+        cat > "$STYLES_XML" << 'STYLES_EOF'
+<resources>
+    <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
+    </style>
+</resources>
+STYLES_EOF
+        echo "  ✅ styles.xml updated"
     fi
 }
 # ========== END NOTIFICATION SETUP ==========
