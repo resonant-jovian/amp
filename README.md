@@ -8,6 +8,7 @@
 [![Correlation Algorithms](https://github.com/resonant-jovian/amp/actions/workflows/correlation-tests.yml/badge.svg)](https://github.com/resonant-jovian/amp/actions/workflows/correlation-tests.yml)
 [![Server Benchmark](https://github.com/resonant-jovian/amp/actions/workflows/server-benchmark.yml/badge.svg)](https://github.com/resonant-jovian/amp/actions/workflows/server-benchmark.yml)
 [![Android Build](https://github.com/resonant-jovian/amp/actions/workflows/android-test.yml/badge.svg)](https://github.com/resonant-jovian/amp/actions/workflows/android-test.yml)
+[![iOS Build ](https://github.com/resonant-jovian/amp/actions/workflows/ios-test.yml/badge.svg)](https://github.com/resonant-jovian/amp/actions/workflows/ios-test.yml)
 
 ## Overview
 
