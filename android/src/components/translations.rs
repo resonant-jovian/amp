@@ -15,7 +15,7 @@ fn t_sv(key: &str) -> &'static str {
         "topbar.add" => "Lägg till",
         "topbar.settings_title" => "Inställningar",
         "topbar.gps_error_title" => "GPS-fel",
-        "topbar.gps_not_found" => "Ingen adress hittades inom 20 m från din GPS-position.",
+        "topbar.gps_not_found" => "Ingen adress hittades inom 50 m från din GPS-position.",
         "topbar.gps_no_permission" => {
             "Kunde inte läsa GPS-position. Kontrollera att platsbehörighet är beviljad och försök igen."
         }
@@ -136,7 +136,7 @@ fn t_en(key: &str) -> &'static str {
         "topbar.add" => "Add",
         "topbar.settings_title" => "Settings",
         "topbar.gps_error_title" => "GPS error",
-        "topbar.gps_not_found" => "No address found within 20 m of your GPS position.",
+        "topbar.gps_not_found" => "No address found within 50 m of your GPS position.",
         "topbar.gps_no_permission" => {
             "Could not read GPS position. Check that location permission is granted and try again."
         }
