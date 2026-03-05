@@ -14,7 +14,7 @@ resources = [
     "assets/fonts/**/*"
 ]
 
-[bundle.android]
+[bundle.ios]
 publisher = "Skäggbyrån Malmö"
 identifier = "se.malmo.skaggbyran.amp"
 icon = ["assets/icon/icon-512.png"]
@@ -22,19 +22,8 @@ resources = [
     "assets/style.css",
     "assets/fonts/**/*"
 ]
-min_sdk_version = 21
-target_sdk_version = 36
-orientation = "portrait"
-jks_password = "$storePassword"
-key_password = "$keyPassword"
-key_alias = "$keyAlias"
-jks_file = "$storeFile"
 
-[bundle.android.permissions]
-android.permission.LOCATION_FINE = true
-android.permission.NOTIFICATIONS = true
-
-[profile.android-release]
+[profile.ios-release]
 inherits = "release"
 opt-level = 3
 strip = false
