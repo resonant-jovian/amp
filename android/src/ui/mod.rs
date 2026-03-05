@@ -635,15 +635,13 @@ pub fn App() -> Element {
                 on_toggle_active: handle_toggle_active,
                 on_remove_address: handle_remove_address,
             }
-            div { class: "categories-section",
-                ActivePanel { addresses: stored_addresses.read().clone() }
-                SixHoursPanel { addresses: stored_addresses.read().clone() }
-                OneDayPanel { addresses: stored_addresses.read().clone() }
-                OneMonthPanel { addresses: stored_addresses.read().clone() }
-                MoreThan1MonthPanel { addresses: stored_addresses.read().clone() }
-                ParkingOnlyPanel { addresses: stored_addresses.read().clone() }
-                InvalidPanel { addresses: stored_addresses.read().clone() }
-            }
+            ActivePanel { addresses: stored_addresses.read().clone() }
+            SixHoursPanel { addresses: stored_addresses.read().clone() }
+            OneDayPanel { addresses: stored_addresses.read().clone() }
+            OneMonthPanel { addresses: stored_addresses.read().clone() }
+            MoreThan1MonthPanel { addresses: stored_addresses.read().clone() }
+            ParkingOnlyPanel { addresses: stored_addresses.read().clone() }
+            InvalidPanel { addresses: stored_addresses.read().clone() }
             script {}
         }
     }
