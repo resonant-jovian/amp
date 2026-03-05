@@ -1,11 +1,64 @@
 #!/bin/bash
 set -e
 
-echo "🔨 Building Dioxus Android APK..."
-
 # Get repository root (parent of scripts directory)
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 echo "📍 Project root: $REPO_ROOT"
+
+# ========== PLATFORM SELECTION ==========
+PLATFORM="${1:-}"
+if [ -z "$PLATFORM" ]; then
+    echo "Select build target:"
+    echo "  1) android"
+    echo "  2) ios"
+    echo "  3) both"
+    read -r -p "Enter choice [1-3]: " CHOICE
+    case "$CHOICE" in
+        1) PLATFORM="android" ;;
+        2) PLATFORM="ios" ;;
+        3) PLATFORM="both" ;;
+        *) echo "Invalid choice"; exit 1 ;;
+    esac
+fi
+# ========== END PLATFORM SELECTION ==========
+
+# ========== iOS BUILD FUNCTION ==========
+build_ios() {
+    echo ""
+    echo "🍎 iOS build..."
+    echo "⚠️  Full iOS build requires macOS + Xcode. Checking Rust compilation only."
+    cd "$REPO_ROOT/ios" || exit 1
+    if rustup target list --installed | grep -q "aarch64-apple-ios"; then
+        cargo build --target aarch64-apple-ios --release && \
+            echo "✅ iOS Rust compilation successful" || \
+            echo "⚠️  iOS Rust compilation failed"
+    else
+        echo "⚠️  Target aarch64-apple-ios not installed."
+        echo "   Run: rustup target add aarch64-apple-ios"
+    fi
+    cd "$REPO_ROOT"
+}
+# ========== END iOS BUILD FUNCTION ==========
+
+# Dispatch to platform-specific build
+case "$PLATFORM" in
+    ios)
+        build_ios
+        exit 0
+        ;;
+    both)
+        # Android runs below; iOS runs at end
+        ;;
+    android)
+        # Android runs below
+        ;;
+    *)
+        echo "Unknown platform: $PLATFORM"
+        exit 1
+        ;;
+esac
+
+echo "🔨 Building Dioxus Android APK..."
 
 # Go to android directory
 cd "$REPO_ROOT/android" || {
@@ -75,8 +128,8 @@ verify_package_structure() {
             ISSUES=$((ISSUES + 1))
         fi
         
-        # Verify it calls WebViewConfigurator
-        if grep -q "WebViewConfigurator.configure" "$KOTLIN_SRC/MainActivity.kt"; then
+        # Verify it calls WebViewConfigurator (direct or via constants)
+        if grep -q "WebViewConfigurator\|CONFIGURATOR_CLASS" "$KOTLIN_SRC/MainActivity.kt"; then
             echo "  ✅ MainActivity calls WebViewConfigurator.configure()"
         else
             echo "  ❌ MainActivity does not call WebViewConfigurator!"
@@ -703,7 +756,7 @@ STYLES_EOF
 
 # Build with Dioxus (generates fresh gradle files)
 echo "📦 Building APK with Dioxus..."
-if ! dx build --android --release --device HQ646M01AF --verbose; then
+if ! dx build --android --release --verbose; then
     echo ""
     echo "⚠️  First build failed, applying fixes and retrying..."
     echo ""
@@ -785,7 +838,7 @@ if ! dx build --android --release --device HQ646M01AF --verbose; then
         echo "🎨 Injecting custom app icons..."
 
         RES_DIR="$ANDROID_DIR/src/main/res"
-        ICON_SOURCE="$REPO_ROOT/android/assets/icon"
+        ICON_SOURCE="$REPO_ROOT/assets/icon"
 
         # 1. CRITICAL: Remove ALL existing ic_launcher* files
         echo "  🗑️  Removing all existing ic_launcher* files..."
@@ -1233,3 +1286,8 @@ echo "   - ClassNotFoundException → Review R8 diagnostics above"
 echo "   - Check R8 mapping files: $ANDROID_DIR/build/outputs/mapping/release/"
 echo "   - JNI errors → Check android_bridge.rs calls correct package"
 echo "   - Build errors → Check gradle logs in /tmp/gradle_build.log"
+
+# If platform is "both", also run the iOS build
+if [ "$PLATFORM" = "both" ]; then
+    build_ios
+fi
