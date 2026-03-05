@@ -4,7 +4,6 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.webkit.WebView
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import se.malmo.skaggbyran.amp.BuildConfig
 import se.malmo.skaggbyran.amp.FilePickerHelper
 // REMOVED: import se.malmo.skaggbyran.amp.WebViewConfigurator
@@ -49,7 +48,6 @@ typealias BuildConfig = BuildConfig
 class MainActivity : WryActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
         super.onCreate(savedInstanceState)
     }
 
