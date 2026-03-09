@@ -15,11 +15,10 @@ fn main() {
     }
     #[cfg(target_os = "ios")]
     {
-        ios_logger::init_once(
-            ios_logger::Config::default()
-                .with_max_level(log::LevelFilter::Debug)
-                .with_tag("amp"),
-        );
+        oslog::OsLogger::new("se.malmo.skaggbyran.amp")
+            .level_filter(log::LevelFilter::Debug)
+            .init()
+            .unwrap_or_else(|e| eprintln!("[Main] Failed to init oslog: {}", e));
     }
     #[cfg(not(target_os = "ios"))]
     {
@@ -27,9 +26,9 @@ fn main() {
     }
     log::info!("Starting Amp ios app");
     #[cfg(target_os = "ios")]
-    ios_bridge::request_notification_permission_jni();
+    ios_bridge::request_notification_permission();
     #[cfg(target_os = "ios")]
-    ios_bridge::start_dormant_service_jni();
+    ios_bridge::start_dormant_service();
     #[cfg(target_os = "ios")]
     {
         use dioxus::mobile::Config;

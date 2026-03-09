@@ -14,7 +14,7 @@
 //! ├─────────────────────────────────────┤
 //! │   Business Logic (components/)      │  ← App logic, state management
 //! ├─────────────────────────────────────┤
-//! │   ios Bridge (ios_bridge)           │  ← JNI integration
+//! │   iOS Bridge (ios_bridge)           │  ← Native iOS integration
 //! ├─────────────────────────────────────┤
 //! │   Core Library (amp_core)           │  ← Parking correlation engine
 //! └─────────────────────────────────────┘
@@ -118,24 +118,20 @@
 //! # }
 //! ```
 //!
-//! # ios Integration
+//! # iOS Integration
 //!
-//! ## JNI Bridge
+//! ## Native Bridge
 //!
-//! The [`ios_bridge`] module exposes Rust functions to Kotlin/Java:
+//! The [`ios_bridge`] module provides native iOS functionality via objc2:
 //!
-//! ```kotlin
-//! // Kotlin example
-//! class MainActivity : ComponentActivity() {
-//!     external fun rustInitialize(): Boolean
-//!     external fun rustSearchAddress(address: String): String
+//! ```no_run
+//! use amp_ios::ios_bridge;
 //!
-//!     companion object {
-//!         init {
-//!             System.loadLibrary("amp_ios")
-//!         }
-//!     }
-//! }
+//! // Request notification permission
+//! ios_bridge::request_notification_permission();
+//!
+//! // Open a URL in Safari
+//! ios_bridge::open_url("https://example.com");
 //! ```
 //!
 //! ## File System Access

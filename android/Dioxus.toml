@@ -3,7 +3,7 @@ name = "amp"
 version = "1.0.0"
 out_dir = "/home/albin/Documents/"
 default_platform = "mobile"
-asset_dir = "assets"
+asset_dir = "../assets"
 
 [bundle]
 publisher = "Skäggbyrån Malmö"

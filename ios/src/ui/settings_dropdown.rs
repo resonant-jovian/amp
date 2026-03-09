@@ -6,7 +6,7 @@ use crate::components::settings::{
 };
 use crate::components::storage::{get_local_storage_path, import_local_from_path};
 use crate::components::translations::t;
-use crate::ios_bridge::{export_file_jni, import_file_jni, open_url};
+use crate::ios_bridge::{export_file, import_file, open_url};
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
@@ -148,7 +148,7 @@ pub fn SettingsDropdown(
     let handle_export_addresses = move |_| {
         spawn(async move {
             match get_local_storage_path() {
-                Ok(path) => match export_file_jni(&path, "local.parquet") {
+                Ok(path) => match export_file(&path, "local.parquet") {
                     Ok(()) => {
                         success_message.set(
                             t("msg.export_success.addresses", &settings().language).to_string(),
@@ -179,7 +179,7 @@ pub fn SettingsDropdown(
     let handle_export_settings = move |_| {
         spawn(async move {
             match get_settings_storage_path() {
-                Ok(path) => match export_file_jni(&path, "settings.parquet") {
+                Ok(path) => match export_file(&path, "settings.parquet") {
                     Ok(()) => {
                         success_message.set(
                             t("msg.export_success.settings", &settings().language).to_string(),
@@ -219,7 +219,7 @@ pub fn SettingsDropdown(
         show_overwrite_warning.set(false);
         let import_type = pending_import_type();
         spawn(async move {
-            match import_file_jni() {
+            match import_file() {
                 Ok(Some(temp_path)) => {
                     let result = match import_type {
                         ImportType::Addresses => import_local_from_path(&temp_path),

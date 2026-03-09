@@ -2,18 +2,18 @@
 //!
 //! This module provides the core logic for detecting parking restriction
 //! transitions when the app is running in background (dormant) mode.
-//! It is called from Kotlin's DormantService via JNI on an hourly schedule.
+//! On iOS, this will be called from BGTaskScheduler via Swift integration.
 //!
 //! # Flow
-//! `DormantService (Kotlin)` → JNI → `dormant_hourly_check (Rust)`
-//! → reads parquet, detects transitions → returns JSON
-//! → `DormantService` → `NotificationHelper.showNotification()`
+//! `BGTaskScheduler (Swift)` → `dormant_hourly_check (Rust)`
+//! → reads parquet, detects transitions → returns notifications
+//! → `ios_bridge::send_notification()`
 use crate::components::countdown::TimeBucket;
 use crate::components::settings::load_settings;
 use crate::components::storage::read_addresses_from_device;
 use crate::components::transitions::detect_transitions;
 use serde::Serialize;
-/// Notification data returned to Kotlin for display
+/// Notification data returned for display
 #[derive(Clone, Debug, Serialize)]
 #[allow(dead_code)]
 pub struct DormantNotification {
@@ -119,67 +119,6 @@ pub fn dormant_hourly_check(storage_path: &str) -> Vec<DormantNotification> {
     }
     eprintln!("[Dormant] Returning {} notifications", notifications.len());
     notifications
-}
-#[cfg(target_os = "ios")]
-use jni::JNIEnv;
-#[cfg(target_os = "ios")]
-use jni::objects::{JClass, JString};
-#[cfg(target_os = "ios")]
-use jni::sys::jstring;
-/// JNI: Called by DormantBridge.dormantCheck(storagePath)
-///
-/// Returns a JSON string with notification data:
-/// `[{"channel_id":"amp_active","notification_id":123,"title":"...","body":"..."}]`
-#[cfg(target_os = "ios")]
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_se_malmo_skaggbyran_amp_DormantBridge_dormantCheck<'local>(
-    mut env: JNIEnv<'local>,
-    _class: JClass<'local>,
-    storage_path: JString<'local>,
-) -> jstring {
-    let path: String = match env.get_string(&storage_path) {
-        Ok(s) => s.into(),
-        Err(e) => {
-            eprintln!("[Dormant JNI] Failed to get storage path string: {:?}", e);
-            let empty = env.new_string("[]").expect("Failed to create empty JSON");
-            return empty.into_raw();
-        }
-    };
-    let notifications = dormant_hourly_check(&path);
-    let json = match serde_json::to_string(&notifications) {
-        Ok(j) => j,
-        Err(e) => {
-            eprintln!("[Dormant JNI] Failed to serialize notifications: {:?}", e);
-            "[]".to_string()
-        }
-    };
-    eprintln!("[Dormant JNI] Returning JSON: {}", json);
-    let output = env
-        .new_string(&json)
-        .expect("Failed to create JSON output string");
-    output.into_raw()
-}
-/// JNI: Called by DormantBridge.initDormantStorage(storagePath)
-///
-/// Sets the APP_FILES_DIR environment variable for Rust storage modules.
-#[cfg(target_os = "ios")]
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_se_malmo_skaggbyran_amp_DormantBridge_initDormantStorage<'local>(
-    mut env: JNIEnv<'local>,
-    _class: JClass<'local>,
-    storage_path: JString<'local>,
-) {
-    let path: String = match env.get_string(&storage_path) {
-        Ok(s) => s.into(),
-        Err(e) => {
-            eprintln!("[Dormant JNI] Failed to get storage path string: {:?}", e);
-            return;
-        }
-    };
-    eprintln!("[Dormant JNI] Setting APP_FILES_DIR={}", path);
-    unsafe {
-        std::env::set_var("APP_FILES_DIR", &path);
-    }
 }
 #[cfg(test)]
 mod tests {
