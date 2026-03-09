@@ -18,6 +18,4 @@ keystore.properties
 /ios/settings.parquet
 /ios/notification_state.parquet
 adb_logcat.txt
-/android/assets/*
-/ios/assets/*
 /icon

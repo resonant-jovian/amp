@@ -17,17 +17,32 @@
 //! }
 //!
 //! // Initialize notifications
-//! ios_bridge::initialize_notification_channels_jni();
+//! ios_bridge::initialize_notification_channels();
 //! ```
 /// Request notification permission from user
 ///
 /// For iOS 13+: Shows system permission dialog via UNUserNotificationCenter
 /// For iOS <13: No-op (permission not required)
 #[allow(dead_code)]
-pub fn request_notification_permission_jni() {
+pub fn request_notification_permission() {
     #[cfg(target_os = "ios")]
     {
-        eprintln!("[iOS Bridge] request_notification_permission_jni: stub");
+        use objc2::msg_send;
+        use objc2::runtime::AnyObject;
+        unsafe {
+            let center_class = objc2::class!(UNUserNotificationCenter);
+            let center: *mut AnyObject = msg_send![center_class, currentNotificationCenter];
+            if center.is_null() {
+                eprintln!("[iOS Bridge] request_notification_permission: center nil");
+                return;
+            }
+            let options: u64 = 7;
+            let _: () = msg_send![
+                center, requestAuthorizationWithOptions : options completionHandler :
+                std::ptr::null::< AnyObject > ()
+            ];
+            eprintln!("[iOS Bridge] Notification permission requested (async, handler not wired)",);
+        }
     }
     #[cfg(not(target_os = "ios"))]
     {
@@ -36,16 +51,50 @@ pub fn request_notification_permission_jni() {
 }
 /// Initialize iOS notification channels
 ///
-/// On iOS, notification categories replace Android's channels.
+/// On iOS, notification categories serve as notification groupings.
 /// Uses UNUserNotificationCenter to register notification categories.
 ///
 /// # Platform Behavior
 /// - **iOS**: Stub — TODO implement with objc2-user-notifications
 /// - **Other platforms**: Mock implementation logs only
-pub fn initialize_notification_channels_jni() {
+pub fn initialize_notification_channels() {
     #[cfg(target_os = "ios")]
     {
-        eprintln!("[iOS Bridge] initialize_notification_channels_jni: stub");
+        use objc2::msg_send;
+        use objc2::runtime::AnyObject;
+        use std::ffi::CString;
+        unsafe {
+            let center_class = objc2::class!(UNUserNotificationCenter);
+            let center: *mut AnyObject = msg_send![center_class, currentNotificationCenter];
+            if center.is_null() {
+                eprintln!("[iOS Bridge] UNUserNotificationCenter unavailable");
+                return;
+            }
+            let cat_class = objc2::class!(UNNotificationCategory);
+            let mut categories: Vec<*mut AnyObject> = Vec::new();
+            for id_str in &["amp_active", "amp_six_hours", "amp_one_day"] {
+                let c_id = CString::new(*id_str).unwrap_or_default();
+                let ns_id: *mut AnyObject = msg_send![
+                    objc2::class!(NSString), stringWithUTF8String : c_id.as_ptr()
+                ];
+                let empty_array: *mut AnyObject = msg_send![objc2::class!(NSArray), array];
+                let cat: *mut AnyObject = msg_send![
+                    cat_class, categoryWithIdentifier : ns_id actions : empty_array
+                    intentIdentifiers : empty_array options : 0u64
+                ];
+                if !cat.is_null() {
+                    categories.push(cat);
+                }
+            }
+            let ns_set_class = objc2::class!(NSSet);
+            let cats_ptr = categories.as_ptr();
+            let cats_count = categories.len() as u64;
+            let ns_set: *mut AnyObject = msg_send![
+                ns_set_class, setWithObjects : cats_ptr count : cats_count
+            ];
+            let _: () = msg_send![center, setNotificationCategories : ns_set];
+            eprintln!("[iOS Bridge] UNUserNotificationCenter categories registered");
+        }
     }
     #[cfg(not(target_os = "ios"))]
     {
@@ -63,13 +112,55 @@ pub fn initialize_notification_channels_jni() {
 /// # Platform Behavior
 /// - **iOS**: Stub — TODO implement with objc2-user-notifications
 /// - **Other platforms**: Mock implementation logs parameters
-pub fn send_notification_jni(channel_id: &str, notification_id: i32, title: &str, body: &str) {
+pub fn send_notification(channel_id: &str, notification_id: i32, title: &str, body: &str) {
     #[cfg(target_os = "ios")]
     {
-        eprintln!(
-            "[iOS Bridge] send_notification_jni: channel={}, id={}, title='{}' (stub)",
-            channel_id, notification_id, title,
-        );
+        use objc2::msg_send;
+        use objc2::runtime::AnyObject;
+        use std::ffi::CString;
+        unsafe {
+            let center_class = objc2::class!(UNUserNotificationCenter);
+            let center: *mut AnyObject = msg_send![center_class, currentNotificationCenter];
+            if center.is_null() {
+                eprintln!("[iOS Bridge] send_notification: center nil");
+                return;
+            }
+            let content_class = objc2::class!(UNMutableNotificationContent);
+            let content: *mut AnyObject = msg_send![content_class, new];
+            let c_title = CString::new(title).unwrap_or_default();
+            let ns_title: *mut AnyObject = msg_send![
+                objc2::class!(NSString), stringWithUTF8String : c_title.as_ptr()
+            ];
+            let _: () = msg_send![content, setTitle : ns_title];
+            let c_body = CString::new(body).unwrap_or_default();
+            let ns_body: *mut AnyObject = msg_send![
+                objc2::class!(NSString), stringWithUTF8String : c_body.as_ptr()
+            ];
+            let _: () = msg_send![content, setBody : ns_body];
+            let c_cat = CString::new(channel_id).unwrap_or_default();
+            let ns_cat: *mut AnyObject = msg_send![
+                objc2::class!(NSString), stringWithUTF8String : c_cat.as_ptr()
+            ];
+            let _: () = msg_send![content, setCategoryIdentifier : ns_cat];
+            let id_str = format!("{}-{}", channel_id, notification_id);
+            let c_id = CString::new(id_str).unwrap_or_default();
+            let ns_id: *mut AnyObject = msg_send![
+                objc2::class!(NSString), stringWithUTF8String : c_id.as_ptr()
+            ];
+            let req_class = objc2::class!(UNNotificationRequest);
+            let request: *mut AnyObject = msg_send![
+                req_class, requestWithIdentifier : ns_id content : content trigger :
+                std::ptr::null::< AnyObject > ()
+            ];
+            let _: () = msg_send![
+                center, addNotificationRequest : request withCompletionHandler :
+                std::ptr::null::< AnyObject > ()
+            ];
+            eprintln!(
+                "[iOS Bridge] Notification queued: channel={}, id={}",
+                channel_id, notification_id,
+            );
+        }
     }
     #[cfg(not(target_os = "ios"))]
     {
@@ -87,10 +178,10 @@ pub fn send_notification_jni(channel_id: &str, notification_id: i32, title: &str
 /// - **iOS**: Stub — TODO implement with objc2 BGTaskScheduler
 /// - **Other platforms**: No-op
 #[allow(dead_code)]
-pub fn start_dormant_service_jni() {
+pub fn start_dormant_service() {
     #[cfg(target_os = "ios")]
     {
-        eprintln!("[iOS Bridge] start_dormant_service_jni: stub");
+        eprintln!("[iOS Bridge] start_dormant_service: stub (needs BGTaskScheduler + Info.plist)",);
     }
     #[cfg(not(target_os = "ios"))]
     {
@@ -112,7 +203,7 @@ pub fn start_dormant_service_jni() {
 pub fn read_device_gps_location() -> Option<(f64, f64)> {
     #[cfg(target_os = "ios")]
     {
-        eprintln!("[iOS Bridge] read_device_gps_location: stub");
+        eprintln!("[iOS Bridge] read_device_gps_location: stub (needs CLLocationManager delegate)",);
         None
     }
     #[cfg(not(target_os = "ios"))]
@@ -129,7 +220,28 @@ pub fn read_device_gps_location() -> Option<(f64, f64)> {
 pub fn get_device_info() -> String {
     #[cfg(target_os = "ios")]
     {
-        "Unknown iOS Device".to_string()
+        use objc2::msg_send;
+        use objc2::runtime::AnyObject;
+        use std::ffi::CStr;
+        unsafe {
+            let device_class = objc2::class!(UIDevice);
+            let device: *mut AnyObject = msg_send![device_class, currentDevice];
+            if device.is_null() {
+                return "Unknown iOS Device".to_string();
+            }
+            let model: *mut AnyObject = msg_send![device, model];
+            if model.is_null() {
+                return "Unknown iOS Device".to_string();
+            }
+            let bytes: *const std::os::raw::c_char = msg_send![model, UTF8String];
+            if bytes.is_null() {
+                return "Unknown iOS Device".to_string();
+            }
+            CStr::from_ptr(bytes)
+                .to_str()
+                .unwrap_or("Unknown iOS Device")
+                .to_string()
+        }
     }
     #[cfg(not(target_os = "ios"))]
     {
@@ -144,10 +256,29 @@ pub fn get_device_info() -> String {
 pub fn open_url(url: &str) {
     #[cfg(target_os = "ios")]
     {
-        eprintln!(
-            "[iOS Bridge] open_url: {} (TODO: wire up UIApplication)",
-            url
-        );
+        use objc2::msg_send;
+        use objc2::runtime::AnyObject;
+        use std::ffi::CString;
+        unsafe {
+            let ns_string_class = objc2::class!(NSString);
+            let c_url = CString::new(url).unwrap_or_default();
+            let ns_url_str: *mut AnyObject = msg_send![
+                ns_string_class, stringWithUTF8String : c_url.as_ptr()
+            ];
+            let nsurl_class = objc2::class!(NSURL);
+            let ns_url: *mut AnyObject = msg_send![
+                nsurl_class, URLWithString : ns_url_str
+            ];
+            if ns_url.is_null() {
+                eprintln!("[iOS Bridge] open_url: invalid URL: {}", url);
+                return;
+            }
+            let app_class = objc2::class!(UIApplication);
+            let shared_app: *mut AnyObject = msg_send![app_class, sharedApplication];
+            if !shared_app.is_null() {
+                let _: () = msg_send![shared_app, openURL : ns_url];
+            }
+        }
     }
     #[cfg(not(target_os = "ios"))]
     {
@@ -169,11 +300,11 @@ pub fn open_url(url: &str) {
 /// # Platform Behavior
 /// - **iOS**: Stub — TODO implement with objc2 UIDocumentPickerViewController
 /// - **Other platforms**: Mock implementation (always errors)
-pub fn export_file_jni(source_path: &str, suggested_name: &str) -> Result<(), String> {
+pub fn export_file(source_path: &str, suggested_name: &str) -> Result<(), String> {
     #[cfg(target_os = "ios")]
     {
         eprintln!(
-            "[iOS Bridge] export_file_jni: source={}, name={} (stub)",
+            "[iOS Bridge] export_file: source={}, name={} (stub, needs UIViewController)",
             source_path, suggested_name,
         );
         Err("Export not yet implemented for iOS".to_string())
@@ -181,7 +312,7 @@ pub fn export_file_jni(source_path: &str, suggested_name: &str) -> Result<(), St
     #[cfg(not(target_os = "ios"))]
     {
         eprintln!(
-            "[Mock iOS Bridge] export_file_jni: source={}, name={}",
+            "[Mock iOS Bridge] export_file: source={}, name={}",
             source_path, suggested_name,
         );
         Err("Export not supported on this platform".to_string())
@@ -199,15 +330,15 @@ pub fn export_file_jni(source_path: &str, suggested_name: &str) -> Result<(), St
 /// # Platform Behavior
 /// - **iOS**: Stub — TODO implement with objc2 UIDocumentPickerViewController
 /// - **Other platforms**: Mock implementation (always returns None)
-pub fn import_file_jni() -> Result<Option<String>, String> {
+pub fn import_file() -> Result<Option<String>, String> {
     #[cfg(target_os = "ios")]
     {
-        eprintln!("[iOS Bridge] import_file_jni: stub");
+        eprintln!("[iOS Bridge] import_file: stub (needs UIViewController)");
         Ok(None)
     }
     #[cfg(not(target_os = "ios"))]
     {
-        eprintln!("[Mock iOS Bridge] import_file_jni (no-op)");
+        eprintln!("[Mock iOS Bridge] import_file (no-op)");
         Ok(None)
     }
 }
@@ -226,10 +357,10 @@ mod tests {
     }
     #[test]
     fn test_initialize_channels_no_panic() {
-        initialize_notification_channels_jni();
+        initialize_notification_channels();
     }
     #[test]
     fn test_send_notification_no_panic() {
-        send_notification_jni("amp_active", 1, "Test Title", "Test Body");
+        send_notification("amp_active", 1, "Test Title", "Test Body");
     }
 }

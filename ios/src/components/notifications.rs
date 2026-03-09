@@ -57,7 +57,7 @@ const CHANNEL_ONE_DAY: &str = "amp_one_day";
 /// initialize_notification_channels();
 /// ```
 pub fn initialize_notification_channels() {
-    crate::ios_bridge::initialize_notification_channels_jni();
+    crate::ios_bridge::initialize_notification_channels();
 }
 /// Send notification when address enters "1 day" panel
 ///
@@ -182,10 +182,10 @@ pub fn notify_active(address: &StoredAddress) {
     );
     send_notification(CHANNEL_ACTIVE, title, &body, address.id);
 }
-/// Internal: Send notification via ios_bridge to JNI
+/// Internal: Send notification via ios_bridge
 ///
 /// Routes notification requests through the ios_bridge module,
-/// which handles JNI calls to ios's NotificationManager.
+/// which handles calls to iOS UNUserNotificationCenter.
 ///
 /// # Arguments
 /// * `channel_id` - One of CHANNEL_ACTIVE, CHANNEL_SIX_HOURS, or CHANNEL_ONE_DAY
@@ -197,7 +197,7 @@ fn send_notification(channel_id: &str, title: &str, body: &str, notification_id:
         "[Notifications] Sending: channel={}, title={}, id={}",
         channel_id, title, notification_id,
     );
-    crate::ios_bridge::send_notification_jni(channel_id, notification_id as i32, title, body);
+    crate::ios_bridge::send_notification(channel_id, notification_id as i32, title, body);
 }
 #[cfg(test)]
 mod tests {

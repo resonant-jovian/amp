@@ -293,7 +293,7 @@ name = "amp"
 version = "1.0.0"
 out_dir = "/home/albin/Documents/"
 default_platform = "mobile"
-asset_dir = "assets"
+asset_dir = "../assets"
 
 [bundle]
 publisher = "Skäggbyrån Malmö"
@@ -754,170 +754,133 @@ STYLES_EOF
 }
 # ========== END NOTIFICATION SETUP ==========
 
-# Build with Dioxus (generates fresh gradle files)
-echo "📦 Building APK with Dioxus..."
-if ! dx build --android --release --verbose; then
-    echo ""
-    echo "⚠️  First build failed, applying fixes and retrying..."
-    echo ""
-
-    # FIX: Update generated gradle files for Java 21
+# ========== PATCH HELPER FUNCTIONS ==========
+patch_java21_gradle() {
     echo "🔧 Fixing generated gradle files for Java 21..."
 
-    if [ -d "$ANDROID_DIR" ]; then
-        # Fix root build.gradle.kts (parent level)
-        ROOT_BUILD_GRADLE="$(dirname "$ANDROID_DIR")/build.gradle.kts"
-        if [ -f "$ROOT_BUILD_GRADLE" ]; then
-            echo "  Patching: build.gradle.kts (root)"
-            sed -i 's/VERSION_1_8/VERSION_21/g' "$ROOT_BUILD_GRADLE" 2>/dev/null || true
-            sed -i 's/jvmTarget = "1.8"/jvmTarget = "21"/g' "$ROOT_BUILD_GRADLE" 2>/dev/null || true
-            echo "✓ Fixed root build.gradle.kts"
+    # Fix root build.gradle.kts (parent level)
+    local ROOT_BUILD_GRADLE="$(dirname "$ANDROID_DIR")/build.gradle.kts"
+    if [ -f "$ROOT_BUILD_GRADLE" ]; then
+        echo "  Patching: build.gradle.kts (root)"
+        sed -i 's/VERSION_1_8/VERSION_21/g' "$ROOT_BUILD_GRADLE" 2>/dev/null || true
+        sed -i 's/jvmTarget = "1.8"/jvmTarget = "21"/g' "$ROOT_BUILD_GRADLE" 2>/dev/null || true
+        echo "✓ Fixed root build.gradle.kts"
+    fi
+
+    # Fix app/build.gradle.kts (CRITICAL - comprehensive fix)
+    if [ -f "$ANDROID_DIR/build.gradle.kts" ]; then
+        echo "  Patching: build.gradle.kts (app module)"
+
+        # Fix ALL Java version references
+        sed -i 's/VERSION_1_8/VERSION_21/g' "$ANDROID_DIR/build.gradle.kts" 2>/dev/null || true
+        sed -i 's/JavaVersion\.VERSION_1_8/JavaVersion.VERSION_21/g' "$ANDROID_DIR/build.gradle.kts" 2>/dev/null || true
+
+        # Fix Kotlin JVM target
+        sed -i 's/jvmTarget = "1.8"/jvmTarget = "21"/g' "$ANDROID_DIR/build.gradle.kts" 2>/dev/null || true
+
+        # CRITICAL: Fix compileOptions block (AGP's Java compiler settings)
+        if grep -q "compileOptions {" "$ANDROID_DIR/build.gradle.kts"; then
+            sed -i '/compileOptions {/,/}/ {
+                s/sourceCompatibility = JavaVersion\.VERSION_1_8/sourceCompatibility = JavaVersion.VERSION_21/g
+                s/targetCompatibility = JavaVersion\.VERSION_1_8/targetCompatibility = JavaVersion.VERSION_21/g
+            }' "$ANDROID_DIR/build.gradle.kts" 2>/dev/null || true
+        fi
+        if ! grep -q "compileOptions {" "$ANDROID_DIR/build.gradle.kts"; then
+            echo "    📝 Injecting compileOptions block..."
+            sed -i '/^android {/a\    compileOptions {\n        sourceCompatibility = JavaVersion.VERSION_21\n        targetCompatibility = JavaVersion.VERSION_21\n    }' "$ANDROID_DIR/build.gradle.kts"
+            echo "    ✓ Injected compileOptions with Java 21"
+        fi
+        echo "✓ Fixed app/build.gradle.kts (Java + Kotlin)"
+    fi
+
+    # Verify the fixes worked
+    echo ""
+    echo "📋 Verifying fixes:"
+    if [ -f "$ANDROID_DIR/build.gradle.kts" ]; then
+        if grep -q "VERSION_21\|jvmTarget = \"21\"" "$ANDROID_DIR/build.gradle.kts"; then
+            echo "✓ App build.gradle.kts uses Java 21"
+        else
+            echo "⚠️  App build.gradle.kts may not be fixed"
+        fi
+    fi
+}
+
+fix_manifest_extract_native() {
+    echo "🔧 Fixing Android manifest extractNativeLibs..."
+    local MANIFEST_FILE="$ANDROID_DIR/src/main/AndroidManifest.xml"
+    if [ -f "$MANIFEST_FILE" ]; then
+        sed -i 's/ android:extractNativeLibs="false"//g' "$MANIFEST_FILE"
+        sed -i 's/ android:extractNativeLibs="true"//g' "$MANIFEST_FILE"
+        echo "✓ Fixed manifest extractNativeLibs"
+    fi
+}
+
+inject_icons() {
+    echo "🎨 Injecting custom app icons..."
+
+    local RES_DIR="$ANDROID_DIR/src/main/res"
+    local ICON_SOURCE="$REPO_ROOT/assets/icon"
+    local MANIFEST_FILE="$ANDROID_DIR/src/main/AndroidManifest.xml"
+
+    # 1. CRITICAL: Remove ALL existing ic_launcher* files
+    echo "  🗑️  Removing all existing ic_launcher* files..."
+    find "$RES_DIR" -type f \
+      \( -name "ic_launcher.png" -o \
+         -name "ic_launcher.webp" -o \
+         -name "ic_launcher_round.*" -o \
+         -name "ic_launcher_foreground.*" -o \
+         -name "ic_launcher_background.*" -o \
+         -name "ic_launcher.xml" \) \
+      -delete 2>/dev/null || true
+    echo "  ✓ Removed all auto-generated launcher icons"
+
+    # 2. Create mipmap directories
+    mkdir -p "$RES_DIR/mipmap-mdpi" \
+             "$RES_DIR/mipmap-hdpi" \
+             "$RES_DIR/mipmap-xhdpi" \
+             "$RES_DIR/mipmap-xxhdpi" \
+             "$RES_DIR/mipmap-xxxhdpi"
+
+    # 3. Copy PNG icons
+    [ -f "$ICON_SOURCE/icon-mdpi.png" ] && cp "$ICON_SOURCE/icon-mdpi.png" "$RES_DIR/mipmap-mdpi/ic_launcher.png" && echo "  ✓ Copied mdpi icon (48x48)"
+    [ -f "$ICON_SOURCE/icon-hdpi.png" ] && cp "$ICON_SOURCE/icon-hdpi.png" "$RES_DIR/mipmap-hdpi/ic_launcher.png" && echo "  ✓ Copied hdpi icon (72x72)"
+    [ -f "$ICON_SOURCE/icon-xhdpi.png" ] && cp "$ICON_SOURCE/icon-xhdpi.png" "$RES_DIR/mipmap-xhdpi/ic_launcher.png" && echo "  ✓ Copied xhdpi icon (96x96)"
+    [ -f "$ICON_SOURCE/icon-xxhdpi.png" ] && cp "$ICON_SOURCE/icon-xxhdpi.png" "$RES_DIR/mipmap-xxhdpi/ic_launcher.png" && echo "  ✓ Copied xxhdpi icon (144x144)"
+    [ -f "$ICON_SOURCE/icon-xxxhdpi.png" ] && cp "$ICON_SOURCE/icon-xxxhdpi.png" "$RES_DIR/mipmap-xxxhdpi/ic_launcher.png" && echo "  ✓ Copied xxxhdpi icon (192x192)"
+
+    echo "  ✅ Custom launcher icons injected"
+
+    # 4. Force manifest to use mipmap
+    echo ""
+    echo "🔧 Forcing AndroidManifest.xml to use @mipmap/ic_launcher..."
+
+    if [ -f "$MANIFEST_FILE" ]; then
+        if grep -q 'android:icon=' "$MANIFEST_FILE"; then
+            sed -i 's/android:icon="[^"]*"/android:icon="@mipmap\/ic_launcher"/' "$MANIFEST_FILE"
+            echo "  ✓ Updated android:icon"
+        else
+            sed -i 's/<application /<application android:icon="@mipmap\/ic_launcher" /' "$MANIFEST_FILE"
+            echo "  ✓ Added android:icon"
         fi
 
-        # Fix app/build.gradle.kts (CRITICAL - comprehensive fix)
-        if [ -f "$ANDROID_DIR/build.gradle.kts" ]; then
-            echo "  Patching: build.gradle.kts (app module)"
-
-            # Fix ALL Java version references
-            sed -i 's/VERSION_1_8/VERSION_21/g' "$ANDROID_DIR/build.gradle.kts" 2>/dev/null || true
-            sed -i 's/JavaVersion\.VERSION_1_8/JavaVersion.VERSION_21/g' "$ANDROID_DIR/build.gradle.kts" 2>/dev/null || true
-
-            # Fix Kotlin JVM target
-            sed -i 's/jvmTarget = "1.8"/jvmTarget = "21"/g' "$ANDROID_DIR/build.gradle.kts" 2>/dev/null || true
-
-            # CRITICAL: Fix compileOptions block (AGP's Java compiler settings)
-            if grep -q "compileOptions {" "$ANDROID_DIR/build.gradle.kts"; then
-                sed -i '/compileOptions {/,/}/ {
-                    s/sourceCompatibility = JavaVersion\.VERSION_1_8/sourceCompatibility = JavaVersion.VERSION_21/g
-                    s/targetCompatibility = JavaVersion\.VERSION_1_8/targetCompatibility = JavaVersion.VERSION_21/g
-                }' "$ANDROID_DIR/build.gradle.kts" 2>/dev/null || true
-            fi
-            if ! grep -q "compileOptions {" "$ANDROID_DIR/build.gradle.kts"; then
-                echo "    📝 Injecting compileOptions block..."
-                sed -i '/^android {/a\    compileOptions {\n        sourceCompatibility = JavaVersion.VERSION_21\n        targetCompatibility = JavaVersion.VERSION_21\n    }' "$ANDROID_DIR/build.gradle.kts"
-                echo "    ✓ Injected compileOptions with Java 21"
-            fi
-            echo "✓ Fixed app/build.gradle.kts (Java + Kotlin)"
-        fi
-
-        # Verify the fixes worked
-        echo ""
-        echo "📋 Verifying fixes:"
-
-        if [ -f "$ANDROID_DIR/build.gradle.kts" ]; then
-            if grep -q "VERSION_21\|jvmTarget = \"21\"" "$ANDROID_DIR/build.gradle.kts"; then
-                echo "✓ App build.gradle.kts uses Java 21"
-            else
-                echo "⚠️  App build.gradle.kts may not be fixed"
-            fi
-        fi
-
-        # Fix Android manifest extractNativeLibs issue
-        echo ""
-        echo "🔧 Fixing Android manifest issues..."
-        MANIFEST_FILE="$ANDROID_DIR/src/main/AndroidManifest.xml"
-        if [ -f "$MANIFEST_FILE" ]; then
-            if grep -q 'android:extractNativeLibs="false"' "$MANIFEST_FILE"; then
-                echo "  Removing deprecated extractNativeLibs attribute..."
-                sed -i 's/ android:extractNativeLibs="false"//g' "$MANIFEST_FILE"
-                echo "✓ Fixed manifest extractNativeLibs"
-            fi
-            if grep -q 'android:extractNativeLibs="true"' "$MANIFEST_FILE"; then
-                echo "  Removing extractNativeLibs=true attribute..."
-                sed -i 's/ android:extractNativeLibs="true"//g' "$MANIFEST_FILE"
-                echo "✓ Removed extractNativeLibs attribute"
-            fi
-        fi
-
-        # ========== INJECT NOTIFICATION SETUP HERE ==========
-        setup_notifications
-        # ========== END NOTIFICATION SETUP ==========
-
-        # ========== INJECT CUSTOM APP ICONS (AGGRESSIVE OVERRIDE) ==========
-        echo ""
-        echo "🎨 Injecting custom app icons..."
-
-        RES_DIR="$ANDROID_DIR/src/main/res"
-        ICON_SOURCE="$REPO_ROOT/assets/icon"
-
-        # 1. CRITICAL: Remove ALL existing ic_launcher* files
-        echo "  🗑️  Removing all existing ic_launcher* files..."
-        find "$RES_DIR" -type f \
-          \( -name "ic_launcher.png" -o \
-             -name "ic_launcher.webp" -o \
-             -name "ic_launcher_round.*" -o \
-             -name "ic_launcher_foreground.*" -o \
-             -name "ic_launcher_background.*" -o \
-             -name "ic_launcher.xml" \) \
-          -delete 2>/dev/null || true
-        echo "  ✓ Removed all auto-generated launcher icons"
-
-        # 2. Create mipmap directories
-        mkdir -p "$RES_DIR/mipmap-mdpi" \
-                 "$RES_DIR/mipmap-hdpi" \
-                 "$RES_DIR/mipmap-xhdpi" \
-                 "$RES_DIR/mipmap-xxhdpi" \
-                 "$RES_DIR/mipmap-xxxhdpi"
-
-        # 3. Copy PNG icons
-        if [ -f "$ICON_SOURCE/icon-mdpi.png" ]; then
-            cp "$ICON_SOURCE/icon-mdpi.png" "$RES_DIR/mipmap-mdpi/ic_launcher.png"
-            echo "  ✓ Copied mdpi icon (48x48)"
-        fi
-
-        if [ -f "$ICON_SOURCE/icon-hdpi.png" ]; then
-            cp "$ICON_SOURCE/icon-hdpi.png" "$RES_DIR/mipmap-hdpi/ic_launcher.png"
-            echo "  ✓ Copied hdpi icon (72x72)"
-        fi
-
-        if [ -f "$ICON_SOURCE/icon-xhdpi.png" ]; then
-            cp "$ICON_SOURCE/icon-xhdpi.png" "$RES_DIR/mipmap-xhdpi/ic_launcher.png"
-            echo "  ✓ Copied xhdpi icon (96x96)"
-        fi
-
-        if [ -f "$ICON_SOURCE/icon-xxhdpi.png" ]; then
-            cp "$ICON_SOURCE/icon-xxhdpi.png" "$RES_DIR/mipmap-xxhdpi/ic_launcher.png"
-            echo "  ✓ Copied xxhdpi icon (144x144)"
-        fi
-
-        if [ -f "$ICON_SOURCE/icon-xxxhdpi.png" ]; then
-            cp "$ICON_SOURCE/icon-xxxhdpi.png" "$RES_DIR/mipmap-xxxhdpi/ic_launcher.png"
-            echo "  ✓ Copied xxxhdpi icon (192x192)"
-        fi
-
-        echo "  ✅ Custom launcher icons injected"
-
-        # 4. Force manifest to use mipmap
-        echo ""
-        echo "🔧 Forcing AndroidManifest.xml to use @mipmap/ic_launcher..."
-
-        if [ -f "$MANIFEST_FILE" ]; then
-            if grep -q 'android:icon=' "$MANIFEST_FILE"; then
-                sed -i 's/android:icon="[^"]*"/android:icon="@mipmap\/ic_launcher"/' "$MANIFEST_FILE"
-                echo "  ✓ Updated android:icon"
-            else
-                sed -i 's/<application /<application android:icon="@mipmap\/ic_launcher" /' "$MANIFEST_FILE"
-                echo "  ✓ Added android:icon"
-            fi
-
-            if grep -q 'android:roundIcon=' "$MANIFEST_FILE"; then
-                sed -i 's/ android:roundIcon="[^"]*"//g' "$MANIFEST_FILE"
-                echo "  ✓ Removed roundIcon"
-            fi
-
-            echo ""
-            echo "  📋 Manifest <application> tag:"
-            grep -A 3 "<application" "$MANIFEST_FILE" | head -n 4
+        if grep -q 'android:roundIcon=' "$MANIFEST_FILE"; then
+            sed -i 's/ android:roundIcon="[^"]*"//g' "$MANIFEST_FILE"
+            echo "  ✓ Removed roundIcon"
         fi
 
         echo ""
-        echo "✅ Icon injection complete!"
-        # ========== END ICON INJECTION ==========
+        echo "  📋 Manifest <application> tag:"
+        grep -A 3 "<application" "$MANIFEST_FILE" | head -n 4
+    fi
 
-        # Create/update gradle.properties
-        echo "🔧 Updating gradle.properties..."
-        GRADLE_PROPS="$ANDROID_DIR/gradle.properties"
-        cat >> "$GRADLE_PROPS" << 'GRADLE_EOF'
+    echo ""
+    echo "✅ Icon injection complete!"
+}
+
+update_gradle_properties() {
+    echo "🔧 Updating gradle.properties..."
+    local GRADLE_PROPS="$ANDROID_DIR/gradle.properties"
+    cat >> "$GRADLE_PROPS" << 'GRADLE_EOF'
 
 # Suppress Java 8 deprecation warnings
 android.javaCompile.suppressSourceTargetDeprecationWarning=true
@@ -932,48 +895,62 @@ org.gradle.jvmargs=-Xmx4096m
 org.gradle.parallel=true
 org.gradle.caching=true
 GRADLE_EOF
-        echo "✓ Updated gradle.properties"
+    echo "✓ Updated gradle.properties"
+}
+# ========== END PATCH HELPERS ==========
 
-        # Clean gradle cache
-        echo "🧹 Cleaning gradle cache..."
-        rm -rf -- "$ANDROID_DIR/.gradle" 2>/dev/null || true
-        pkill -9 gradle java 2>/dev/null || true
-        sleep 2
+# Generate Gradle project — always continue even if dx fails
+echo "📦 Running dx build to generate Gradle project..."
+dx build --android --release --verbose || true
 
-        # Rebuild with gradle
-        echo ""
-        echo "📦 Rebuilding with fixed configuration..."
-        # Navigate to the PARENT directory (where Gradle multi-build expects to be)
-        GRADLE_ROOT="$(dirname "$ANDROID_DIR")"
-        if ! "$GRADLE_ROOT/gradlew" -p "$GRADLE_ROOT" clean assembleRelease -x lintVitalAnalyzeRelease -x lintVitalRelease -x lintVitalReportRelease 2>&1 | tee /tmp/gradle_build.log; then
-            echo ""
-            echo "❌ Gradle build failed after fixes"
-            echo "⚠️  Build log saved to /tmp/gradle_build.log"
-
-            if [ -n "$DIOXUS_BACKUP" ] && [ -f "$DIOXUS_BACKUP" ]; then
-                echo ""
-                echo "🔄 Restoring Dioxus.toml..."
-                cp -- "$DIOXUS_BACKUP" "Dioxus.toml"
-                rm -f -- "$DIOXUS_BACKUP"
-            fi
-
-            exit 1
-        fi
-        echo ""
-        echo "✅ BUILD SUCCESSFUL!"
-    else
-        echo "❌ Android directory not created: $ANDROID_DIR"
-        exit 1
-    fi
-else
-    echo ""
-    echo "✓ Dioxus build completed successfully on first try!"
-    
-    # Even on success, run notification setup if it hasn't been done
-    if [ -d "$ANDROID_DIR" ]; then
-        setup_notifications
-    fi
+if [ ! -d "$ANDROID_DIR" ]; then
+    echo "❌ Android directory not created by dx build"
+    exit 1
 fi
+
+# ALWAYS apply all patches and inject
+echo ""
+patch_java21_gradle
+
+echo ""
+fix_manifest_extract_native
+
+echo ""
+echo "🔔 Setting up notification system..."
+setup_notifications
+
+echo ""
+inject_icons
+
+echo ""
+update_gradle_properties
+
+# Clean gradle cache before rebuild
+echo "🧹 Cleaning gradle cache..."
+rm -rf -- "$ANDROID_DIR/.gradle" 2>/dev/null || true
+pkill -9 gradle java 2>/dev/null || true
+sleep 2
+
+# ALWAYS rebuild with Gradle (compiles injected Kotlin + our fixes)
+echo ""
+echo "📦 Building final APK with Gradle..."
+GRADLE_ROOT="$(dirname "$ANDROID_DIR")"
+if ! "$GRADLE_ROOT/gradlew" -p "$GRADLE_ROOT" clean assembleRelease -x lintVitalAnalyzeRelease -x lintVitalRelease -x lintVitalReportRelease 2>&1 | tee /tmp/gradle_build.log; then
+    echo ""
+    echo "❌ Gradle build failed"
+    echo "⚠️  Build log saved to /tmp/gradle_build.log"
+
+    if [ -n "$DIOXUS_BACKUP" ] && [ -f "$DIOXUS_BACKUP" ]; then
+        echo ""
+        echo "🔄 Restoring Dioxus.toml..."
+        cp -- "$DIOXUS_BACKUP" "Dioxus.toml"
+        rm -f -- "$DIOXUS_BACKUP"
+    fi
+
+    exit 1
+fi
+echo ""
+echo "✅ BUILD SUCCESSFUL!"
 
 # ========== POST-BUILD R8 DIAGNOSTICS ==========
 analyze_r8_output() {

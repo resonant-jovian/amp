@@ -159,7 +159,7 @@
 //! Styles are loaded from `assets/style.css` using Dioxus assets:
 //!
 //! ```rust,ignore
-//! static CSS: Asset = asset!("/assets/style.css");
+//! static CSS: Asset = asset!("/../assets/style.css");
 //!
 //! rsx! {
 //!     Stylesheet { href: CSS }
@@ -189,7 +189,7 @@ use amp_core::structs::DB;
 use dioxus::prelude::*;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
-static CSS: Asset = asset!("/assets/style.css");
+static CSS: &str = include_str!("../../../assets/style.css");
 /// Maximum Levenshtein distance for fuzzy matching
 /// Lower values = stricter matching
 const _MAX_LEVENSHTEIN_DISTANCE: usize = 3;
@@ -622,7 +622,7 @@ pub fn App() -> Element {
         "light"
     };
     rsx! {
-        Stylesheet { href: CSS }
+        style { {CSS} }
         div { id: "app-root", "data-theme": theme_attr,
             TopBar {
                 on_add_address: handle_add_address,

@@ -3,30 +3,35 @@
 //! Provides access to iOS system resources like internal storage directory
 use std::path::PathBuf;
 #[cfg(target_os = "ios")]
-/// Get iOS internal files directory
-///
-/// Returns the app's Documents directory path, suitable for persistent storage.
-///
-/// # Returns
-/// - `Ok(PathBuf)` - Path to the app's Documents directory
-/// - `Err(anyhow::Error)` - Error if not yet implemented or path unavailable
-///
-/// # Examples
-/// ```no_run
-/// let files_dir = get_ios_files_dir()?;
-/// println!("App storage: {:?}", files_dir);
-/// ```
 pub fn get_ios_files_dir() -> anyhow::Result<PathBuf> {
-    anyhow::bail!("get_ios_files_dir not yet implemented for iOS")
+    use objc2::msg_send;
+    use objc2::runtime::AnyObject;
+    use std::ffi::CStr;
+    use std::os::raw::c_char;
+    unsafe {
+        let fm_class = objc2::class!(NSFileManager);
+        let fm: *mut AnyObject = msg_send![fm_class, defaultManager];
+        anyhow::ensure!(!fm.is_null(), "NSFileManager defaultManager returned nil");
+        let urls: *mut AnyObject = msg_send![
+            fm, URLsForDirectory : 9u64 inDomains : 1u64
+        ];
+        anyhow::ensure!(!urls.is_null(), "URLsForDirectory returned nil");
+        let url: *mut AnyObject = msg_send![urls, firstObject];
+        anyhow::ensure!(!url.is_null(), "No documents directory URL");
+        let path_obj: *mut AnyObject = msg_send![url, path];
+        anyhow::ensure!(!path_obj.is_null(), "Documents URL has no file path");
+        let bytes: *const c_char = msg_send![path_obj, UTF8String];
+        anyhow::ensure!(!bytes.is_null(), "UTF8String returned nil");
+        let path_str = CStr::from_ptr(bytes)
+            .to_str()
+            .map_err(|e| anyhow::anyhow!("Path is not valid UTF-8: {}", e))?;
+        Ok(PathBuf::from(path_str))
+    }
 }
 #[cfg(not(target_os = "ios"))]
 pub fn get_ios_files_dir() -> anyhow::Result<PathBuf> {
-    anyhow::bail!("get_ios_files_dir only works on ios")
+    anyhow::bail!("get_ios_files_dir only works on iOS")
 }
-/// Initialize iOS storage directory as environment variable
-///
-/// This should be called once at app startup to set APP_FILES_DIR
-/// for use by storage and settings modules.
 #[cfg(target_os = "ios")]
 pub fn init_ios_storage() -> anyhow::Result<()> {
     let files_dir = get_ios_files_dir()?;
@@ -36,6 +41,7 @@ pub fn init_ios_storage() -> anyhow::Result<()> {
     unsafe {
         std::env::set_var("APP_FILES_DIR", files_dir_str);
     }
+    eprintln!("[iOSUtils] APP_FILES_DIR set to: {}", files_dir_str);
     Ok(())
 }
 #[cfg(not(target_os = "ios"))]
