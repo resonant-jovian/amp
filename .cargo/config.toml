@@ -1,0 +1,5 @@
+[target.x86_64-apple-ios]
+rustflags = [
+    "-C", "link-arg=-isysroot",
+    "-C", "link-arg=/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk",
+]

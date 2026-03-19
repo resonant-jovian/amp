@@ -19,3 +19,4 @@ keystore.properties
 /ios/notification_state.parquet
 adb_logcat.txt
 /icon
+*.pbxproj

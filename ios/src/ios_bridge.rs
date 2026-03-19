@@ -38,7 +38,7 @@ pub fn request_notification_permission() {
             }
             let options: u64 = 7;
             let _: () = msg_send![
-                center, requestAuthorizationWithOptions : options completionHandler :
+                center, requestAuthorizationWithOptions: options, completionHandler:
                 std::ptr::null::< AnyObject > ()
             ];
             eprintln!("[iOS Bridge] Notification permission requested (async, handler not wired)",);
@@ -79,8 +79,8 @@ pub fn initialize_notification_channels() {
                 ];
                 let empty_array: *mut AnyObject = msg_send![objc2::class!(NSArray), array];
                 let cat: *mut AnyObject = msg_send![
-                    cat_class, categoryWithIdentifier : ns_id actions : empty_array
-                    intentIdentifiers : empty_array options : 0u64
+                    cat_class, categoryWithIdentifier: ns_id, actions: empty_array,
+                    intentIdentifiers: empty_array, options: 0u64
                 ];
                 if !cat.is_null() {
                     categories.push(cat);
@@ -90,7 +90,7 @@ pub fn initialize_notification_channels() {
             let cats_ptr = categories.as_ptr();
             let cats_count = categories.len() as u64;
             let ns_set: *mut AnyObject = msg_send![
-                ns_set_class, setWithObjects : cats_ptr count : cats_count
+                ns_set_class, setWithObjects: cats_ptr, count: cats_count
             ];
             let _: () = msg_send![center, setNotificationCategories : ns_set];
             eprintln!("[iOS Bridge] UNUserNotificationCenter categories registered");
@@ -149,11 +149,11 @@ pub fn send_notification(channel_id: &str, notification_id: i32, title: &str, bo
             ];
             let req_class = objc2::class!(UNNotificationRequest);
             let request: *mut AnyObject = msg_send![
-                req_class, requestWithIdentifier : ns_id content : content trigger :
+                req_class, requestWithIdentifier: ns_id, content: content, trigger:
                 std::ptr::null::< AnyObject > ()
             ];
             let _: () = msg_send![
-                center, addNotificationRequest : request withCompletionHandler :
+                center, addNotificationRequest: request, withCompletionHandler:
                 std::ptr::null::< AnyObject > ()
             ];
             eprintln!(

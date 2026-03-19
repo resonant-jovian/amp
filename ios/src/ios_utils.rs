@@ -13,7 +13,7 @@ pub fn get_ios_files_dir() -> anyhow::Result<PathBuf> {
         let fm: *mut AnyObject = msg_send![fm_class, defaultManager];
         anyhow::ensure!(!fm.is_null(), "NSFileManager defaultManager returned nil");
         let urls: *mut AnyObject = msg_send![
-            fm, URLsForDirectory : 9u64 inDomains : 1u64
+            fm, URLsForDirectory: 9u64, inDomains: 1u64
         ];
         anyhow::ensure!(!urls.is_null(), "URLsForDirectory returned nil");
         let url: *mut AnyObject = msg_send![urls, firstObject];
