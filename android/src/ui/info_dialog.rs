@@ -2,6 +2,8 @@ use crate::components::settings::AppSettings;
 use crate::components::translations::t;
 use crate::ui::StoredAddress;
 use dioxus::prelude::*;
+use dioxus_free_icons::Icon;
+use dioxus_free_icons::icons::md_navigation_icons::MdClose;
 /// Information dialog component for displaying address details
 ///
 /// Shows comprehensive address information in a modal overlay with formatted rows.
@@ -42,7 +44,7 @@ pub fn InfoDialog(
                     button {
                         class: "modal-close-btn",
                         onclick: move |_| on_close.call(()),
-                        "×"
+                        Icon { icon: MdClose, width: 18, height: 18 }
                     }
                 }
                 div { class: "modal-body info-content",

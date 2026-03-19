@@ -11,8 +11,12 @@ use crate::ui::StoredAddress;
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::fa_brands_icons::FaDev;
-use dioxus_free_icons::icons::md_action_icons::{MdInfo, MdSettings, MdSwapHoriz};
-use dioxus_free_icons::icons::md_navigation_icons::MdExpandLess;
+use dioxus_free_icons::icons::md_action_icons::{
+    MdAlarm, MdBugReport, MdCalendarToday, MdInfo, MdSettings, MdSwapHoriz,
+};
+use dioxus_free_icons::icons::md_content_icons::MdBlock;
+use dioxus_free_icons::icons::md_file_icons::{MdFileDownload, MdFileUpload};
+use dioxus_free_icons::icons::md_navigation_icons::{MdClose, MdExpandLess};
 use dioxus_free_icons::icons::md_social_icons::MdNotificationsActive;
 use std::time::Duration;
 /// Represents which settings section is currently open
@@ -278,7 +282,7 @@ pub fn SettingsDropdown(
                     button {
                         class: "settings-close-btn",
                         onclick: move |_| on_close.call(()),
-                        "×"
+                        Icon { icon: MdClose, width: 18, height: 18 }
                     }
                 }
                 div { class: "settings-content",
@@ -294,7 +298,7 @@ pub fn SettingsDropdown(
                             onclick: move |_| {
                                 open_url("https://github.com/resonant-jovian/amp/issues/new");
                             },
-                            "💿"
+                            Icon { icon: MdBugReport, width: 18, height: 18 }
                         }
                     }
                     div { class: "settings-section",
@@ -337,7 +341,7 @@ pub fn SettingsDropdown(
                                     button {
                                         class: "btn-debug-trigger",
                                         onclick: handle_export_addresses,
-                                        "📤"
+                                        Icon { icon: MdFileUpload, width: 18, height: 18 }
                                     }
                                 }
                                 div { class: "settings-toggle-item",
@@ -352,7 +356,7 @@ pub fn SettingsDropdown(
                                     button {
                                         class: "btn-debug-trigger",
                                         onclick: handle_import_addresses_request,
-                                        "📥"
+                                        Icon { icon: MdFileDownload, width: 18, height: 18 }
                                     }
                                 }
                                 h4 { class: "info-heading",
@@ -370,7 +374,7 @@ pub fn SettingsDropdown(
                                     button {
                                         class: "btn-debug-trigger",
                                         onclick: handle_export_settings,
-                                        "📤"
+                                        Icon { icon: MdFileUpload, width: 18, height: 18 }
                                     }
                                 }
                                 div { class: "settings-toggle-item",
@@ -385,7 +389,7 @@ pub fn SettingsDropdown(
                                     button {
                                         class: "btn-debug-trigger",
                                         onclick: handle_import_settings_request,
-                                        "📥"
+                                        Icon { icon: MdFileDownload, width: 18, height: 18 }
                                     }
                                 }
                             }
@@ -806,7 +810,7 @@ pub fn SettingsDropdown(
                                     button {
                                         class: "btn-debug-trigger",
                                         onclick: move |_| trigger_active_notification(),
-                                        "🚫"
+                                        Icon { icon: MdBlock, width: 18, height: 18 }
                                     }
                                 }
                                 div { class: "settings-toggle-item",
@@ -821,7 +825,7 @@ pub fn SettingsDropdown(
                                     button {
                                         class: "btn-debug-trigger",
                                         onclick: move |_| trigger_six_hour_notification(),
-                                        "⏰"
+                                        Icon { icon: MdAlarm, width: 18, height: 18 }
                                     }
                                 }
                                 div { class: "settings-toggle-item",
@@ -836,7 +840,7 @@ pub fn SettingsDropdown(
                                     button {
                                         class: "btn-debug-trigger",
                                         onclick: move |_| trigger_one_day_notification(),
-                                        "📅"
+                                        Icon { icon: MdCalendarToday, width: 18, height: 18 }
                                     }
                                 }
                             }

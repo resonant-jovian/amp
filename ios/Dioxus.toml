@@ -23,6 +23,15 @@ resources = [
     "assets/fonts/**/*"
 ]
 
+# Info.plist keys required by native bridge implementations:
+# - NSLocationWhenInUseUsageDescription: Required for CLLocationManager (GPS)
+# - BGTaskSchedulerPermittedIdentifiers: Required for background dormant checks
+# These must be added to the generated Info.plist (via Xcode project or custom template):
+#   <key>NSLocationWhenInUseUsageDescription</key>
+#   <string>AMP needs your location to find nearby parking restrictions.</string>
+#   <key>BGTaskSchedulerPermittedIdentifiers</key>
+#   <array><string>se.malmo.skaggbyran.amp.dormant</string></array>
+
 [profile.ios-release]
 inherits = "release"
 opt-level = 3
