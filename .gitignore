@@ -15,4 +15,8 @@ keystore.properties
 /keystore.b64
 /android/settings.parquet
 /android/notification_state.parquet
+/ios/settings.parquet
+/ios/notification_state.parquet
 adb_logcat.txt
+/icon
+*.pbxproj
