@@ -12,7 +12,7 @@
 //!
 //! # Usage
 //! ```no_run
-//! use amp_android::components::debug;
+//! use amp_ios::components::debug;
 //!
 //! // Load debug addresses (automatically performs fuzzy matching)
 //! let debug_addresses = debug::load_debug_addresses();
@@ -41,7 +41,7 @@ static DEBUG_PARQUET: &[u8] = include_bytes!("../../../data/debug.parquet");
 ///
 /// # Examples
 /// ```no_run
-/// use amp_android::components::debug;
+/// use amp_ios::components::debug;
 ///
 /// let debug_addrs = debug::load_debug_addresses();
 /// println!("Loaded {} debug addresses", debug_addrs.len());

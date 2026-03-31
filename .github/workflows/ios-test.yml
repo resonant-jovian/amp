@@ -1,0 +1,37 @@
+name: iOS Build & Test
+
+on:
+  push:
+    branches: [main, feature/*, refactor/*]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ios-rust-compile:
+    name: iOS Rust Compilation (aarch64-apple-ios)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-ios-${{ hashFiles('**/Cargo.lock') }}
+      - name: Build iOS crate (aarch64-apple-ios)
+        working-directory: ./ios
+        run: cargo build --target aarch64-apple-ios --release
+
+  ios-host-tests:
+    name: iOS Host Tests (mock paths)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run iOS lib tests on host
+        working-directory: ./ios
+        run: cargo test --lib --release

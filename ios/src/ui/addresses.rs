@@ -47,7 +47,7 @@
 //! ## Basic Usage
 //!
 //! ```rust,ignore
-//! use amp_android::ui::addresses::Addresses;
+//! use amp_ios::ui::addresses::Addresses;
 //!
 //! rsx! {
 //!     Addresses {
@@ -144,8 +144,8 @@ use dioxus_free_icons::icons::md_navigation_icons::{MdClose, MdExpandLess};
 /// # Examples
 ///
 /// ```rust,ignore
-/// use amp_android::ui::addresses::Addresses;
-/// use amp_android::ui::StoredAddress;
+/// use amp_ios::ui::addresses::Addresses;
+/// use amp_ios::ui::StoredAddress;
 ///
 /// let mut addresses = use_signal::<Vec<StoredAddress>>(Vec::new());
 ///
