@@ -1,0 +1,38 @@
+[application]
+name = "amp"
+version = "1.0.0"
+out_dir = "dist"
+default_platform = "mobile"
+asset_dir = "../assets"
+
+[bundle]
+publisher = "Skäggbyrån Malmö"
+identifier = "se.malmo.skaggbyran.amp"
+icon = ["assets/icon/icon-512.png"]
+resources = [
+    "assets/style.css",
+    "assets/fonts/**/*"
+]
+
+[bundle.ios]
+publisher = "Skäggbyrån Malmö"
+identifier = "se.malmo.skaggbyran.amp"
+icon = ["assets/icon/icon-512.png"]
+resources = [
+    "assets/style.css",
+    "assets/fonts/**/*"
+]
+
+# Info.plist keys required by native bridge implementations:
+# - NSLocationWhenInUseUsageDescription: Required for CLLocationManager (GPS)
+# - BGTaskSchedulerPermittedIdentifiers: Required for background dormant checks
+# These must be added to the generated Info.plist (via Xcode project or custom template):
+#   <key>NSLocationWhenInUseUsageDescription</key>
+#   <string>AMP needs your location to find nearby parking restrictions.</string>
+#   <key>BGTaskSchedulerPermittedIdentifiers</key>
+#   <array><string>se.malmo.skaggbyran.amp.dormant</string></array>
+
+[profile.ios-release]
+inherits = "release"
+opt-level = 3
+strip = false

@@ -33,6 +33,10 @@ jobs:
         working-directory: ./android
         run: cargo fmt --all -- --check
 
+      - name: Check formatting (ios)
+        working-directory: ./ios
+        run: cargo fmt --all -- --check
+
   clippy:
     name: Clippy Lint
     runs-on: ubuntu-latest
@@ -81,6 +85,10 @@ jobs:
       
       - name: Run clippy (android)
         working-directory: ./android
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run clippy (ios)
+        working-directory: ./ios
         run: cargo clippy --all-targets --all-features -- -D warnings
 
   build:

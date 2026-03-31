@@ -34,9 +34,13 @@ cargo test -p amp_core test_db_from_dag_tid
 # Run emulator
 emulator -avd Pixel_7_API_36
 
-# Android build
-dx build --platform amp-android --release --android
-./scripts/build.sh              # setup notifications + build APK
+# Build (unified script)
+./scripts/build.sh android      # Android APK (dx + gradle + patches)
+./scripts/build.sh ios          # iOS device build (dx + Info.plist patches)
+./scripts/build.sh ios-sim      # iOS simulator build (cargo + manual bundle)
+./scripts/build.sh both         # Android + iOS device
+
+# Android manual
 adb uninstall se.malmo.skaggbyran.amp
 ./scripts/adb-install.sh
 

@@ -2,12 +2,16 @@
 
 **Address-to-Miljözone Parking** — Geospatial correlation library for Swedish environmental parking zones in Malmö.
 
-[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 [![Rust 2024](https://img.shields.io/badge/rust-2024%2B-orange)](https://www.rust-lang.org/)
+[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
+[![Support on thanks.dev](https://img.shields.io/badge/Support-thanks.dev-green)](https://thanks.dev/u/gh/resonant-jovian)
+
 [![CI](https://github.com/resonant-jovian/amp/actions/workflows/ci.yml/badge.svg)](https://github.com/resonant-jovian/amp/actions/workflows/ci.yml)
 [![Correlation Algorithms](https://github.com/resonant-jovian/amp/actions/workflows/correlation-tests.yml/badge.svg)](https://github.com/resonant-jovian/amp/actions/workflows/correlation-tests.yml)
+
 [![Server Benchmark](https://github.com/resonant-jovian/amp/actions/workflows/server-benchmark.yml/badge.svg)](https://github.com/resonant-jovian/amp/actions/workflows/server-benchmark.yml)
 [![Android Build](https://github.com/resonant-jovian/amp/actions/workflows/android-test.yml/badge.svg)](https://github.com/resonant-jovian/amp/actions/workflows/android-test.yml)
+[![iOS Build ](https://github.com/resonant-jovian/amp/actions/workflows/ios-test.yml/badge.svg)](https://github.com/resonant-jovian/amp/actions/workflows/ios-test.yml)
 
 ## Overview
 
