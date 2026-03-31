@@ -1,17 +1,24 @@
-# AMP
+<div align="center">
+
+<h1>amp</h1>
+
+[![Sponsor](https://img.shields.io/badge/Sponsor-resonant--jovian-ea4aaa?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/resonant-jovian)
+[![Support on thanks.dev](https://img.shields.io/badge/thanks.dev-Support-green?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyMWMtNS41IDAtMTAtMy41LTEwLTkgMC00IDItNy41IDYtMTAgMS41IDIuNSAzIDQuNSA0IDQuNSAxLTEuNSAyLjUtMy41IDQtNC41IDQuNSAyLjUgNiA2IDYgMTAgMCA1LjUtNC41IDktMTAgOXoiLz48L3N2Zz4=)](https://thanks.dev/u/gh/resonant-jovian)
+
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-3366cc?style=for-the-badge&logo=gnu&logoColor=white)](https://www.gnu.org/licenses/gpl-3.0)
+[![MSRV](https://img.shields.io/badge/MSRV-1.70-3366cc?style=for-the-badge&logo=rust&logoColor=white)](https://releases.rs/docs/1.70.0/)
+[![Edition](https://img.shields.io/badge/Edition-2024-3366cc?style=for-the-badge&logo=rust&logoColor=white)](https://doc.rust-lang.org/edition-guide/)
+
+[![CI](https://img.shields.io/github/actions/workflow/status/resonant-jovian/amp/ci.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=ci)](https://github.com/resonant-jovian/amp/actions/workflows/ci.yml)
+[![Correlation](https://img.shields.io/github/actions/workflow/status/resonant-jovian/amp/correlation-tests.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=correlation)](https://github.com/resonant-jovian/amp/actions/workflows/correlation-tests.yml)
+[![Benchmark](https://img.shields.io/github/actions/workflow/status/resonant-jovian/amp/server-benchmark.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=benchmark)](https://github.com/resonant-jovian/amp/actions/workflows/server-benchmark.yml)
+[![Android](https://img.shields.io/github/actions/workflow/status/resonant-jovian/amp/android-test.yml?style=for-the-badge&logo=android&logoColor=white&label=android)](https://github.com/resonant-jovian/amp/actions/workflows/android-test.yml)
+[![iOS](https://img.shields.io/github/actions/workflow/status/resonant-jovian/amp/ios-test.yml?style=for-the-badge&logo=apple&logoColor=white&label=ios)](https://github.com/resonant-jovian/amp/actions/workflows/ios-test.yml)
+
+</div>
+
 
 **Address-to-Miljözone Parking** — Geospatial correlation library for Swedish environmental parking zones in Malmö.
-
-[![Rust 2024](https://img.shields.io/badge/rust-2024%2B-orange)](https://www.rust-lang.org/)
-[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
-[![Support on thanks.dev](https://img.shields.io/badge/Support-thanks.dev-green)](https://thanks.dev/u/gh/resonant-jovian)
-
-[![CI](https://github.com/resonant-jovian/amp/actions/workflows/ci.yml/badge.svg)](https://github.com/resonant-jovian/amp/actions/workflows/ci.yml)
-[![Correlation Algorithms](https://github.com/resonant-jovian/amp/actions/workflows/correlation-tests.yml/badge.svg)](https://github.com/resonant-jovian/amp/actions/workflows/correlation-tests.yml)
-
-[![Server Benchmark](https://github.com/resonant-jovian/amp/actions/workflows/server-benchmark.yml/badge.svg)](https://github.com/resonant-jovian/amp/actions/workflows/server-benchmark.yml)
-[![Android Build](https://github.com/resonant-jovian/amp/actions/workflows/android-test.yml/badge.svg)](https://github.com/resonant-jovian/amp/actions/workflows/android-test.yml)
-[![iOS Build ](https://github.com/resonant-jovian/amp/actions/workflows/ios-test.yml/badge.svg)](https://github.com/resonant-jovian/amp/actions/workflows/ios-test.yml)
 
 ## Overview
 
